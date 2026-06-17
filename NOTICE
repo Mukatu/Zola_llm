@@ -1,0 +1,43 @@
+ZolaOS
+Copyright (C) 2026 Polaris et contributeurs.
+
+This product is licensed under the GNU Affero General Public License v3.0
+or any later version (SPDX-License-Identifier: AGPL-3.0-or-later) for its
+public core. See the LICENSE file for details.
+
+The proprietary components developed and maintained by Polaris (overlays
+cabinet, prompts secrets, fine-tuned models, report templates) are not
+distributed under the AGPL and remain the exclusive property of Polaris.
+
+==============================================================================
+Built with Llama
+==============================================================================
+
+This product includes and depends on Llama 3, a large language model
+distributed by Meta Platforms, Inc. under the Llama 3 Community License
+Agreement (https://www.llama.com/llama3/license/).
+
+Any redistribution of this product must include the "Built with Llama"
+attribution required by section 5 of the Llama 3 Community License.
+
+Models used:
+  - meta-llama/Meta-Llama-3-8B-Instruct (routeur, brigade)
+  - meta-llama/Meta-Llama-3-70B-Instruct (méta-agent planification)
+
+==============================================================================
+Other third-party attributions
+==============================================================================
+
+ZolaOS uses many open-source libraries. The complete list of dependencies and
+their respective licenses is maintained in THIRD_PARTY_LICENSES.md.
+
+Notable upstream projects:
+  - llama.cpp (MIT) — local LLM server with Vulkan/CUDA/Metal backends
+  - PostgreSQL + pgvector (PostgreSQL License) — relational + vector storage
+  - sentence-transformers (Apache 2.0) — bge-m3 embeddings runtime
+  - FastAPI (MIT), Pydantic v2 (MIT), SQLAlchemy 2.0 (MIT) — application stack
+  - structlog (Apache 2.0), OpenTelemetry (Apache 2.0) — observability
+  - python-jose (MIT), bcrypt (Apache 2.0) — security primitives
+  - openpyxl (MIT), python-docx (MIT), pypdf (BSD), Jinja2 (BSD) — documents
+
+We thank these projects and their maintainers.

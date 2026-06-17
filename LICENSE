@@ -1,0 +1,75 @@
+ZolaOS — Plateforme IA multi-agents souveraine pour la République du Congo
+Copyright (C) 2026 Polaris (cabinet de conseil opérateur) et contributeurs
+
+SPDX-License-Identifier: AGPL-3.0-or-later
+
+==============================================================================
+LICENCE DU CŒUR PUBLIC ZolaOS
+==============================================================================
+
+Le cœur public de ZolaOS — c'est-à-dire tout le code source publié dans
+`src/zolaos/` SAUF les sous-dossiers explicitement marqués comme propriétaires
+(voir la section "Composants propriétaires" plus bas) — est distribué sous
+les termes de la GNU Affero General Public License version 3 telle que
+publiée par la Free Software Foundation, soit la version 3 de la licence,
+soit (à votre choix) toute version ultérieure.
+
+Le texte complet officiel de l'AGPL v3 est disponible à :
+
+    https://www.gnu.org/licenses/agpl-3.0.txt
+
+Avant toute distribution publique de ce logiciel, le fichier `LICENSE.AGPL-3.0`
+doit être ajouté à la racine du projet en téléchargeant le texte officiel :
+
+    bash infra/scripts/fetch_full_license.sh
+
+Ce logiciel est distribué dans l'espoir qu'il sera utile, mais SANS AUCUNE
+GARANTIE ; sans même la garantie implicite de COMMERCIALISATION ou
+d'ADÉQUATION À UN BUT PARTICULIER. Voir la GNU Affero General Public License
+pour plus de détails.
+
+==============================================================================
+COMPOSANTS PROPRIÉTAIRES (NON COUVERTS PAR L'AGPL)
+==============================================================================
+
+Les composants suivants relèvent de Polaris (cabinet de conseil opérateur) et
+ne sont PAS distribués sous AGPL. Ils contiennent les méthodologies cabinet,
+prompts secrets, modèles fine-tunés et templates de rapport propriétaires :
+
+- src/zolaos/agents/polaris/        (overlays Polaris : ZolaCortex-*)
+- src/zolaos/api/v1/cortex.py       (endpoints de gestion des missions cabinet)
+- src/zolaos/reports/               (génération de rapports `.docx` cabinet)
+- agents/prompts/polaris/           (prompts système secrets cabinet)
+- modèles fine-tunés Congo          (futurs `.gguf` spécialisés par pôle)
+
+Ces composants ne sont JAMAIS distribués au client. L'architecture
+"Zero Trust Client" garantit qu'ils restent strictement sur les serveurs
+de Polaris. Voir ZOLAOS_MASTER_PLAN_V3_POLARIS_ADDENDUM.md, section 11.
+
+Ils sont protégés par le secret des affaires (Loi OHADA), le droit d'auteur
+applicable et tout dépôt OAPI effectué par Polaris.
+
+==============================================================================
+DOUBLE LICENCE COMMERCIALE (sur demande)
+==============================================================================
+
+Pour les organisations qui souhaitent intégrer le cœur ZolaOS dans un produit
+propriétaire sans se conformer aux obligations de l'AGPL v3 (notamment la
+clause d'utilisation via le réseau qui exige la publication des modifications),
+une licence commerciale alternative peut être négociée avec Polaris.
+
+Contact : licensing@polaris.cg
+
+==============================================================================
+ATTRIBUTIONS TIERCES
+==============================================================================
+
+ZolaOS dépend de nombreuses bibliothèques tierces. Le détail complet des
+licences applicables et des attributions requises figure dans :
+
+    THIRD_PARTY_LICENSES.md
+    NOTICE
+
+En particulier, ZolaOS utilise Llama 3 (Meta Platforms, Inc.) sous Llama 3
+Community License. Toute distribution doit inclure l'attribution requise
+"Built with Llama".

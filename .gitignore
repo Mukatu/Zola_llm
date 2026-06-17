@@ -1,0 +1,121 @@
+# ===== Secrets et configuration =====
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+*.p12
+*.pfx
+infra/secrets/*
+!infra/secrets/README.md
+!infra/secrets/.gitkeep
+
+# ===== Python =====
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Tests / coverage
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+coverage.xml
+*.cover
+.hypothesis/
+
+# Type checking
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.pyre/
+.pytype/
+
+# Linting
+.ruff_cache/
+
+# Virtual envs
+venv/
+.venv/
+env/
+ENV/
+
+# ===== Editeurs =====
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# ===== Docker / data =====
+data/
+volumes/
+*.log
+logs/
+
+# ===== Modèles ML =====
+models/
+*.gguf
+*.bin
+*.safetensors
+
+# ===== Documents temporaires =====
+*.tmp
+*.bak
+~$*
+
+# ===== Outils internes =====
+.claude/
+
+# ===== Actifs propriétaires Polaris (dépôt privé séparé .polaris.git) =====
+# Frontière = strip_polaris_assets.sh. Ces chemins ne sont JAMAIS suivis par le
+# dépôt public AGPL ; ils vivent dans le dépôt privé Polaris (.polaris.git).
+/src/zolaos/agents/polaris/
+/src/zolaos/api/v1/cortex.py
+/src/zolaos/reports/
+/agents/prompts/polaris/
+# Specs cabinet (stratégie globale + specs agents)
+Polaris_ZolaOS_Strategie_Globale.docx
+Polaris_ZolaOS_Strategie_Globale.extracted.txt
+ZolaOS_Agent_Conformite_RH.docx
+ZolaOS_Agent_Conformite_RH.extracted.txt
+ZolaOS_Agent_Fiscalite_Ohada.docx
+ZolaOS_Agent_Fiscalite_Ohada.extracted.txt
+# Tests dépendant des modules privés (cortex.py / overlays / reports) — dépôt privé
+/tests/test_cortex_missions.py
+/tests/test_ip_protection_guards.py
+/tests/test_polaris_all_overlays.py
+/tests/test_polaris_overlay_and_reports.py
+/tests/test_polaris_remote_overlay.py
+/tests/test_zero_trust_flow.py
+# Dépôt privé Polaris (git-dir séparé sur le même arbre de travail)
+.polaris.git/
+polaris-git.sh
+
+# ===== Artefacts divers (hors périmètre versionné) =====
+*.png
+# Artefacts d'expérimentation Ollama non câblés (modèle reste Llama-3)
+Modelfile
+Modelefile.txt

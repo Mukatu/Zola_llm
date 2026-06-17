@@ -1,0 +1,25 @@
+# Override de développement. Usage :
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build app
+#
+# - Build l'image `zolaos:dev` avec pytest + plugins inclus
+# - Bind-monte src/, tests/ et agents/ dans le conteneur (hot reload)
+# - Évite de devoir `docker cp` à chaque modif Python pendant le dev
+name: zolaos
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+      args:
+        BASE_IMAGE: zolaos:dev
+    image: zolaos:dev-test
+    volumes:
+      - ./src:/app/src:ro
+      - ./tests:/app/tests:ro
+      - ./agents:/app/agents:ro
+      - ./pyproject.toml:/app/pyproject.toml:ro
+    environment:
+      # PYTHONPATH avec src en tête : on charge le code source directement
+      # (sans réinstaller) et le package installé garde les deps Python.
+      PYTHONPATH: /app/src:/install/lib/python3.12/site-packages:/usr/local/lib/python3.12/site-packages

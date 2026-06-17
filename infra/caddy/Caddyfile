@@ -1,0 +1,36 @@
+# Configuration Caddy minimale — staging/prod.
+# En dev : ce reverse proxy n'est pas activé (profil "with-proxy" requis).
+
+{
+    # admin off
+    email admin@zolaos.local
+}
+
+# Remplacer par le domaine réel en prod.
+:80 {
+    reverse_proxy app:8000 {
+        header_up Host {host}
+        header_up X-Real-IP {remote_host}
+        header_up X-Forwarded-For {remote_host}
+        header_up X-Forwarded-Proto {scheme}
+    }
+
+    header {
+        # Sécurité de base
+        Strict-Transport-Security "max-age=31536000; includeSubDomains"
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "DENY"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        # Pas de cache sur les réponses API
+        Cache-Control "no-store, no-cache, must-revalidate"
+        # Suppression du header serveur par défaut
+        -Server
+    }
+
+    encode gzip zstd
+
+    log {
+        output stdout
+        format json
+    }
+}

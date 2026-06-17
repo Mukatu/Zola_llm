@@ -1,0 +1,19 @@
+# Configuration Gitleaks — scan de secrets dans le repo.
+# Étend les règles par défaut.
+
+title = "ZolaOS gitleaks config"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Faux-positifs autorisés"
+paths = [
+    '''\.env\.example$''',
+    '''infra/secrets/README\.md$''',
+    '''tests/.*\.py$''',
+]
+regexes = [
+    '''dummy[-_].*''',
+    '''x{8,}''',
+]

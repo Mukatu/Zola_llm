@@ -1,0 +1,18 @@
+# Image dev : ajoute les dépendances de test à l'image runtime.
+# Utilisée via docker-compose.dev.yml en surcharge du compose principal.
+ARG BASE_IMAGE=zolaos:dev
+FROM ${BASE_IMAGE}
+
+USER root
+
+# Installer pytest + plugins + pygments (terminal pour pytest tb)
+RUN pip install --no-cache-dir --prefix=/install --no-warn-script-location \
+    "pytest>=8.3" \
+    "pytest-asyncio>=0.24" \
+    "pytest-cov>=6.0" \
+    "pytest-mock>=3.14" \
+    "respx>=0.21" \
+    "freezegun>=1.5" \
+    pygments
+
+USER zolaos

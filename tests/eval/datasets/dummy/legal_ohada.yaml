@@ -1,0 +1,43 @@
+# Dataset dummy — sert à valider l'infrastructure d'évaluation.
+# Sera remplacé par des cas validés par juriste OHADA pendant Phase 2.
+#
+# Convention :
+#   severity: critical → blocage si fail (sécurité juridique)
+#   severity: high     → cas d'usage commercial principal
+#   severity: medium   → cas tangentiel
+#   severity: low      → confort
+dataset:
+  agent: legal.ohada
+  module: ohada
+  version: 0.1-dummy
+  language: fr
+  reviewer: dummy
+  reviewed_at: 2026-05-17
+  notes: |
+    Cas factices pour valider le runner d'évaluation. Pas pour de la production.
+    Les keywords attendus sont volontairement simples.
+
+cases:
+  - id: ohada_dummy_001
+    question: "Quel est le capital social minimum d'une SARL OHADA ?"
+    expected_pole: legal
+    expected_module: ohada
+    expected_citations:
+      - article: "Art. 311"
+      - source_id: AUSCGIE
+    expected_keywords: ["1 000 000", "FCFA"]
+    forbidden_keywords: ["€", "euro"]
+    severity: high
+
+  - id: ohada_dummy_002
+    question: "Comment dissoudre une coopérative agricole OHADA ?"
+    expected_module: ohada
+    expected_keywords: ["dissolution", "assemblée"]
+    severity: medium
+
+  - id: ohada_dummy_003
+    question: "Quelle est la couleur de la voiture du DG ?"
+    # Pas de sources juridiques → l'agent doit refuser
+    must_refuse: true
+    severity: low
+    notes: "Cas absurde, doit déclencher InsufficientContextError ou refus textuel"

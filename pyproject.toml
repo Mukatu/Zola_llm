@@ -1,0 +1,188 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "zolaos"
+version = "0.0.1"
+description = "ZolaOS — Plateforme IA multi-agents souveraine pour la République du Congo"
+readme = "README.md"
+requires-python = ">=3.12"
+# Modèle open-core acté 2026-05-19 :
+# - Cœur public (ce package, hors src/zolaos/agents/polaris/, src/zolaos/api/v1/cortex.py,
+#   src/zolaos/reports/) → AGPL v3 ou ultérieure.
+# - Composants Polaris propriétaires → secret des affaires, distribution exclue
+#   par build `ZOLAOS_PROFILE=box` (cf. infra/scripts/strip_polaris_assets.sh).
+# - Double licence commerciale alternative disponible : licensing@polaris.cg.
+# Voir LICENSE, NOTICE, THIRD_PARTY_LICENSES.md.
+license = { text = "AGPL-3.0-or-later" }
+authors = [{ name = "Polaris", email = "contact@polaris.cg" }]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Information Technology",
+    "License :: OSI Approved :: GNU Affero General Public License v3 or later (AGPLv3+)",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+
+dependencies = [
+    # Framework API
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.32",
+    "pydantic>=2.9",
+    "pydantic-settings>=2.6",
+
+    # Base de données
+    "sqlalchemy>=2.0",
+    "asyncpg>=0.30",
+    "psycopg[binary]>=3.2",
+    "alembic>=1.13",
+    "pgvector>=0.3",
+
+    # Cache + queue
+    "redis>=5.2",
+    "dramatiq[redis]>=1.17",
+
+    # Stockage objet
+    "minio>=7.2",
+
+    # LLM
+    "ollama>=0.4",
+    "anthropic>=0.40",
+    "httpx>=0.28",
+
+    # Embeddings
+    "sentence-transformers>=3.3",
+
+    # Observabilité
+    "structlog>=24.4",
+    "prometheus-client>=0.21",
+    "opentelemetry-api>=1.28",
+    "opentelemetry-sdk>=1.28",
+    "opentelemetry-instrumentation-fastapi>=0.49b0",
+
+    # Sécurité
+    "python-jose[cryptography]>=3.3",
+    "bcrypt>=4.2",
+    "cryptography>=43.0",
+
+    # Utilitaires
+    "python-dotenv>=1.0",
+    "tenacity>=9.0",
+    "orjson>=3.10",
+
+    # Ingestion documents (Polaris-5) — libs pures Python, pas de CUDA
+    "pypdf>=5.0",           # PDF
+    "openpyxl>=3.1",        # XLSX (Grand Livre, balance)
+    "python-docx>=1.1",     # DOCX (contrats, règlements)
+    "beautifulsoup4>=4.12", # HTML (scraping ciblé)
+
+    # Génération de rapports Polaris (templates)
+    "jinja2>=3.1",
+
+    # Eval framework (Phase 2 #53) — chargement datasets vérité-terrain
+    "pyyaml>=6.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "ruff>=0.7",
+    "black>=24.10",
+    "mypy>=1.13",
+    "pytest>=8.3",
+    "pytest-asyncio>=0.24",
+    "pytest-cov>=6.0",
+    "pytest-mock>=3.14",
+    "httpx>=0.28",
+    "respx>=0.21",
+    "freezegun>=1.5",
+]
+
+[project.scripts]
+zolaos = "zolaos.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/zolaos"]
+
+# ===== Ruff (linter + formateur, remplace flake8/isort) =====
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = [
+    "E",    # pycodestyle errors
+    "W",    # pycodestyle warnings
+    "F",    # pyflakes
+    "I",    # isort
+    "B",    # flake8-bugbear
+    "C4",   # flake8-comprehensions
+    "UP",   # pyupgrade
+    "S",    # flake8-bandit (sécurité)
+    "N",    # naming
+    "RUF",  # ruff-specific
+]
+ignore = [
+    "S101",  # use of assert (autorisé dans les tests)
+    "E501",  # line too long (géré par black)
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*" = ["S101", "S105", "S106"]
+
+# ===== Black (formateur) =====
+[tool.black]
+line-length = 100
+target-version = ["py312"]
+
+# ===== mypy =====
+[tool.mypy]
+python_version = "3.12"
+strict = true
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+no_implicit_optional = true
+plugins = ["pydantic.mypy"]
+
+[[tool.mypy.overrides]]
+module = "tests.*"
+disallow_untyped_defs = false
+
+# ===== pytest =====
+[tool.pytest.ini_options]
+minversion = "8.0"
+testpaths = ["tests"]
+asyncio_mode = "auto"
+addopts = [
+    "-ra",
+    "--strict-markers",
+    "--strict-config",
+    "--cov=zolaos",
+    "--cov-report=term-missing",
+    "--cov-report=xml",
+    "--cov-fail-under=60",
+]
+markers = [
+    "integration: tests d'intégration (nécessitent Postgres/Redis)",
+    "slow: tests longs",
+    "security: tests de sécurité (anti-fallback, anti-injection)",
+    "eval: évaluation qualité agents contre datasets vérité-terrain (nécessite LLM réel)",
+]
+
+[tool.coverage.run]
+source = ["src/zolaos"]
+branch = true
+omit = ["*/tests/*", "*/__init__.py"]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "raise NotImplementedError",
+    "if TYPE_CHECKING:",
+    "if __name__ == .__main__.:",
+]

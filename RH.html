@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Capsule 1.2 - Audit et Fiabilisation</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333; max-width: 800px; margin: 40px auto; padding: 20px; background: #f4f7f6; }
+        .card { background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        h1 { color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px; }
+        h2 { color: #2980b9; margin-top: 25px; }
+        .step { background: #e8f4fd; padding: 15px; border-left: 5px solid #3498db; margin: 10px 0; }
+        .warning { background: #fff3cd; padding: 15px; border-left: 5px solid #ffc107; margin: 10px 0; }
+        .td-box { background: #d4edda; padding: 20px; border-radius: 5px; margin-top: 20px; border: 1px solid #c3e6cb; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>Capsule 1.2 : Le contrôle des doublons et des anomalies</h1>
+        <p><strong>Objectif :</strong> Garantir l'intégrité des données RH pour éviter les erreurs de paie et de reporting.</p>
+
+        <h2>1. Méthodologie : Détecter les doublons</h2>
+        <div class="step">
+            1. Sélectionnez la plage de cellules contenant vos matricules ou numéros de sécurité sociale.<br>
+            2. Sous l'onglet <strong>Accueil</strong>, cliquez sur <strong>Mise en forme conditionnelle</strong>.<br>
+            3. Sélectionnez <strong>Règles de mise en surbrillance des cellules</strong> > <strong>Valeurs en double...</strong>
+        </div>
+
+        <h2>2. Points de vigilance (Densification RH)</h2>
+        <div class="warning">
+            Attention : Excel considère comme doublon toute valeur identique. Si deux employés ont le même nom de famille, Excel les surlignera. <br>
+            <strong>Conseil d'expert :</strong> Appliquez toujours la mise en forme conditionnelle sur une colonne unique et immuable (ex: Matricule ou Numéro de Sécurité Sociale).
+        </div>
+
+        <h2>3. Travaux Dirigés (TD)</h2>
+        <div class="td-box">
+            <h3>Atelier : Audit de base de données</h3>
+            <p>Dans votre fichier "Extraction_Paie_Brute.xlsx" :</p>
+            <ul>
+                <li>Identifiez les doublons de matricules qui faussent vos effectifs.</li>
+                <li>Utilisez l'onglet <strong>Données</strong> > <strong>Supprimer les doublons</strong> pour nettoyer la liste après vérification manuelle.</li>
+                <li>Créez une alerte visuelle (couleur rouge) pour toute valeur de salaire supérieure à 10 000 € afin de détecter les erreurs de frappe.</li>
+            </ul>
+        </div>
+    </div>
+</body>
+</html>
