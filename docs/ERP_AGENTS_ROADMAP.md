@@ -67,6 +67,8 @@ Pour tout l'ERP : les **chiffres et règles exactes** (barèmes, plan de comptes
 | RH-2 moteur paie déterministe | ✅ livré (moteur paramétré + verrou validation ; barèmes seed flaggés non validés, à sourcer) |
 | Finance | ✅ livré (anomalies déterministes + synthèse générative + connecteurs) |
 | Compta & Fiscalité | ✅ livré (plan de comptes `ref` + validation déterministe + RAG interprétation) |
-| Clôture ERP | 🔄 en cours |
+| Clôture ERP | ✅ overlays vérifiés + PHASE_4_REPORT à jour + 152 tests verts |
+
+> **ERP back-office bouclé côté code (2026-06-21).** Prochain : extensions BI / Commercial / Marketing (addendum), puis sourcing/validation des barèmes et corpus (côté utilisateur).
 
 *Feuille de route établie le 2026-06-20, ordre RH → Finance → Compta.*
