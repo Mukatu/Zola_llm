@@ -85,4 +85,16 @@ Mise à jour à intégrer dans [`docs/DATA_KNOWLEDGE_ROADMAP.md`](./docs/DATA_KN
 
 ---
 
-*Addendum établi le 2026-06-20. Complète V2.2 + V3 (Polaris). Codage différé après ERP back-office.*
+## 8. Statut de réalisation (2026-06-21) — ✅ 3/3 livrées
+
+| Extension | État | Livrables |
+|-----------|------|-----------|
+| BI / Pilotage IA | ✅ | `agents/bi/` (KPIs déterministes + agent synthèse/Q&A) + overlay privé `ZolaCortex-Pilotage` — [`docs/BI_ROADMAP.md`](./docs/BI_ROADMAP.md) |
+| Commercial / CRM & Ventes | ✅ | `agents/crm/` (pipeline/scoring/relances/devis→facture + agent) + overlay privé `ZolaCortex-Audit-Commercial` — [`docs/CRM_ROADMAP.md`](./docs/CRM_ROADMAP.md) |
+| Marketing | ✅ | `agents/mkt/` (segmentation + consentement Loi 29-2019 + agent contenu) + overlay privé `ZolaCortex-Audit-Marketing` — [`docs/MARKETING_ROADMAP.md`](./docs/MARKETING_ROADMAP.md) |
+
+Principe respecté partout : **déterministe d'abord, LLM pour interpréter/rédiger**. Forecasting prédictif et envoi réel = briques ultérieures (hors périmètre). Suite : **183 tests verts**.
+
+---
+
+*Addendum établi le 2026-06-20, extensions livrées le 2026-06-21. Complète V2.2 + V3 (Polaris).*
