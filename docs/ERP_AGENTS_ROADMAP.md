@@ -63,10 +63,10 @@ Pour tout l'ERP : les **chiffres et règles exactes** (barèmes, plan de comptes
 
 | Jalon | État |
 |-------|------|
-| RH-1 agent génératif | 🔄 en cours |
+| RH-1 agent génératif | ✅ livré |
 | RH-2 moteur paie déterministe | ⏳ différé (barèmes) |
-| Finance | ⏳ à venir |
-| Compta & Fiscalité | ⏳ à venir |
+| Finance | ✅ livré (anomalies déterministes + synthèse générative + connecteurs) |
+| Compta & Fiscalité | 🔄 prochain |
 | Clôture ERP | ⏳ à venir |
 
 *Feuille de route établie le 2026-06-20, ordre RH → Finance → Compta.*
