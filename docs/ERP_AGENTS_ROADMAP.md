@@ -64,7 +64,7 @@ Pour tout l'ERP : les **chiffres et règles exactes** (barèmes, plan de comptes
 | Jalon | État |
 |-------|------|
 | RH-1 agent génératif | ✅ livré |
-| RH-2 moteur paie déterministe | ⏳ différé (barèmes) |
+| RH-2 moteur paie déterministe | ✅ livré (moteur paramétré + verrou validation ; barèmes seed flaggés non validés, à sourcer) |
 | Finance | ✅ livré (anomalies déterministes + synthèse générative + connecteurs) |
 | Compta & Fiscalité | 🔄 prochain |
 | Clôture ERP | ⏳ à venir |

@@ -3,7 +3,21 @@
 from __future__ import annotations
 
 from zolaos.agents.erp.finance import FinanceAgent
+from zolaos.agents.erp.payroll import (
+    PayrollCalculator,
+    PayrollScale,
+    PayrollScaleNotValidated,
+    load_payroll_scale,
+)
 from zolaos.agents.erp.projets_ong import ProjetsOngAgent
 from zolaos.agents.erp.rh import RhAgent
 
-__all__ = ["RhAgent", "FinanceAgent", "ProjetsOngAgent"]
+__all__ = [
+    "RhAgent",
+    "FinanceAgent",
+    "ProjetsOngAgent",
+    "PayrollCalculator",
+    "PayrollScale",
+    "PayrollScaleNotValidated",
+    "load_payroll_scale",
+]

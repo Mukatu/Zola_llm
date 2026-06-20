@@ -1,0 +1,22 @@
+{
+  "_note": "VALEURS PLACEHOLDER — NE PAS UTILISER EN PRODUCTION. Barèmes à sourcer et faire valider par un expert paie/fiscal CG (CNSS, CIPRES, IRPP via CGI/Loi de Finances). Le moteur refuse d'émettre un bulletin définitif tant que validated=false.",
+  "country": "cg",
+  "version": "placeholder-2026",
+  "source": "à sourcer (CNSS, CIPRES, DGID/CGI)",
+  "validated": false,
+  "smig_xaf": "70400",
+  "cnss_salarie_taux": "0.04",
+  "cnss_employeur_taux": "0.08",
+  "cnss_plafond_xaf": "1200000",
+  "cipres_salarie_taux": "0",
+  "allocations_familiales_taux": "0",
+  "accident_travail_taux": "0",
+  "taxe_sur_salaires_taux": "0",
+  "abattement_irpp_taux": "0.20",
+  "irpp_bareme": [
+    {"plafond_xaf": "464000", "taux": "0.01"},
+    {"plafond_xaf": "1000000", "taux": "0.10"},
+    {"plafond_xaf": "3000000", "taux": "0.25"},
+    {"plafond_xaf": null, "taux": "0.40"}
+  ]
+}
