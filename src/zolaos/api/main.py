@@ -134,6 +134,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     app.include_router(v1_router)
 
+    # Configuration / personnalisation : montée dans les deux profils.
+    # box → config client personnalisée ; cortex → config consultant uniforme.
+    from zolaos.api.v1.config import router as config_router
+
+    app.include_router(config_router)
+
     # Routes Zolabox (Polaris-8) : exposées uniquement en profil `box`. En
     # profil `cortex`, le router n'est pas monté → 404 sur /v1/box/* (préférable
     # à un 500 ProfileError qui révélerait l'existence des routes).
