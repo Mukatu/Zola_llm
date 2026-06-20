@@ -2,6 +2,13 @@
 
 from __future__ import annotations
 
+from zolaos.agents.erp.compta import (
+    Account,
+    ChartOfAccounts,
+    ComptaAgent,
+    JournalValidator,
+    ValidationReport,
+)
 from zolaos.agents.erp.finance import FinanceAgent
 from zolaos.agents.erp.payroll import (
     PayrollCalculator,
@@ -20,4 +27,9 @@ __all__ = [
     "PayrollScale",
     "PayrollScaleNotValidated",
     "load_payroll_scale",
+    "ComptaAgent",
+    "ChartOfAccounts",
+    "Account",
+    "JournalValidator",
+    "ValidationReport",
 ]

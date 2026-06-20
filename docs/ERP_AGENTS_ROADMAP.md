@@ -66,7 +66,7 @@ Pour tout l'ERP : les **chiffres et règles exactes** (barèmes, plan de comptes
 | RH-1 agent génératif | ✅ livré |
 | RH-2 moteur paie déterministe | ✅ livré (moteur paramétré + verrou validation ; barèmes seed flaggés non validés, à sourcer) |
 | Finance | ✅ livré (anomalies déterministes + synthèse générative + connecteurs) |
-| Compta & Fiscalité | 🔄 prochain |
-| Clôture ERP | ⏳ à venir |
+| Compta & Fiscalité | ✅ livré (plan de comptes `ref` + validation déterministe + RAG interprétation) |
+| Clôture ERP | 🔄 en cours |
 
 *Feuille de route établie le 2026-06-20, ordre RH → Finance → Compta.*
