@@ -121,7 +121,7 @@ pytest --cov                    # avec couverture
 │   ├── core/               # Settings, logging, metrics
 │   ├── llm/                # Clients Ollama + garde-fou fallback
 │   ├── agents/             # Sous-agents (Phase 1+)
-│   ├── connectors/         # Connector Framework (Phase 4)
+│   ├── connectors/         # Connector Framework (Phase 4) — voir docs/CONNECTORS.md
 │   ├── rag/                # Pipelines d'indexation et recherche
 │   └── tools/              # Outils sandboxés
 ├── agents/prompts/         # Prompts versionnés (Phase 1+)

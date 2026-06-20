@@ -88,6 +88,11 @@ class Settings(BaseSettings):
     API_KEY_PEPPER: SecretStr = SecretStr("")
     ENCRYPTION_KEY_AUDIT: SecretStr = SecretStr("")
 
+    # ===== Connector Framework (Phase 4 §2.4) =====
+    # Délai d'attente par défaut (s) injecté aux connecteurs HTTP si non précisé
+    # dans leur config. Les connecteurs vivent dans les deux profils (box/cortex).
+    CONNECTOR_DEFAULT_TIMEOUT_SECONDS: int = 30
+
     # ===== Embeddings =====
     EMBEDDING_MODEL: str = "BAAI/bge-m3"
     EMBEDDING_DIMENSION: int = 1024

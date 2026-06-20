@@ -1,0 +1,14 @@
+# Exemple de mapping déclaratif — source RH générique → modèle canonique Employee.
+# Usage : FieldMapping.from_yaml(".../example_employee.yaml")
+#         Employee(**mapping.apply(row_source))
+entity: employee
+country_default: cg
+fields:
+  id_externe:       { from: id }
+  nom_complet:      { from: full_name, transform: strip }
+  poste:            { from: job.title }
+  email:            { from: contact.email, transform: lower }
+  matricule:        { from: payroll_no }
+  date_embauche:    { from: hire_date, transform: to_date }
+  salaire_base_xaf: { from: base_salary, transform: to_decimal }
+  actif:            { from: is_active, transform: to_bool, default: true }
