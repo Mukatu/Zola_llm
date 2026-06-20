@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from zolaos.agents.crm.agent import CrmAgent
 from zolaos.agents.crm.engine import (
     LeadScore,
     LeadScoringWeights,
@@ -15,6 +16,7 @@ from zolaos.agents.crm.engine import (
 from zolaos.agents.crm.models import Customer, Opportunity, Quote, QuoteLine
 
 __all__ = [
+    "CrmAgent",
     "Customer",
     "Opportunity",
     "Quote",

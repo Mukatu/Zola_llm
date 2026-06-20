@@ -49,8 +49,10 @@
 
 | Jalon | État |
 |-------|------|
-| CRM-1 modèles + moteur déterministe | 🔄 en cours |
-| CRM-2 agent CRM (IA) | ⏳ |
-| CRM-3 overlay + clôture | ⏳ |
+| CRM-1 modèles + moteur déterministe | ✅ livré (pipeline, scoring, relances, devis→facture) |
+| CRM-2 agent CRM (IA) | ✅ livré (relances/propositions génératives + narration pipeline + priorisation) |
+| CRM-3 overlay + clôture | ✅ overlay privé `ZolaCortex-Audit-Commercial` + 172 tests verts |
 
-*Feuille de route établie le 2026-06-21.*
+> **Commercial / CRM bouclé (2026-06-21).** Dernière extension de l'addendum : **Marketing**.
+
+*Feuille de route établie et exécutée le 2026-06-21.*
