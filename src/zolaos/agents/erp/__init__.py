@@ -18,11 +18,21 @@ from zolaos.agents.erp.payroll import (
 )
 from zolaos.agents.erp.projets_ong import ProjetsOngAgent
 from zolaos.agents.erp.rh import RhAgent
+from zolaos.agents.erp.supply import (
+    BonCommande,
+    ReapproSuggestion,
+    StockItem,
+    SupplyChainAgent,
+)
 
 __all__ = [
     "RhAgent",
     "FinanceAgent",
     "ProjetsOngAgent",
+    "SupplyChainAgent",
+    "StockItem",
+    "BonCommande",
+    "ReapproSuggestion",
     "PayrollCalculator",
     "PayrollScale",
     "PayrollScaleNotValidated",
