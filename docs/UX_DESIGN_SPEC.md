@@ -35,11 +35,17 @@
 
 ## 2bis. Cadre des écrans de capacité + inventaire complet
 
-**Règle** : *chaque capacité métier a un écran* ; les écrans sont **générés** depuis un cadre commun (le schéma de l'agent → formulaire d'entrée + rendu de sortie + repli conversationnel). Quelques **phares** ont un écran enrichi sur mesure. Seuls les **méta-agents internes** (Router, Planning, Mémoire) n'ont pas d'écran. Routage par **audience** : `client` (Zolabox), `cabinet` (Zolacortex), `les deux`.
+**Règle** : *chaque capacité métier a un écran* ; les écrans sont **générés** depuis un cadre commun (le schéma de l'agent → formulaire d'entrée + rendu de sortie + repli conversationnel). Quelques **phares** ont un écran enrichi sur mesure. Seuls les **méta-agents internes** (Router, Planning, Mémoire) n'ont pas d'écran.
+
+**Affectation par déploiement (frontière de confiance — PAS un accès partagé)** : chaque écran vit dans **Zolabox** (chez le client, **données client uniquement**) **ou** dans **Zolacortex** (chez Polaris, **jamais la donnée client en direct**). Ce sont **deux applications séparées, isolées par défaut**. Une capacité « des deux côtés » (ex. Code, BI) = **deux instances distinctes**, chacune dans sa frontière — **pas un écran commun, pas d'accès croisé**. Unique pont : la **mission éphémère Zero Trust** (le cabinet ne reçoit que des **chunks RAG anonymisés**, scopés, expirables, audités côté client ; prompts cabinet + inférence restent chez Polaris). Cf. `project_zero_trust_client_architecture`.
+
+> Dans les tableaux ci-dessous, la colonne « Déploiement » indique **où vit l'écran**, jamais un droit d'accès à la donnée de l'autre côté.
 
 ### Inventaire — capacités client (Zolabox)
 
-| Capacité | Pôle | Audience | Écran | Statut |
+> « Déploiement = les deux » signifie **deux instances isolées** (une Zolabox sur données client, une Zolacortex en mode mission) — jamais un écran partagé.
+
+| Capacité | Pôle | Déploiement | Écran | Statut |
 |---|---|---|---|---|
 | Assistant (orchestrateur) | — | client + cabinet | conversationnel universel | ✅ |
 | Pharmacologie | Santé | client | généré | ✅ |

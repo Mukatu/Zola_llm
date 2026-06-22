@@ -32,17 +32,17 @@ Les deux **consomment les mêmes contrats** (un agent = un schéma d'entrée/sor
 - **Cadre d'écran de capacité** : chaque agent déclare son **schéma** (intents, entrée, sortie) ; l'UI **génère** un écran standard (formulaire d'entrée + rendu de sortie + repli conversationnel). → ajouter un pôle = un écran **automatiquement**, sans maquette neuve.
 - **Phares (écran enrichi sur mesure)** seulement si : **fréquent + saisie/données fortes + facturable** (Paie, Compta, CRM, Pilotage/BI, Doc-gen).
 - **Assistant** = entrée transverse complémentaire (orchestrateur) par-dessus tout.
-- **Routage par audience** : `client` (Zolabox), `cabinet` (Zolacortex) ou `les deux`.
+- **Affectation par déploiement / frontière de confiance** (PAS « audience partagée ») : un écran vit dans **Zolabox** (chez le client, données client uniquement) **ou** dans **Zolacortex** (chez Polaris, jamais la donnée client en direct). Une capacité « des deux côtés » = **deux instances distinctes et isolées**, jamais un accès croisé. Seul pont = la **mission éphémère** Zero Trust (chunks anonymisés, scopés, audités). Voir `project_zero_trust_client_architecture`.
 - **Sans écran = uniquement les méta-agents internes** (Router, Planning, Mémoire) — tuyauterie, pas métier.
 
 **Conséquence** : GRC, Fintech, Cyber, Pôle K — **ont chacun leur écran** (généré), routé vers le bon public ; couverture 100 %, zéro dette de maquettes.
 
 ## 4. Application à ZolaOS
 
-- **Chaque capacité = un écran** (cf. inventaire complet dans `docs/UX_DESIGN_SPEC.md`), routé par audience :
-  - **Client (Zolabox)** : Santé, Droit (4 modules + à venir), **Code Agent**, ERP (RH/Paie/Finance/Compta/Projets ONG), BI, CRM, Marketing, GRC, Fintech, Cyber, Pôle K.
-  - **Cabinet (Zolacortex)** : les 16 overlays d'audit (mission), dont **Code-Review** et **Audit-Sécurité-Code**.
-  - **Les deux** : Code, Pilotage/BI, Assistant, Pôle K.
+- **Chaque capacité = un écran** (cf. inventaire complet dans `docs/UX_DESIGN_SPEC.md`), affecté à un **déploiement** (frontière de confiance — deux apps séparées, isolées par défaut) :
+  - **Zolabox (client, données client locales)** : Santé, Droit (4 modules + à venir), **Code Agent**, ERP (RH/Paie/Finance/Compta/Projets ONG), BI, CRM, Marketing, GRC, Fintech, Cyber, Pôle K.
+  - **Zolacortex (cabinet, jamais la donnée client en direct)** : les 16 overlays d'audit en **mode mission** (chunks anonymisés via le pont Zero Trust), dont **Code-Review** et **Audit-Sécurité-Code**.
+  - **Des deux côtés = deux instances distinctes et isolées** (ex. Code, BI, Assistant) — pas un écran partagé, pas d'accès croisé.
 - **Phares (écran enrichi sur mesure)** : Paie, Comptabilité, CRM (pipeline), Pilotage/BI, Génération de documents.
 - **Tous les autres** : écran **généré** par le cadre de capacité (formulaire + rendu de sortie) — pas de maquette manuelle.
 - **Personnalisation** (`modules_actifs`) : décide **quelles capacités** un client voit ; l'Assistant est toujours présent.
