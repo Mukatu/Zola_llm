@@ -3,6 +3,11 @@
 import { useParams } from "next/navigation";
 import { CapabilityScreen } from "@/components/CapabilityScreen";
 import { PaieScreen } from "@/components/flagship/PaieScreen";
+import { ComptaScreen } from "@/components/flagship/ComptaScreen";
+import { SupplyScreen } from "@/components/flagship/SupplyScreen";
+import { AchatsScreen } from "@/components/flagship/AchatsScreen";
+import { HseScreen } from "@/components/flagship/HseScreen";
+import { FacilityScreen } from "@/components/flagship/FacilityScreen";
 import { getCapability } from "@/lib/capabilities";
 import { Card } from "@/components/ui";
 import type { ComponentType } from "react";
@@ -11,6 +16,11 @@ import type { ComponentType } from "react";
 // Les autres capacités utilisent l'écran générique (CapabilityScreen).
 const FLAGSHIPS: Record<string, ComponentType> = {
   "erp.paie": PaieScreen,
+  "erp.compta": ComptaScreen,
+  "erp.supply_chain": SupplyScreen,
+  "erp.achats": AchatsScreen,
+  "erp.hse": HseScreen,
+  "erp.moyens_generaux": FacilityScreen,
 };
 
 export default function CapabilityPage() {
