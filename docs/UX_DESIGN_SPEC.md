@@ -33,6 +33,46 @@
 
 ---
 
+## 2bis. Cadre des écrans de capacité + inventaire complet
+
+**Règle** : *chaque capacité métier a un écran* ; les écrans sont **générés** depuis un cadre commun (le schéma de l'agent → formulaire d'entrée + rendu de sortie + repli conversationnel). Quelques **phares** ont un écran enrichi sur mesure. Seuls les **méta-agents internes** (Router, Planning, Mémoire) n'ont pas d'écran. Routage par **audience** : `client` (Zolabox), `cabinet` (Zolacortex), `les deux`.
+
+### Inventaire — capacités client (Zolabox)
+
+| Capacité | Pôle | Audience | Écran | Statut |
+|---|---|---|---|---|
+| Assistant (orchestrateur) | — | client + cabinet | conversationnel universel | ✅ |
+| Pharmacologie | Santé | client | généré | ✅ |
+| Diagnostic, Cas clinique | Santé | client | généré | ⏳ |
+| OHADA / Travail CG / Fiscal CG / Administratif CG | Droit | client | généré (rédaction + contentieux) | ✅ |
+| Social / Civil / Pénal / PI-OAPI / Données | Droit | client | généré | ⏳ |
+| **Code Agent** (génération/refactor/debug/explain) | **Engineering** | **client + cabinet** | généré (éditeur + diff) | ✅ |
+| RH | ERP | client | **phare** | ✅ |
+| Paie | ERP | client | **phare** (verrou barème) | ✅ |
+| Finance / Trésorerie | ERP | client | **phare** | ✅ |
+| Comptabilité & Fiscalité | ERP | client | **phare** (validation écritures) | ✅ |
+| Projets ONG | ERP | client | généré | ✅ |
+| Pilotage / BI | BI | client + cabinet | **phare** (dashboard) | ✅ |
+| CRM / Commercial | Commercial | client | **phare** (pipeline kanban) | ✅ |
+| Marketing | Marketing | client | généré (+ garde consentement) | ✅ |
+| Reporting bailleurs | GRC | client | généré | ✅ |
+| Conformité / Audit interne / Compliance données | GRC | client | généré | ⏳ |
+| Scoring crédit / KYC | Fintech | client (institution fin.) | généré | ⏳ |
+| Cyber-défense | Cyber | client | généré | ⏳ |
+| Langues (Lingala/Kituba) | Pôle K | client + cabinet | transversal (i18n + assistant) | ⏳ |
+| Doc-gen (documents générés) | transverse | client + cabinet | **phare** | ✅ |
+| Consultation documentaire (KB) | transverse | client | généré | ⏳ |
+| Paramètres / Personnalisation, Connecteurs | transverse | client | dédié | ✅/⏳ |
+
+### Inventaire — capacités cabinet (Zolacortex) : overlays de mission (16)
+
+Conformité-RH · Fiscal-OHADA · Audit-Juridique-OHADA · Trésorerie · Audit-Santé · **Code-Review** · **Audit-Sécurité-Code** · Cyber-Defense · Audit-Conformité · Audit-Institutionnel · Reporting-Bailleurs · Scoring-Audit · KYC-Audit · Pilotage · Audit-Commercial · Audit-Marketing — chacun = un écran d'audit dans le cockpit de mission (rendu généré depuis son `response_schema`).
+
+### Sans écran (interne)
+Router, Planning, Mémoire — orchestration/tuyauterie, pas de surface utilisateur.
+
+---
+
 ## 3. Design system (tokens & composants)
 
 - **Tokens** : `couleur_primaire` (de la config), neutres, sémantiques (succès/alerte/erreur/info), typo (système, lisible faible résolution), espacement 4px, rayon, ombres légères.
@@ -70,6 +110,7 @@ Paramètres (selon droits)
 | B4 | **Santé — Pharmacologie** | Conseil posologie/interactions | Réponse + citations LNME/CIM-10 | agent santé |
 | B5 | **Droit — Rédaction** | Générer contrat (CDI/CDD, bail OHADA…) | Formulaire paramètres → doc + warnings sécurisation | agent droit (mode rédaction) |
 | B6 | **Droit — Contentieux** | Analyse de risque + jurisprudence | Findings, références (articles + arrêts) | overlay/agent analytique |
+| B6b | **Code (Engineering)** | Générer/refactorer/debugger/expliquer du code | Éditeur, diff, blocs code, tests suggérés | Code Agent (`engineering.code`) |
 | B7 | **ERP — RH** | Docs RH, conformité contrat, tri CV | Génération + conformité | agent RH |
 | B8 | **ERP — Paie** | Bulletin (calcul **déterministe**) | Formulaire brut → bulletin ; **verrou barème non validé** | moteur paie |
 | B9 | **ERP — Finance** | Trésorerie, anomalies | Tableau anomalies (sévérité) + synthèse | agent finance + connecteurs |
