@@ -26,6 +26,11 @@ from zolaos.agents.erp.payroll import (
 )
 from zolaos.agents.erp.projets_ong import ProjetsOngAgent
 from zolaos.agents.erp.rh import RhAgent
+from zolaos.agents.erp.secretariat import (
+    Mandat,
+    SecretariatAgent,
+    SecretariatAlerte,
+)
 from zolaos.agents.erp.supply import (
     BonCommande,
     ReapproSuggestion,
@@ -50,6 +55,9 @@ __all__ = [
     "Asset",
     "Echeance",
     "FacilityAlerte",
+    "SecretariatAgent",
+    "Mandat",
+    "SecretariatAlerte",
     "PayrollCalculator",
     "PayrollScale",
     "PayrollScaleNotValidated",
