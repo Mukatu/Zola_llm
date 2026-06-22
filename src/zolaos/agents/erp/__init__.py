@@ -2,6 +2,13 @@
 
 from __future__ import annotations
 
+from zolaos.agents.erp.achats import (
+    AchatsAgent,
+    ComparatifLigne,
+    OffreFournisseur,
+    Supplier,
+    SupplierScore,
+)
 from zolaos.agents.erp.compta import (
     Account,
     ChartOfAccounts,
@@ -33,6 +40,11 @@ __all__ = [
     "StockItem",
     "BonCommande",
     "ReapproSuggestion",
+    "AchatsAgent",
+    "Supplier",
+    "OffreFournisseur",
+    "SupplierScore",
+    "ComparatifLigne",
     "PayrollCalculator",
     "PayrollScale",
     "PayrollScaleNotValidated",
