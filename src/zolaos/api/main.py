@@ -145,8 +145,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     # à un 500 ProfileError qui révélerait l'existence des routes).
     if settings.ZOLAOS_PROFILE == "box":
         from zolaos.api.v1.box import router as box_router
+        from zolaos.api.v1.erp import router as erp_router
 
         app.include_router(box_router)
+        # Moteurs déterministes ERP/ops exposés au frontend client (FE↔BE).
+        app.include_router(erp_router)
 
     # Routes Zolacortex (gestion missions) : exposées uniquement en profil `cortex`.
     # Inversement, en profil `box`, 404 sur /v1/cortex/*.
