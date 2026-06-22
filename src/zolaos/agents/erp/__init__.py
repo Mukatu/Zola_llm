@@ -16,6 +16,7 @@ from zolaos.agents.erp.compta import (
     JournalValidator,
     ValidationReport,
 )
+from zolaos.agents.erp.facility import Asset, Echeance, FacilityAgent, FacilityAlerte
 from zolaos.agents.erp.finance import FinanceAgent
 from zolaos.agents.erp.payroll import (
     PayrollCalculator,
@@ -45,6 +46,10 @@ __all__ = [
     "OffreFournisseur",
     "SupplierScore",
     "ComparatifLigne",
+    "FacilityAgent",
+    "Asset",
+    "Echeance",
+    "FacilityAlerte",
     "PayrollCalculator",
     "PayrollScale",
     "PayrollScaleNotValidated",
