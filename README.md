@@ -4,6 +4,8 @@
 
 Plateforme IA multi-agents **souveraine**, exécutée **exclusivement en local**, pour la **République du Congo** (Brazzaville).
 
+> 📌 **État du projet & index de la documentation** : [`docs/ETAT_PROJET.md`](./docs/ETAT_PROJET.md) (snapshot consolidé faisant autorité).
+
 > **Licence — Modèle open-core** : le cœur public est sous **GNU AGPL v3 ou
 > ultérieure**. Les composants propriétaires de Polaris (overlays cabinet,
 > prompts secrets, modèles fine-tunés, templates de rapport) ne sont pas
