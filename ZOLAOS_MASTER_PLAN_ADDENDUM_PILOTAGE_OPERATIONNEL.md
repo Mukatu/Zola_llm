@@ -50,4 +50,20 @@ Rappel : **aucun accès direct** à la donnée client ; tout passe par la missio
 
 ---
 
-*Addendum établi le 2026-06-22. Modules ERP, côté Zolabox. Overlays cabinet côté Zolacortex via mission (Zero Trust).*
+## 8. Statut de réalisation (2026-06-22) — ✅ complet
+
+| Module (Zolabox) | Code | État |
+|------------------|------|------|
+| Supply Chain & Stocks | `erp.supply_chain` | ✅ |
+| Achats / Procurement | `erp.achats` | ✅ |
+| Moyens Généraux / Facility | `erp.moyens_generaux` | ✅ |
+| Secrétariat sociétaire | `erp.secretariat_societaire` | ✅ |
+| HSE / RSE | `erp.hse` | ✅ |
+
+Overlays cabinet (Zolacortex, dépôt privé, mode mission) : **ZolaCortex-Audit-SupplyChain**, **ZolaCortex-Audit-Achats**, **ZolaCortex-Audit-HSE-Gouvernance** ✅.
+
+Tous déterministes d'abord (moteurs en code) + LLM pour rédaction/synthèse. Forecasting ML toujours hors périmètre. Suite : **220 tests verts**.
+
+---
+
+*Addendum établi le 2026-06-22, modules livrés le 2026-06-22. Modules ERP côté Zolabox ; overlays cabinet côté Zolacortex via mission (Zero Trust).*
