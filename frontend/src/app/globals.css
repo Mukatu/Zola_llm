@@ -1,0 +1,20 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Tokens (la couleur primaire est surchargée à l'exécution depuis /v1/config) */
+  --zo-primary: 11 95 255;   /* #0B5FFF */
+  --zo-surface: 255 255 255;
+  --zo-ink: 17 24 39;
+  --zo-muted: 107 114 128;
+  --zo-bg: 247 248 251;
+}
+
+html, body {
+  background: rgb(var(--zo-bg));
+  color: rgb(var(--zo-ink));
+  -webkit-font-smoothing: antialiased;
+}
+
+* { scrollbar-width: thin; }
