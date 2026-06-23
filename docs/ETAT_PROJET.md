@@ -97,7 +97,7 @@ La persistance ne couvre **aujourd'hui que 3 entités** ; les autres métiers on
 
 **Stratégie & conception** : `docs/PRODUCT_STRATEGY.md`, `docs/UX_DESIGN_SPEC.md`, `docs/LEGAL_TASK_MODES.md`, `docs/DATA_KNOWLEDGE_ROADMAP.md`.
 
-**Roadmaps de chantier** : `docs/CONNECTOR_FRAMEWORK_ROADMAP.md`, `docs/ERP_AGENTS_ROADMAP.md`, `docs/BI_ROADMAP.md`, `docs/CRM_ROADMAP.md`, `docs/MARKETING_ROADMAP.md`, `docs/FRONTEND_ROADMAP.md`. Connecteurs : `docs/CONNECTORS.md`. Front : `frontend/README.md`.
+**Roadmaps de chantier** : **`docs/PERSISTENCE_ROADMAP.md`** (plan d'action persistance par métier — chantier #1), `docs/CONNECTOR_FRAMEWORK_ROADMAP.md`, `docs/ERP_AGENTS_ROADMAP.md`, `docs/BI_ROADMAP.md`, `docs/CRM_ROADMAP.md`, `docs/MARKETING_ROADMAP.md`, `docs/FRONTEND_ROADMAP.md`. Connecteurs : `docs/CONNECTORS.md`. Front : `frontend/README.md`.
 
 ## 6. Archive — chronologie des livraisons (dépôt public)
 
@@ -118,7 +118,7 @@ Dépôt privé Polaris : init + 19 overlays + formatage (`13069d7`).
 
 | # | Sujet | Type |
 |---|-------|------|
-| 1 | **Généraliser la persistance** (P2b→) : Commercial (Customer/Opportunity/Quote), Achats (Supplier/PO), RH (Employee/Contract), Facility, HSE, Marketing — chacun = un **registre vivant** | backend + FE |
+| 1 | **Généraliser la persistance** — plan d'action détaillé par métier : **`docs/PERSISTENCE_ROADMAP.md`** (P2b Commercial → P2c Achats/RH/Paie → P2d Facility/HSE/Marketing → P2e Finance/Secrétariat/ONG → P2f Documents → P3) | backend + FE |
 | 2 | **Pôles manquants** : **Fintech** (scoring/KYC + MoMo/Airtel), **GRC complet**, **Cyber**, **Pôle K** (langues) | backend |
 | 3 | **P3 intelligence** : BI sur le store (KPIs réels), **prévision de trésorerie** (brique ML), multi-devise | backend |
 | 4 | **Sortie réelle Phase 2** : sourcer corpus (CIM-10, OHADA, CGI, Code travail, LNME), valider **barèmes paie + plan de comptes**, baseline `eval`, pilotes | terrain (utilisateur) |
