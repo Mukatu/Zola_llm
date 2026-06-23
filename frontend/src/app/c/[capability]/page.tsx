@@ -14,6 +14,7 @@ import { FinanceScreen } from "@/components/flagship/FinanceScreen";
 import { CodeScreen } from "@/components/flagship/CodeScreen";
 import { DroitScreen } from "@/components/flagship/DroitScreen";
 import { MarketingScreen } from "@/components/flagship/MarketingScreen";
+import { RegistreScreen } from "@/components/flagship/RegistreScreen";
 import { getCapability } from "@/lib/capabilities";
 import { Card } from "@/components/ui";
 import type { ComponentType } from "react";
@@ -30,6 +31,7 @@ const FLAGSHIPS: Record<string, ComponentType> = {
   "commercial.crm": CrmScreen,
   "bi.pilotage": BiScreen,
   "erp.finance": FinanceScreen,
+  "erp.registre": RegistreScreen,
   "engineering.code": CodeScreen,
   "droit.ohada": DroitScreen,
   "droit.travail_cg": DroitScreen,

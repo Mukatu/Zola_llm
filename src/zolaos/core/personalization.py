@@ -23,7 +23,7 @@ MODULE_CATALOGUE: dict[str, tuple[str, ...]] = {
     "sante": ("pharmacology", "diagnosis", "case"),
     "droit": ("ohada", "travail_cg", "fiscal_cg", "admin_cg", "social_cg",
               "civil_cg", "penal_cg", "ip_oapi", "data_protection_cg"),
-    "erp": ("rh", "paie", "finance", "compta", "projets_ong",
+    "erp": ("rh", "paie", "finance", "compta", "registre", "projets_ong",
             "supply_chain", "achats", "moyens_generaux", "secretariat_societaire", "hse"),
     "bi": ("pilotage",),
     "commercial": ("crm",),
@@ -48,7 +48,7 @@ CORTEX_MODULES: tuple[str, ...] = (
 # Modules activés par défaut pour un nouveau client (box).
 DEFAULT_BOX_MODULES: tuple[str, ...] = (
     "droit.ohada", "droit.travail_cg", "droit.fiscal_cg",
-    "erp.rh", "erp.finance", "bi.pilotage",
+    "erp.rh", "erp.finance", "erp.registre", "bi.pilotage",
 )
 
 

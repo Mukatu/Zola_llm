@@ -5,7 +5,7 @@
 
 import {
   BarChart3, Boxes, Calculator, Code2, FileSignature, HardHat, Handshake,
-  Landmark, Megaphone, ScrollText, ShieldCheck, ShoppingCart, Stethoscope,
+  Landmark, Megaphone, Receipt, ScrollText, ShieldCheck, ShoppingCart, Stethoscope,
   Users, Wallet, Wrench, type LucideIcon,
 } from "lucide-react";
 
@@ -71,6 +71,9 @@ export const CAPABILITIES: Record<string, Capability> = Object.fromEntries(
     cap("erp.compta", "Comptabilité", Calculator,
       "Validation d'écritures SYSCOHADA + interprétation fiscale.",
       intents(["ecriture", "Valider écriture"], ["interpretation", "Interprétation fiscale"]), "flagship"),
+    cap("erp.registre", "Registre & clôture vivante", Receipt,
+      "Factures persistées + clôture continue (rapprochement temps réel).",
+      intents(["registre", "Registre"], ["cloture", "Clôture vivante"]), "flagship"),
     cap("erp.projets_ong", "Projets ONG", Handshake,
       "Gestion financière ONG, ventilation bailleur/projet.",
       intents(["suivi", "Suivi budget"], ["rapport", "Rapport"])),
