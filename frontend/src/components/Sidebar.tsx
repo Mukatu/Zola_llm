@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import clsx from "clsx";
-import { LayoutDashboard, MessagesSquare, FolderOpen, BookOpen, Settings } from "lucide-react";
+import { LayoutDashboard, MessagesSquare, FolderOpen, BookOpen, Settings, Briefcase } from "lucide-react";
 import { useZola } from "./ConfigProvider";
 import { navGroupsFromModules } from "@/lib/capabilities";
 
@@ -35,6 +35,21 @@ export function Sidebar() {
       </Link>
     );
   };
+
+  // Surface cabinet (Zolacortex) : navigation par missions, isolée (Zero Trust).
+  if (config.profil === "cortex") {
+    return (
+      <aside className="hidden w-64 shrink-0 flex-col gap-2 overflow-y-auto border-r border-black/5 bg-surface px-3 py-4 md:flex">
+        <nav className="flex flex-col gap-1">
+          {item("/", "Tableau de bord", LayoutDashboard)}
+          {item("/cortex/missions", "Missions", Briefcase)}
+        </nav>
+        <div className="mt-auto rounded-xl bg-black/[0.03] p-3 text-xs text-muted">
+          Accès client uniquement via mission (anonymisé, éphémère, audité).
+        </div>
+      </aside>
+    );
+  }
 
   return (
     <aside className="hidden w-64 shrink-0 flex-col gap-6 overflow-y-auto border-r border-black/5 bg-surface px-3 py-4 md:flex">

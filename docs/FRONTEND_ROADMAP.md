@@ -20,3 +20,10 @@
 ## Hors périmètre (pour l'instant)
 - Authentification réelle (brancher sur l'API auth existante en FE-2/3).
 - Design system graphique exhaustif (itératif).
+
+## Statut (2026-06-23) — FE-1 → FE-4 ✅
+- **FE-1/2** socle + écran de capacité pour toutes les capacités. ✅
+- **Écrans riches** (FE↔BE) : Paie, Compta, Supply, Achats, HSE, Facility, CRM (kanban), BI (dashboard), Finance + génératifs Code, Droit, Marketing. ✅
+- **FE-3** : PWA offline (service worker) + Paramètres (PUT /v1/config) + transverses (Documents, KB). ✅
+- **FE-4** : surface cabinet **Zolacortex** (cockpit missions : liste/création/révocation + cockpit, isolée Zero Trust ; overlays propriétaires non exposés côté public). ✅
+- Qualité : job CI frontend (typecheck + lint + build). Reste : Vitest (logique pure), branchement auth, i18n Lingala/Kituba.
