@@ -13,6 +13,7 @@ import { BiScreen } from "@/components/flagship/BiScreen";
 import { FinanceScreen } from "@/components/flagship/FinanceScreen";
 import { CodeScreen } from "@/components/flagship/CodeScreen";
 import { DroitScreen } from "@/components/flagship/DroitScreen";
+import { MarketingScreen } from "@/components/flagship/MarketingScreen";
 import { getCapability } from "@/lib/capabilities";
 import { Card } from "@/components/ui";
 import type { ComponentType } from "react";
@@ -34,6 +35,7 @@ const FLAGSHIPS: Record<string, ComponentType> = {
   "droit.travail_cg": DroitScreen,
   "droit.fiscal_cg": DroitScreen,
   "droit.admin_cg": DroitScreen,
+  "marketing.campagnes": MarketingScreen,
 };
 
 export default function CapabilityPage() {
