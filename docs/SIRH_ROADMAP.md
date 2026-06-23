@@ -51,6 +51,21 @@
 
 **Conformité** : registre unique du personnel ; cohérence avec le **Droit du travail CG** (synergie agent Droit) et la CNSS.
 
+## 3bis. Socle Référentiels (RME · RMC · Matrice) — **fondation partagée** ⭐ ✅ livré
+
+Construit **au début de SIRH-2** car il alimente **recrutement** (fiches de poste, grilles) **et** **GPEC/formation** (SIRH-3). **Livré** (`ea01ef9` back · `6ebf40d` écran) : RME, RMC, profil requis, matrice (tableau croisé éditable), analyse d'écart GPEC + compétences critiques ; capacité `erp.referentiels`. *Reste : génération (fiche de poste/grille depuis RME), 9-box.*
+
+- **RME — Référentiel des Emplois** (`store_job_roles`) : `code_emploi`, `famille_professionnelle`, `intitule` (emploi-repère), `mission_principale`, `activites` (clés, JSON), `kpis` (JSON).
+- **RMC — Cartographie des Compétences** (`store_skills`) : `code_competence`, `domaine` (technique/transversal/soft), `intitule`, `niveau_1` (notions) → `niveau_4` (expert).
+- **Profil requis par emploi** (`store_role_skills`) : `code_emploi` × `code_competence` → `niveau_requis` (0-4). *(le chaînon qui rend la matrice exploitable)*
+- **Matrice opérationnelle** (`store_employee_skills`) : `matricule` × `code_competence` → **note 0-4**. Rendu = **tableau croisé** (lignes : matricule/nom/code_emploi ; colonnes : codes compétences ; intersection : note).
+
+**Indicateurs déterministes débloqués** : **analyse d'écart GPEC** (requis − détenu par employé/compétence), **taux de couverture** des compétences, **nombre d'experts** par compétence (= **risque de perte de compétence clé** si trop peu), compétences critiques en déficit.
+
+**Génération (LLM, validée)** : depuis le RME → **fiche de poste**, annonce de vacance, **grille d'entretien** (sur compétences requises) ; depuis les écarts → **plan de formation**, **plan GPEC**.
+
+**Écran Référentiels** (3 onglets) : **RME** · **RMC** · **Matrice** (tableau croisé éditable) + vue **GPEC/écarts**.
+
 ## 4. Pilier 3 — Développement du Capital Humain (Talent Management & GPEC)
 
 **Registres** : `store_skills` (référentiel compétences) · `store_employee_skills` (détenues + niveau) · `store_position_skills` (requises par poste) · `store_trainings` (catalogue) · `store_training_sessions` (planning) · `store_training_enrollments` · `store_evaluations` (performance + à chaud / à froid).
@@ -100,7 +115,8 @@ Dépendances : SIRH-2 et SIRH-3 s'appuient sur SIRH-1 (employés/postes). Paie h
 | Sous-phase | Périmètre | DoD | Commit |
 |---|---|---|---|
 | SIRH-1 | Core HR & Pilotage (registres employés/contrats/absences + tableau de bord + échéancier + registre légal) | ✅ | `e13a97f` (back) · `22ca9ea` (écran) |
-| SIRH-2 | Recrutement | ☐ | — |
+| Socle Référentiels | RME + RMC + matrice + écarts GPEC | ✅ | `ea01ef9` · `6ebf40d` |
+| SIRH-2 | Recrutement (pipeline + génération) | ☐ | — |
 | SIRH-3 | Développement (GPEC/Formation) | ☐ | — |
 
 > SIRH-1 livré : moteur déterministe (effectif/ETP, masse salariale, turnover, absentéisme, ancienneté, pyramide des âges, égalité H/F, ratio d'encadrement), échéancier (essai/CDD/anniversaires), registre unique du personnel ; écran RH 3 onglets. Restant SIRH-1 : organigramme visuel, mouvements RH dédiés, génération de contrats/attestations (rattachée à `store_documents`, P2f).
