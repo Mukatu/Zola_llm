@@ -35,7 +35,16 @@
 
 **Écran** : **pipeline de recrutement** (kanban candidats par étape, façon CRM) + panneau « générer » (les artefacts ci-dessus).
 
-**Hors périmètre / interop** : publication auto sur job boards (LinkedIn/Indeed) → connecteur ; parsing CV avancé → LLM léger optionnel ; tests psychotechniques → externe.
+**Hors périmètre / interop** : publication auto sur job boards (LinkedIn/Indeed) → connecteur ; parsing CV avancé → LLM léger optionnel ; tests psychotechniques → externe ; signature électronique → interop.
+
+### Périmètre validé (2026-06-23) — détail & découpage
+**Registres** : `store_vacancies` (code, code_emploi RME, motif, type_contrat_cible, nb_postes, statut ouverte/en cours/pourvue/annulée/gelée, priorité, dates, budget) · `store_candidates` (vivier : nom, contact, **source**, cv_uri) · `store_applications` (candidature = candidat × vacance, **étape** pipeline) · `store_interviews` (date, type, **grille** JSON, score, recommandation).
+**Pipeline (workflow léger, champ `étape`)** : `reçue → présélection → entretien → offre → embauché` (+ `rejeté`/`désisté`) ; déplacer une carte = changer l'étape.
+**Indicateurs déterministes** (`recrutement.py`) : entonnoir + taux de conversion, **time-to-hire**, temps par étape, taux d'acceptation, efficacité des sources, aging des vacances, coût/recrutement.
+**Décisions actées** : (1) introduire **`store_documents`** (transverse) pour ranger les artefacts générés ; (2) **capacité dédiée `erp.recrutement`** (kanban) ; (3) CV = simple `cv_uri` (pas d'upload/parsing).
+**Découpage** :
+- **SIRH-2a** (déterministe, testable) : vacances + candidats + candidatures + entretiens ; kanban ; indicateurs (entonnoir, time-to-hire). *Sans LLM.*
+- **SIRH-2b** (génération) : `store_documents` + fiche de poste, annonce, grille (depuis RMC), plan, **contrats CDI/CDD en masse** (gabarit + fusion déterministe + finition LLM, brouillons validés).
 
 ## 3. Pilier 2 — Administration du Personnel (Core HR & Pilotage)
 
