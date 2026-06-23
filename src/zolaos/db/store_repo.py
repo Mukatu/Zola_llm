@@ -11,7 +11,14 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from zolaos.db.store_models import InvoiceRecord, JournalEntryRecord, StockItemRecord
+from zolaos.db.store_models import (
+    AbsenceRecord,
+    ContractRecord,
+    EmployeeRecord,
+    InvoiceRecord,
+    JournalEntryRecord,
+    StockItemRecord,
+)
 
 
 class InvoiceRepository:
@@ -133,6 +140,97 @@ class StockRepository:
     async def delete(self, item_id: str, *, tenant_id: str) -> bool:
         rec = await self.get(item_id, tenant_id=tenant_id)
         if rec is None:
+            return False
+        await self._s.delete(rec)
+        await self._s.flush()
+        return True
+
+
+class EmployeeRepository:
+    def __init__(self, session: AsyncSession) -> None:
+        self._s = session
+
+    async def create(self, data: dict[str, Any]) -> EmployeeRecord:
+        rec = EmployeeRecord(**data)
+        self._s.add(rec)
+        await self._s.flush()
+        return rec
+
+    async def get(self, emp_id: str, *, tenant_id: str) -> EmployeeRecord | None:
+        rec = await self._s.get(EmployeeRecord, emp_id)
+        if rec is None or rec.tenant_id != tenant_id:
+            return None
+        return rec
+
+    async def list(self, *, tenant_id: str) -> list[EmployeeRecord]:
+        stmt = (
+            select(EmployeeRecord)
+            .where(EmployeeRecord.tenant_id == tenant_id)
+            .order_by(EmployeeRecord.matricule)
+        )
+        return list(await self._s.scalars(stmt))
+
+    async def update(
+        self, emp_id: str, *, tenant_id: str, fields: dict[str, Any]
+    ) -> EmployeeRecord | None:
+        rec = await self.get(emp_id, tenant_id=tenant_id)
+        if rec is None:
+            return None
+        for k, v in fields.items():
+            if hasattr(rec, k) and k not in {"id", "tenant_id", "created_at"}:
+                setattr(rec, k, v)
+        await self._s.flush()
+        return rec
+
+    async def delete(self, emp_id: str, *, tenant_id: str) -> bool:
+        rec = await self.get(emp_id, tenant_id=tenant_id)
+        if rec is None:
+            return False
+        await self._s.delete(rec)
+        await self._s.flush()
+        return True
+
+
+class ContractRepository:
+    def __init__(self, session: AsyncSession) -> None:
+        self._s = session
+
+    async def create(self, data: dict[str, Any]) -> ContractRecord:
+        rec = ContractRecord(**data)
+        self._s.add(rec)
+        await self._s.flush()
+        return rec
+
+    async def list(self, *, tenant_id: str) -> list[ContractRecord]:
+        stmt = select(ContractRecord).where(ContractRecord.tenant_id == tenant_id)
+        return list(await self._s.scalars(stmt))
+
+    async def delete(self, contract_id: str, *, tenant_id: str) -> bool:
+        rec = await self._s.get(ContractRecord, contract_id)
+        if rec is None or rec.tenant_id != tenant_id:
+            return False
+        await self._s.delete(rec)
+        await self._s.flush()
+        return True
+
+
+class AbsenceRepository:
+    def __init__(self, session: AsyncSession) -> None:
+        self._s = session
+
+    async def create(self, data: dict[str, Any]) -> AbsenceRecord:
+        rec = AbsenceRecord(**data)
+        self._s.add(rec)
+        await self._s.flush()
+        return rec
+
+    async def list(self, *, tenant_id: str) -> list[AbsenceRecord]:
+        stmt = select(AbsenceRecord).where(AbsenceRecord.tenant_id == tenant_id)
+        return list(await self._s.scalars(stmt))
+
+    async def delete(self, absence_id: str, *, tenant_id: str) -> bool:
+        rec = await self._s.get(AbsenceRecord, absence_id)
+        if rec is None or rec.tenant_id != tenant_id:
             return False
         await self._s.delete(rec)
         await self._s.flush()

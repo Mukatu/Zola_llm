@@ -142,3 +142,107 @@ class StockItemRecord(StoreBase):
             "country": self.country,
             "created_at": self.created_at.isoformat() if self.created_at else None,
         }
+
+
+class EmployeeRecord(StoreBase):
+    """Employé persisté (SIRH — registre du personnel)."""
+
+    __tablename__ = "store_employees"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    tenant_id: Mapped[str] = mapped_column(String(64), index=True)
+    matricule: Mapped[str] = mapped_column(String(32))
+    nom_complet: Mapped[str] = mapped_column(String(200))
+    genre: Mapped[str] = mapped_column(String(4), default="NC")
+    date_naissance: Mapped[date | None] = mapped_column(Date, nullable=True)
+    date_embauche: Mapped[date] = mapped_column(Date)
+    poste: Mapped[str] = mapped_column(String(120), default="")
+    departement: Mapped[str] = mapped_column(String(120), default="")
+    manager_matricule: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    categorie: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    salaire_base_xaf: Mapped[Decimal] = mapped_column(Numeric(18, 2), default=Decimal("0"))
+    quotite: Mapped[Decimal] = mapped_column(Numeric(4, 2), default=Decimal("1"))
+    statut: Mapped[str] = mapped_column(String(8), default="actif")
+    date_sortie: Mapped[date | None] = mapped_column(Date, nullable=True)
+    motif_sortie: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    country: Mapped[str] = mapped_column(String(2), default="cg")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "tenant_id": self.tenant_id,
+            "matricule": self.matricule,
+            "nom_complet": self.nom_complet,
+            "genre": self.genre,
+            "date_naissance": self.date_naissance.isoformat() if self.date_naissance else None,
+            "date_embauche": self.date_embauche.isoformat() if self.date_embauche else None,
+            "poste": self.poste,
+            "departement": self.departement,
+            "manager_matricule": self.manager_matricule,
+            "categorie": self.categorie,
+            "salaire_base_xaf": str(self.salaire_base_xaf),
+            "quotite": str(self.quotite),
+            "statut": self.statut,
+            "date_sortie": self.date_sortie.isoformat() if self.date_sortie else None,
+            "motif_sortie": self.motif_sortie,
+            "country": self.country,
+        }
+
+
+class ContractRecord(StoreBase):
+    """Contrat de travail persisté (SIRH)."""
+
+    __tablename__ = "store_contracts"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    tenant_id: Mapped[str] = mapped_column(String(64), index=True)
+    employee_matricule: Mapped[str] = mapped_column(String(32), index=True)
+    type: Mapped[str] = mapped_column(String(16), default="CDI")
+    date_debut: Mapped[date] = mapped_column(Date)
+    date_fin: Mapped[date | None] = mapped_column(Date, nullable=True)
+    fin_periode_essai: Mapped[date | None] = mapped_column(Date, nullable=True)
+    statut: Mapped[str] = mapped_column(String(12), default="actif")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "tenant_id": self.tenant_id,
+            "employee_matricule": self.employee_matricule,
+            "type": self.type,
+            "date_debut": self.date_debut.isoformat() if self.date_debut else None,
+            "date_fin": self.date_fin.isoformat() if self.date_fin else None,
+            "fin_periode_essai": (
+                self.fin_periode_essai.isoformat() if self.fin_periode_essai else None
+            ),
+            "statut": self.statut,
+        }
+
+
+class AbsenceRecord(StoreBase):
+    """Absence persistée (SIRH)."""
+
+    __tablename__ = "store_absences"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    tenant_id: Mapped[str] = mapped_column(String(64), index=True)
+    employee_matricule: Mapped[str] = mapped_column(String(32), index=True)
+    type: Mapped[str] = mapped_column(String(16), default="conge_paye")
+    date_debut: Mapped[date] = mapped_column(Date)
+    date_fin: Mapped[date] = mapped_column(Date)
+    jours: Mapped[Decimal] = mapped_column(Numeric(6, 2), default=Decimal("0"))
+    statut: Mapped[str] = mapped_column(String(12), default="valide")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "tenant_id": self.tenant_id,
+            "employee_matricule": self.employee_matricule,
+            "type": self.type,
+            "date_debut": self.date_debut.isoformat() if self.date_debut else None,
+            "date_fin": self.date_fin.isoformat() if self.date_fin else None,
+            "jours": str(self.jours),
+            "statut": self.statut,
+        }
