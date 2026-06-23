@@ -350,3 +350,140 @@ class EmployeeSkillRecord(StoreBase):
             "code_competence": self.code_competence,
             "note": self.note,
         }
+
+
+class VacancyRecord(StoreBase):
+    """Vacance de poste / réquisition (recrutement)."""
+
+    __tablename__ = "store_vacancies"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    tenant_id: Mapped[str] = mapped_column(String(64), index=True)
+    code_vacance: Mapped[str] = mapped_column(String(32))
+    code_emploi: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    intitule: Mapped[str] = mapped_column(String(200))
+    motif: Mapped[str] = mapped_column(String(20), default="creation")
+    type_contrat_cible: Mapped[str] = mapped_column(String(16), default="CDI")
+    nb_postes: Mapped[int] = mapped_column(Integer, default=1)
+    departement: Mapped[str] = mapped_column(String(120), default="")
+    lieu: Mapped[str] = mapped_column(String(120), default="")
+    statut: Mapped[str] = mapped_column(String(16), default="ouverte")
+    priorite: Mapped[str] = mapped_column(String(8), default="moyenne")
+    date_ouverture: Mapped[date] = mapped_column(Date)
+    date_cible: Mapped[date | None] = mapped_column(Date, nullable=True)
+    manager_demandeur: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    budget_xaf: Mapped[Decimal | None] = mapped_column(Numeric(18, 2), nullable=True)
+    country: Mapped[str] = mapped_column(String(2), default="cg")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "tenant_id": self.tenant_id,
+            "code_vacance": self.code_vacance,
+            "code_emploi": self.code_emploi,
+            "intitule": self.intitule,
+            "motif": self.motif,
+            "type_contrat_cible": self.type_contrat_cible,
+            "nb_postes": self.nb_postes,
+            "departement": self.departement,
+            "lieu": self.lieu,
+            "statut": self.statut,
+            "priorite": self.priorite,
+            "date_ouverture": self.date_ouverture.isoformat() if self.date_ouverture else None,
+            "date_cible": self.date_cible.isoformat() if self.date_cible else None,
+            "manager_demandeur": self.manager_demandeur,
+            "budget_xaf": str(self.budget_xaf) if self.budget_xaf is not None else None,
+        }
+
+
+class CandidateRecord(StoreBase):
+    """Candidat (vivier)."""
+
+    __tablename__ = "store_candidates"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    tenant_id: Mapped[str] = mapped_column(String(64), index=True)
+    nom: Mapped[str] = mapped_column(String(120))
+    prenom: Mapped[str] = mapped_column(String(120), default="")
+    email: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    telephone: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    source: Mapped[str] = mapped_column(String(20), default="spontanee")
+    cv_uri: Mapped[str | None] = mapped_column(String(400), nullable=True)
+    statut_vivier: Mapped[str] = mapped_column(String(12), default="actif")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "tenant_id": self.tenant_id,
+            "nom": self.nom,
+            "prenom": self.prenom,
+            "email": self.email,
+            "telephone": self.telephone,
+            "source": self.source,
+            "cv_uri": self.cv_uri,
+            "statut_vivier": self.statut_vivier,
+        }
+
+
+class ApplicationRecord(StoreBase):
+    """Candidature = candidat × vacance (suivi pipeline)."""
+
+    __tablename__ = "store_applications"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    tenant_id: Mapped[str] = mapped_column(String(64), index=True)
+    candidate_id: Mapped[str] = mapped_column(String(36), index=True)
+    code_vacance: Mapped[str] = mapped_column(String(32), index=True)
+    etape: Mapped[str] = mapped_column(String(16), default="reçue")
+    date_candidature: Mapped[date] = mapped_column(Date)
+    date_etape: Mapped[date | None] = mapped_column(Date, nullable=True)
+    note_globale: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    decision: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "tenant_id": self.tenant_id,
+            "candidate_id": self.candidate_id,
+            "code_vacance": self.code_vacance,
+            "etape": self.etape,
+            "date_candidature": (
+                self.date_candidature.isoformat() if self.date_candidature else None
+            ),
+            "date_etape": self.date_etape.isoformat() if self.date_etape else None,
+            "note_globale": self.note_globale,
+            "decision": self.decision,
+        }
+
+
+class InterviewRecord(StoreBase):
+    """Entretien (grille structurée)."""
+
+    __tablename__ = "store_interviews"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    tenant_id: Mapped[str] = mapped_column(String(64), index=True)
+    application_id: Mapped[str] = mapped_column(String(36), index=True)
+    date_prevue: Mapped[date | None] = mapped_column(Date, nullable=True)
+    type: Mapped[str] = mapped_column(String(16), default="RH")
+    grille: Mapped[list[Any]] = mapped_column(JSON, default=list)
+    score_global: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    recommandation: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    statut: Mapped[str] = mapped_column(String(12), default="planifie")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "tenant_id": self.tenant_id,
+            "application_id": self.application_id,
+            "date_prevue": self.date_prevue.isoformat() if self.date_prevue else None,
+            "type": self.type,
+            "grille": self.grille,
+            "score_global": self.score_global,
+            "recommandation": self.recommandation,
+            "statut": self.statut,
+        }

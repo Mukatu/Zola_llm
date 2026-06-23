@@ -13,15 +13,19 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from zolaos.db.store_models import (
     AbsenceRecord,
+    ApplicationRecord,
+    CandidateRecord,
     ContractRecord,
     EmployeeRecord,
     EmployeeSkillRecord,
+    InterviewRecord,
     InvoiceRecord,
     JobRoleRecord,
     JournalEntryRecord,
     RoleSkillRecord,
     SkillRecord,
     StockItemRecord,
+    VacancyRecord,
 )
 
 
@@ -278,6 +282,40 @@ class SkillRepository(_SimpleRepo):
 
 class RoleSkillRepository(_SimpleRepo):
     model = RoleSkillRecord
+
+
+class VacancyRepository(_SimpleRepo):
+    model = VacancyRecord
+
+
+class CandidateRepository(_SimpleRepo):
+    model = CandidateRecord
+
+
+class InterviewRepository(_SimpleRepo):
+    model = InterviewRecord
+
+
+class ApplicationRepository(_SimpleRepo):
+    model = ApplicationRecord
+
+    async def get(self, app_id: str, *, tenant_id: str) -> ApplicationRecord | None:
+        rec = await self._s.get(ApplicationRecord, app_id)
+        if rec is None or rec.tenant_id != tenant_id:
+            return None
+        return rec
+
+    async def update(
+        self, app_id: str, *, tenant_id: str, fields: dict[str, Any]
+    ) -> ApplicationRecord | None:
+        rec = await self.get(app_id, tenant_id=tenant_id)
+        if rec is None:
+            return None
+        for k, v in fields.items():
+            if hasattr(rec, k) and k not in {"id", "tenant_id", "created_at"}:
+                setattr(rec, k, v)
+        await self._s.flush()
+        return rec
 
 
 class EmployeeSkillRepository(_SimpleRepo):
