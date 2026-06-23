@@ -50,6 +50,26 @@ Les **moteurs déterministes** opèrent alors sur les **données stockées** (et
 - **Léger, scope maîtrisé** : on ne reconstruit pas Odoo. Si un besoin transactionnel lourd apparaît → **interop** plutôt que développement.
 - Souveraineté/local-first et Zero Trust **inchangés**.
 
+## 7. Vision — comptabilité **IA-native** (au-delà d'Odoo, façon Rillet)
+
+La persistance n'est pas une fin : elle débloque une **compta vivante**. Principe **déterministe d'abord** (chiffres/règles en code, exacts) + **LLM** pour interpréter/rédiger/alerter.
+
+- **Clôture continue (livré P1)** : le rapprochement facture ↔ encaissement est recalculé **à chaque mouvement** (`/v1/erp/reconcile`), pas en fin de mois. À tout instant : **balance vivante** (taux de lettrage, encours clients, mouvements non rapprochés). *« Toujours clôturé. »*
+- **Auto-catégorisation assistée** : le LLM **propose** le compte SYSCOHADA ; le moteur **valide** l'équilibre ; l'humain confirme. (Suggestion IA, contrôle déterministe.)
+- **Détection d'anomalies en continu** : doublons / dépassements / échéances (`/v1/erp/finance/analyze`) → **alertes proactives** au fil de l'eau.
+- **Relances automatiques** sur l'encours (réutilise CRM `relances`).
+- **Piste d'audit immuable** : écritures/rapprochements journalisés (hash-chain `audit`), prêts pour le commissaire aux comptes.
+- **Pilotage temps réel** : KPIs (CA, marge, DSO, trésorerie) en continu (`/v1/bi/kpis`) + **assistant conversationnel** sur les chiffres (`/v1/query`).
+- **À venir (brique ML dédiée, pas LLM)** : **prévision de trésorerie**, scoring de retard de paiement, multi-devise/multi-pays.
+
+**Différenciateur** : l'ERP classique *enregistre puis clôture périodiquement* ; ZolaOS *réconcilie et pilote en continu* — la clôture devient un **non-événement**.
+
+### Plan d'exécution compta IA-native
+- **P1 (livré)** : persistance Factures + **clôture continue** + tests.
+- **P1b** : auto-catégorisation assistée + écran « Registre & clôture vivante ».
+- **P2** : persistance écritures/stocks/clients + relances auto + alertes proactives sur le store.
+- **P3** : prévision de trésorerie (ML) + multi-devise.
+
 ---
 
-*Addendum établi le 2026-06-23. Identité = couche IA souveraine + interop ; ajout d'une persistance légère scopée.*
+*Addendum établi le 2026-06-23. Identité = couche IA souveraine + interop ; ajout d'une persistance légère scopée + compta IA-native (clôture continue).*

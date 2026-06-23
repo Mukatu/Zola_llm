@@ -13,6 +13,7 @@ RUN pip install --no-cache-dir --prefix=/install --no-warn-script-location \
     "pytest-mock>=3.14" \
     "respx>=0.21" \
     "freezegun>=1.5" \
+    "aiosqlite>=0.20" \
     pygments
 
 USER zolaos

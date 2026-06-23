@@ -149,6 +149,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         from zolaos.api.v1.crm import router as crm_router
         from zolaos.api.v1.erp import router as erp_router
         from zolaos.api.v1.mkt import router as mkt_router
+        from zolaos.api.v1.store import router as store_router
 
         app.include_router(box_router)
         # Moteurs déterministes (ERP/ops, CRM, BI, Marketing) exposés au frontend client.
@@ -156,6 +157,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         app.include_router(crm_router)
         app.include_router(bi_router)
         app.include_router(mkt_router)
+        # Système de référence léger (persistance Factures + clôture continue).
+        app.include_router(store_router)
 
     # Routes Zolacortex (gestion missions) : exposées uniquement en profil `cortex`.
     # Inversement, en profil `box`, 404 sur /v1/cortex/*.
