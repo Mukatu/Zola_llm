@@ -8,6 +8,9 @@ import { SupplyScreen } from "@/components/flagship/SupplyScreen";
 import { AchatsScreen } from "@/components/flagship/AchatsScreen";
 import { HseScreen } from "@/components/flagship/HseScreen";
 import { FacilityScreen } from "@/components/flagship/FacilityScreen";
+import { CrmScreen } from "@/components/flagship/CrmScreen";
+import { BiScreen } from "@/components/flagship/BiScreen";
+import { FinanceScreen } from "@/components/flagship/FinanceScreen";
 import { getCapability } from "@/lib/capabilities";
 import { Card } from "@/components/ui";
 import type { ComponentType } from "react";
@@ -21,6 +24,9 @@ const FLAGSHIPS: Record<string, ComponentType> = {
   "erp.achats": AchatsScreen,
   "erp.hse": HseScreen,
   "erp.moyens_generaux": FacilityScreen,
+  "commercial.crm": CrmScreen,
+  "bi.pilotage": BiScreen,
+  "erp.finance": FinanceScreen,
 };
 
 export default function CapabilityPage() {

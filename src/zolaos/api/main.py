@@ -144,12 +144,16 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     # profil `cortex`, le router n'est pas monté → 404 sur /v1/box/* (préférable
     # à un 500 ProfileError qui révélerait l'existence des routes).
     if settings.ZOLAOS_PROFILE == "box":
+        from zolaos.api.v1.bi import router as bi_router
         from zolaos.api.v1.box import router as box_router
+        from zolaos.api.v1.crm import router as crm_router
         from zolaos.api.v1.erp import router as erp_router
 
         app.include_router(box_router)
-        # Moteurs déterministes ERP/ops exposés au frontend client (FE↔BE).
+        # Moteurs déterministes (ERP/ops, CRM, BI) exposés au frontend client (FE↔BE).
         app.include_router(erp_router)
+        app.include_router(crm_router)
+        app.include_router(bi_router)
 
     # Routes Zolacortex (gestion missions) : exposées uniquement en profil `cortex`.
     # Inversement, en profil `box`, 404 sur /v1/cortex/*.

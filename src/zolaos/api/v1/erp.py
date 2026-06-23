@@ -23,7 +23,7 @@ from zolaos.agents.erp.facility import Asset, Echeance, echeances_dues, maintena
 from zolaos.agents.erp.hse import Risque, cartographie_risques
 from zolaos.agents.erp.payroll import PayrollCalculator, PayrollScaleNotValidated, load_payroll_scale
 from zolaos.agents.erp.supply import StockItem, analyser_reappro, alertes_rupture
-from zolaos.connectors.models import JournalEntry
+from zolaos.connectors.models import BankTransaction, Invoice, JournalEntry
 
 router = APIRouter(prefix="/v1/erp", tags=["erp"])
 
@@ -118,3 +118,33 @@ class HseRequest(BaseModel):
 @router.post("/hse/cartographie", summary="Cartographie des risques (déterministe)")
 def hse_cartographie(req: HseRequest) -> dict[str, Any]:
     return {"risques": [asdict(r) for r in cartographie_risques(req.risques)]}
+
+
+# ---------------------------------------------------------------- Finance
+
+class FinanceRequest(BaseModel):
+    transactions: list[BankTransaction] = Field(default_factory=list)
+    invoices: list[Invoice] = Field(default_factory=list)
+    seuil_depassement_xaf: Decimal = Field(default=Decimal("1000000"), ge=0)
+
+
+@router.post("/finance/analyze", summary="Anomalies de trésorerie (déterministe)")
+def finance_analyze(req: FinanceRequest) -> dict[str, Any]:
+    from datetime import date
+
+    from zolaos.agents.erp.finance import FinanceAgent
+
+    findings = (
+        FinanceAgent.detect_duplicates(req.transactions)
+        + FinanceAgent.detect_large_outflows(req.transactions, req.seuil_depassement_xaf)
+        + FinanceAgent.detect_overdue_invoices(req.invoices, as_of=date.today())
+    )
+    z = Decimal("0")
+    total_debit = sum((abs(t.montant_xaf) for t in req.transactions if t.sens == "debit"), z)
+    total_credit = sum((abs(t.montant_xaf) for t in req.transactions if t.sens == "credit"), z)
+    return {
+        "total_debit_xaf": total_debit,
+        "total_credit_xaf": total_credit,
+        "net_xaf": total_credit - total_debit,
+        "findings": [asdict(f) for f in findings],
+    }
