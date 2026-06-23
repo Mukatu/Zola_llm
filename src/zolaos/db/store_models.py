@@ -160,6 +160,7 @@ class EmployeeRecord(StoreBase):
     departement: Mapped[str] = mapped_column(String(120), default="")
     manager_matricule: Mapped[str | None] = mapped_column(String(32), nullable=True)
     categorie: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    code_emploi: Mapped[str | None] = mapped_column(String(32), nullable=True)
     salaire_base_xaf: Mapped[Decimal] = mapped_column(Numeric(18, 2), default=Decimal("0"))
     quotite: Mapped[Decimal] = mapped_column(Numeric(4, 2), default=Decimal("1"))
     statut: Mapped[str] = mapped_column(String(8), default="actif")
@@ -181,6 +182,7 @@ class EmployeeRecord(StoreBase):
             "departement": self.departement,
             "manager_matricule": self.manager_matricule,
             "categorie": self.categorie,
+            "code_emploi": self.code_emploi,
             "salaire_base_xaf": str(self.salaire_base_xaf),
             "quotite": str(self.quotite),
             "statut": self.statut,
@@ -245,4 +247,106 @@ class AbsenceRecord(StoreBase):
             "date_fin": self.date_fin.isoformat() if self.date_fin else None,
             "jours": str(self.jours),
             "statut": self.statut,
+        }
+
+
+class JobRoleRecord(StoreBase):
+    """RME — Référentiel des emplois (emploi-repère)."""
+
+    __tablename__ = "store_job_roles"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    tenant_id: Mapped[str] = mapped_column(String(64), index=True)
+    code_emploi: Mapped[str] = mapped_column(String(32))
+    famille_professionnelle: Mapped[str] = mapped_column(String(120), default="")
+    intitule: Mapped[str] = mapped_column(String(200))
+    mission_principale: Mapped[str] = mapped_column(String(1000), default="")
+    activites: Mapped[list[Any]] = mapped_column(JSON, default=list)
+    kpis: Mapped[list[Any]] = mapped_column(JSON, default=list)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "tenant_id": self.tenant_id,
+            "code_emploi": self.code_emploi,
+            "famille_professionnelle": self.famille_professionnelle,
+            "intitule": self.intitule,
+            "mission_principale": self.mission_principale,
+            "activites": self.activites,
+            "kpis": self.kpis,
+        }
+
+
+class SkillRecord(StoreBase):
+    """RMC — Cartographie des compétences (4 niveaux)."""
+
+    __tablename__ = "store_skills"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    tenant_id: Mapped[str] = mapped_column(String(64), index=True)
+    code_competence: Mapped[str] = mapped_column(String(32))
+    domaine: Mapped[str] = mapped_column(String(20), default="technique")
+    intitule: Mapped[str] = mapped_column(String(200))
+    niveau_1: Mapped[str] = mapped_column(String(500), default="")
+    niveau_2: Mapped[str] = mapped_column(String(500), default="")
+    niveau_3: Mapped[str] = mapped_column(String(500), default="")
+    niveau_4: Mapped[str] = mapped_column(String(500), default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "tenant_id": self.tenant_id,
+            "code_competence": self.code_competence,
+            "domaine": self.domaine,
+            "intitule": self.intitule,
+            "niveau_1": self.niveau_1,
+            "niveau_2": self.niveau_2,
+            "niveau_3": self.niveau_3,
+            "niveau_4": self.niveau_4,
+        }
+
+
+class RoleSkillRecord(StoreBase):
+    """Profil de compétences requis par emploi (RME × RMC → niveau requis)."""
+
+    __tablename__ = "store_role_skills"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    tenant_id: Mapped[str] = mapped_column(String(64), index=True)
+    code_emploi: Mapped[str] = mapped_column(String(32))
+    code_competence: Mapped[str] = mapped_column(String(32))
+    niveau_requis: Mapped[int] = mapped_column(Integer, default=0)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "tenant_id": self.tenant_id,
+            "code_emploi": self.code_emploi,
+            "code_competence": self.code_competence,
+            "niveau_requis": self.niveau_requis,
+        }
+
+
+class EmployeeSkillRecord(StoreBase):
+    """Matrice opérationnelle : collaborateur × compétence → note 0-4."""
+
+    __tablename__ = "store_employee_skills"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    tenant_id: Mapped[str] = mapped_column(String(64), index=True)
+    employee_matricule: Mapped[str] = mapped_column(String(32), index=True)
+    code_competence: Mapped[str] = mapped_column(String(32))
+    note: Mapped[int] = mapped_column(Integer, default=0)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "tenant_id": self.tenant_id,
+            "employee_matricule": self.employee_matricule,
+            "code_competence": self.code_competence,
+            "note": self.note,
         }

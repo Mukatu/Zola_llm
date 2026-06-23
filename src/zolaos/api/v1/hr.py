@@ -42,6 +42,7 @@ class EmployeeIn(BaseModel):
     departement: str = ""
     manager_matricule: str | None = None
     categorie: str | None = None
+    code_emploi: str | None = None
     salaire_base_xaf: Decimal = Decimal("0")
     quotite: Decimal = Decimal("1")
     statut: str = "actif"
@@ -54,6 +55,7 @@ class EmployeePatch(BaseModel):
     poste: str | None = None
     departement: str | None = None
     manager_matricule: str | None = None
+    code_emploi: str | None = None
     salaire_base_xaf: Decimal | None = None
     quotite: Decimal | None = None
     statut: str | None = None

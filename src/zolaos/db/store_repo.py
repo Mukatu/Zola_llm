@@ -15,8 +15,12 @@ from zolaos.db.store_models import (
     AbsenceRecord,
     ContractRecord,
     EmployeeRecord,
+    EmployeeSkillRecord,
     InvoiceRecord,
+    JobRoleRecord,
     JournalEntryRecord,
+    RoleSkillRecord,
+    SkillRecord,
     StockItemRecord,
 )
 
@@ -235,3 +239,70 @@ class AbsenceRepository:
         await self._s.delete(rec)
         await self._s.flush()
         return True
+
+
+class _SimpleRepo:
+    """CRUD minimal (create/list/delete) pour les référentiels."""
+
+    model: type[Any]
+
+    def __init__(self, session: AsyncSession) -> None:
+        self._s = session
+
+    async def create(self, data: dict[str, Any]) -> Any:
+        rec = self.model(**data)
+        self._s.add(rec)
+        await self._s.flush()
+        return rec
+
+    async def list(self, *, tenant_id: str) -> list[Any]:
+        stmt = select(self.model).where(self.model.tenant_id == tenant_id)
+        return list(await self._s.scalars(stmt))
+
+    async def delete(self, rec_id: str, *, tenant_id: str) -> bool:
+        rec = await self._s.get(self.model, rec_id)
+        if rec is None or rec.tenant_id != tenant_id:
+            return False
+        await self._s.delete(rec)
+        await self._s.flush()
+        return True
+
+
+class JobRoleRepository(_SimpleRepo):
+    model = JobRoleRecord
+
+
+class SkillRepository(_SimpleRepo):
+    model = SkillRecord
+
+
+class RoleSkillRepository(_SimpleRepo):
+    model = RoleSkillRecord
+
+
+class EmployeeSkillRepository(_SimpleRepo):
+    model = EmployeeSkillRecord
+
+    async def set_note(
+        self, *, tenant_id: str, matricule: str, code_competence: str, note: int
+    ) -> EmployeeSkillRecord:
+        """Upsert : une seule note par (collaborateur, compétence)."""
+        stmt = select(EmployeeSkillRecord).where(
+            EmployeeSkillRecord.tenant_id == tenant_id,
+            EmployeeSkillRecord.employee_matricule == matricule,
+            EmployeeSkillRecord.code_competence == code_competence,
+        )
+        existing = (await self._s.scalars(stmt)).first()
+        if existing is not None:
+            existing.note = note
+            await self._s.flush()
+            return existing
+        rec = EmployeeSkillRecord(
+            tenant_id=tenant_id,
+            employee_matricule=matricule,
+            code_competence=code_competence,
+            note=note,
+        )
+        self._s.add(rec)
+        await self._s.flush()
+        return rec
