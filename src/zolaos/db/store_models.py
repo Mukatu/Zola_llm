@@ -14,8 +14,9 @@ from __future__ import annotations
 import uuid
 from datetime import UTC, date, datetime
 from decimal import Decimal
+from typing import Any
 
-from sqlalchemy import Boolean, Date, DateTime, Numeric, String
+from sqlalchemy import JSON, Boolean, Date, DateTime, Integer, Numeric, String
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
@@ -70,6 +71,74 @@ class InvoiceRecord(StoreBase):
             "montant_ttc_xaf": str(self.montant_ttc_xaf),
             "devise": self.devise,
             "payee": self.payee,
+            "country": self.country,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
+
+
+class JournalEntryRecord(StoreBase):
+    """Écriture comptable persistée (lignes en JSON)."""
+
+    __tablename__ = "store_journal_entries"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    tenant_id: Mapped[str] = mapped_column(String(64), index=True)
+    date_ecriture: Mapped[date] = mapped_column(Date)
+    journal: Mapped[str] = mapped_column(String(16), default="OD")
+    libelle: Mapped[str] = mapped_column(String(200))
+    reference: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    lignes: Mapped[list[dict[str, Any]]] = mapped_column(JSON, default=list)
+    total_debit_xaf: Mapped[Decimal] = mapped_column(Numeric(18, 2), default=Decimal("0"))
+    total_credit_xaf: Mapped[Decimal] = mapped_column(Numeric(18, 2), default=Decimal("0"))
+    equilibre: Mapped[bool] = mapped_column(Boolean, default=False)
+    country: Mapped[str] = mapped_column(String(2), default="cg")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "tenant_id": self.tenant_id,
+            "date_ecriture": self.date_ecriture.isoformat() if self.date_ecriture else None,
+            "journal": self.journal,
+            "libelle": self.libelle,
+            "reference": self.reference,
+            "lignes": self.lignes,
+            "total_debit_xaf": str(self.total_debit_xaf),
+            "total_credit_xaf": str(self.total_credit_xaf),
+            "equilibre": self.equilibre,
+            "country": self.country,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
+
+
+class StockItemRecord(StoreBase):
+    """Article de stock persisté (système de référence léger)."""
+
+    __tablename__ = "store_stock_items"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    tenant_id: Mapped[str] = mapped_column(String(64), index=True)
+    sku: Mapped[str] = mapped_column(String(64))
+    libelle: Mapped[str] = mapped_column(String(200))
+    quantite_actuelle: Mapped[Decimal] = mapped_column(Numeric(18, 3), default=Decimal("0"))
+    unite: Mapped[str] = mapped_column(String(16), default="unité")
+    conso_moyenne_jour: Mapped[Decimal] = mapped_column(Numeric(18, 3), default=Decimal("0"))
+    delai_appro_jours: Mapped[int] = mapped_column(Integer, default=0)
+    stock_securite: Mapped[Decimal] = mapped_column(Numeric(18, 3), default=Decimal("0"))
+    country: Mapped[str] = mapped_column(String(2), default="cg")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "tenant_id": self.tenant_id,
+            "sku": self.sku,
+            "libelle": self.libelle,
+            "quantite_actuelle": str(self.quantite_actuelle),
+            "unite": self.unite,
+            "conso_moyenne_jour": str(self.conso_moyenne_jour),
+            "delai_appro_jours": self.delai_appro_jours,
+            "stock_securite": str(self.stock_securite),
             "country": self.country,
             "created_at": self.created_at.isoformat() if self.created_at else None,
         }
