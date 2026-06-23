@@ -36,7 +36,8 @@ Pour chaque métier, **7 livrables** :
 | P1b | Écran « Registre & clôture vivante » | ✅ |
 | P2 | Comptabilité (Écritures + **balance vivante**) + Supply (Stocks) + **auto-catégorisation** | ✅ |
 | **P2b** | **Commercial / CRM** (Customer, Opportunity, Quote) | ⏳ à faire |
-| **P2c** | **Achats** (Supplier, PurchaseOrder) + **SIRH de pilotage** (employés, contrats, absences, mouvements + tableau de bord RH) → débloque **Paie** historisée | ⏳ |
+| **P2c** | **Achats** (Supplier, PurchaseOrder) + **SIRH-1** Core HR & pilotage (registres + tableau de bord + organigramme) → débloque **Paie** historisée | ⏳ |
+| **P2c+** | **SIRH-2** Recrutement (pipeline + génération) · **SIRH-3** Développement/GPEC/Formation — voir `docs/SIRH_ROADMAP.md` | ⏳ |
 | **P2d** | **Opérations** : Facility (Asset/Echeance), HSE (Risque/Incident), Marketing (MarketingContact/Campaign) | ⏳ |
 | **P2e** | **Finance** (relevés bancaires persistés) + **Secrétariat** (Mandat) + **Projets ONG** (Projet/Budget) | ⏳ |
 | **P2f** | **Documents** (transverse) : artefacts générés (contrats Droit, rapports, bulletins) → métiers génératifs | ⏳ |
@@ -71,8 +72,9 @@ Entité **nouvelle** `store_bank_transactions` (canonique : `connectors.models.B
 Entités `store_suppliers` (canonique : `achats.Supplier`) + `store_purchase_orders` (lignes JSON ; devis comparés → BC). Endpoints `/v1/erp/suppliers` (CRUD + score/conformité) + `/purchase-orders` (CRUD + comparatif). Écran `AchatsScreen` (🔁 : registre fournisseurs + historique devis/BC).
 **Plus-value** : registre fournisseurs, historique d'achats, anti-surfacturation tracée.
 
-**6. RH — SIRH de pilotage — ⏳ (P2c, bloc enrichi)**
-Objectif : passer d'un simple registre à un **SIRH d'aide au pilotage**, **dans le cadre** (registres persistés + **indicateurs déterministes** + tableau de bord + échéancier ; LLM = synthèse ; interop/futur = le lourd).
+**6. RH — SIRH complet (3 piliers) — ⏳ (P2c → SIRH-1/2/3)** · **plan détaillé : `docs/SIRH_ROADMAP.md`**
+Objectif : un **SIRH de pilotage** couvrant **Recrutement**, **Administration du Personnel**, **Développement du Capital Humain (GPEC/Formation)** — registres persistés + **indicateurs déterministes** + **génération d'artefacts** (fiches de poste, contrats CDI/CDD en masse, grilles d'entretien, plans de formation, plan GPEC, matrice risques/opportunités, organigramme…) + échéanciers/alertes. LLM rédige (brouillons validés), l'humain valide ; le lourd (LMS, job boards, pointage, BPM) → interop.
+Sous-phases : **SIRH-1** Core HR & pilotage (= ce bloc P2c) · **SIRH-2** Recrutement · **SIRH-3** Développement/GPEC. *Détail entités/endpoints/écrans/indicateurs : voir `docs/SIRH_ROADMAP.md`.*
 
 *Entités persistées* (canonique : `connectors.models.Employee`, étendu) :
 - `store_employees` (riche) : matricule, nom, genre, date_naissance, date_embauche, poste, département, manager_id, catégorie/échelon, salaire_base_xaf, statut (actif/sorti), date_sortie, motif_sortie, lieu.
