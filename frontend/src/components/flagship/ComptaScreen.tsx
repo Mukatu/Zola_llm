@@ -1,11 +1,15 @@
 "use client";
 
-import { useState } from "react";
-import { Calculator, Plus, Trash2, CheckCircle2, XCircle } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { Calculator, Plus, Trash2, CheckCircle2, XCircle, Save, Activity } from "lucide-react";
 import { Card, Button } from "../ui";
 import { FlagshipHeader, Inp } from "./_shared";
 import { comptaValidate, fmtXaf, type JournalLineInput, type ValidationReport } from "@/lib/erp";
 import { ApiError } from "@/lib/api";
+import {
+  createEntry, listEntries, getBalance, deleteEntry,
+  type Balance, type EntryRec,
+} from "@/lib/store";
 
 const DEFAULT: JournalLineInput[] = [
   { compte: "411", libelle: "Client", debit_xaf: "1180", credit_xaf: "0" },
@@ -15,24 +19,73 @@ const DEFAULT: JournalLineInput[] = [
 
 export function ComptaScreen() {
   const [lignes, setLignes] = useState<JournalLineInput[]>(DEFAULT);
+  const [libelle, setLibelle] = useState("Vente");
   const [rep, setRep] = useState<ValidationReport | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const [balance, setBalance] = useState<Balance | null>(null);
+  const [entries, setEntries] = useState<EntryRec[]>([]);
 
   const set = (i: number, k: keyof JournalLineInput, v: string) =>
     setLignes((l) => l.map((row, j) => (j === i ? { ...row, [k]: v } : row)));
   const add = () => setLignes((l) => [...l, { compte: "", libelle: "", debit_xaf: "0", credit_xaf: "0" }]);
   const del = (i: number) => setLignes((l) => l.filter((_, j) => j !== i));
 
+  const refresh = useCallback(async () => {
+    try {
+      const [b, e] = await Promise.all([getBalance(), listEntries()]);
+      setBalance(b);
+      setEntries(e.entries);
+    } catch {
+      /* backend/DB indisponible : on laisse la saisie/validation locale fonctionner */
+    }
+  }, []);
+
+  useEffect(() => { refresh(); }, [refresh]);
+
   async function validate() {
-    setErr(null); setRep(null);
-    try { setRep(await comptaValidate(lignes)); }
-    catch (e) { setErr(e instanceof ApiError ? e.message : "Service indisponible."); }
+    setErr(null);
+    setRep(null);
+    try {
+      setRep(await comptaValidate(lignes));
+    } catch (e) {
+      setErr(e instanceof ApiError ? e.message : "Service indisponible.");
+    }
+  }
+
+  async function save() {
+    setErr(null);
+    try {
+      await createEntry({
+        date_ecriture: new Date().toISOString().slice(0, 10),
+        journal: "OD",
+        libelle,
+        lignes: lignes.map((l) => ({
+          compte: l.compte,
+          libelle: l.libelle,
+          debit_xaf: l.debit_xaf,
+          credit_xaf: l.credit_xaf,
+        })),
+      });
+      setRep(null);
+      await refresh();
+    } catch (e) {
+      setErr(
+        e instanceof ApiError && e.status === 422
+          ? "Écriture rejetée : déséquilibrée ou compte inconnu au plan SYSCOHADA."
+          : "Enregistrement impossible (backend/DB requis).",
+      );
+    }
   }
 
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-4">
-      <FlagshipHeader icon={Calculator} title="Comptabilité" subtitle="Validation d'écriture SYSCOHADA (déterministe) + équilibre." />
+      <FlagshipHeader icon={Calculator} title="Comptabilité" subtitle="Saisie validée SYSCOHADA + balance vivante (clôture continue)." />
+
       <Card>
+        <div className="mb-2 flex items-center gap-2">
+          <span className="text-xs font-medium text-muted">Libellé</span>
+          <Inp value={libelle} onChange={setLibelle} className="flex-1" />
+        </div>
         <div className="grid grid-cols-[80px_1fr_110px_110px_32px] gap-2 text-xs font-medium text-muted">
           <span>Compte</span><span>Libellé</span><span>Débit</span><span>Crédit</span><span />
         </div>
@@ -47,7 +100,10 @@ export function ComptaScreen() {
         ))}
         <div className="mt-3 flex justify-between">
           <Button variant="ghost" onClick={add}><Plus className="h-4 w-4" /> Ligne</Button>
-          <Button onClick={validate}>Valider l'écriture</Button>
+          <div className="flex gap-2">
+            <Button variant="ghost" onClick={validate}>Valider</Button>
+            <Button onClick={save}><Save className="h-4 w-4" /> Enregistrer</Button>
+          </div>
         </div>
       </Card>
 
@@ -64,6 +120,56 @@ export function ComptaScreen() {
           {rep.warnings.map((w, i) => <p key={i} className="mt-1 text-sm text-amber-600">⚠ {w}</p>)}
         </Card>
       )}
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        {/* Balance vivante */}
+        <Card>
+          <div className="mb-2 flex items-center justify-between">
+            <span className="flex items-center gap-2 text-sm font-semibold"><Activity className="h-4 w-4 text-emerald-600" /> Balance vivante</span>
+            {balance && (
+              <span className={"rounded-full px-2 py-0.5 text-xs font-semibold " + (balance.equilibre ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700")}>
+                {balance.equilibre ? "équilibrée" : "déséquilibrée"}
+              </span>
+            )}
+          </div>
+          {!balance || balance.comptes.length === 0
+            ? <p className="text-sm text-muted">Aucune écriture enregistrée.</p>
+            : (
+              <>
+                <div className="grid grid-cols-[1fr_90px_90px] gap-2 text-xs font-medium text-muted">
+                  <span>Compte</span><span className="text-right">Débit</span><span className="text-right">Crédit</span>
+                </div>
+                {balance.comptes.map((c) => (
+                  <div key={c.compte} className="grid grid-cols-[1fr_90px_90px] gap-2 border-b border-black/5 py-1 text-sm last:border-0">
+                    <span className="font-mono">{c.compte}</span>
+                    <span className="text-right">{fmtXaf(c.debit_xaf)}</span>
+                    <span className="text-right">{fmtXaf(c.credit_xaf)}</span>
+                  </div>
+                ))}
+                <div className="mt-1 grid grid-cols-[1fr_90px_90px] gap-2 pt-1 text-sm font-semibold">
+                  <span>Total</span>
+                  <span className="text-right">{fmtXaf(balance.total_debit_xaf)}</span>
+                  <span className="text-right">{fmtXaf(balance.total_credit_xaf)}</span>
+                </div>
+              </>
+            )}
+        </Card>
+
+        {/* Écritures récentes */}
+        <Card>
+          <h2 className="mb-2 text-sm font-semibold">Écritures enregistrées ({entries.length})</h2>
+          {entries.length === 0 && <p className="text-sm text-muted">Aucune.</p>}
+          {entries.map((e) => (
+            <div key={e.id} className="flex items-center justify-between border-b border-black/5 py-1.5 text-sm last:border-0">
+              <span>{e.date_ecriture} · <b>{e.journal}</b> · {e.libelle}</span>
+              <span className="flex items-center gap-2">
+                <span className="text-muted">{fmtXaf(e.total_debit_xaf)}</span>
+                <button onClick={async () => { await deleteEntry(e.id); refresh(); }} className="text-muted hover:text-red-600"><Trash2 className="h-4 w-4" /></button>
+              </span>
+            </div>
+          ))}
+        </Card>
+      </div>
     </div>
   );
 }

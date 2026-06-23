@@ -1,58 +1,88 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Boxes, Plus, Trash2 } from "lucide-react";
 import { Card, Button } from "../ui";
 import { FlagshipHeader, Inp, Urg } from "./_shared";
-import { supplyAnalyze, type StockItemInput, type ReapproSuggestion } from "@/lib/erp";
 import { ApiError } from "@/lib/api";
+import {
+  listStock, createStock, deleteStock, analyzeStock,
+  type StockRec, type ReapproSugg,
+} from "@/lib/store";
 
-const DEFAULT: StockItemInput[] = [
-  { sku: "MED-001", libelle: "Paracétamol", quantite_actuelle: "20", conso_moyenne_jour: "5", delai_appro_jours: 7, stock_securite: "10" },
-  { sku: "CON-002", libelle: "Gants", quantite_actuelle: "500", conso_moyenne_jour: "10", delai_appro_jours: 5, stock_securite: "50" },
-];
+const EMPTY = { sku: "", libelle: "", quantite_actuelle: "0", conso_moyenne_jour: "0", delai_appro_jours: 7, stock_securite: "0" };
 
 export function SupplyScreen() {
-  const [items, setItems] = useState<StockItemInput[]>(DEFAULT);
-  const [res, setRes] = useState<{ suggestions: ReapproSuggestion[]; alertes: ReapproSuggestion[] } | null>(null);
+  const [items, setItems] = useState<StockRec[]>([]);
+  const [form, setForm] = useState({ ...EMPTY });
+  const [res, setRes] = useState<{ suggestions: ReapproSugg[]; alertes: ReapproSugg[] } | null>(null);
   const [err, setErr] = useState<string | null>(null);
 
-  const set = (i: number, k: keyof StockItemInput, v: string) =>
-    setItems((l) => l.map((row, j) => (j === i ? { ...row, [k]: k === "delai_appro_jours" ? Number(v) : v } : row)));
-  const add = () => setItems((l) => [...l, { sku: "", libelle: "", quantite_actuelle: "0", conso_moyenne_jour: "0", delai_appro_jours: 7, stock_securite: "0" }]);
-  const del = (i: number) => setItems((l) => l.filter((_, j) => j !== i));
+  const refresh = useCallback(async () => {
+    try {
+      const { items: rows } = await listStock();
+      setItems(rows);
+    } catch (e) {
+      setErr(e instanceof ApiError ? "Backend indisponible (DB requise)." : "Service indisponible.");
+    }
+  }, []);
 
+  useEffect(() => { refresh(); }, [refresh]);
+
+  async function add() {
+    if (!form.sku) return;
+    try {
+      await createStock(form);
+      setForm({ ...EMPTY });
+      setRes(null);
+      await refresh();
+    } catch { setErr("Ajout impossible (backend/DB)."); }
+  }
+  async function del(id: string) {
+    try { await deleteStock(id); setRes(null); await refresh(); }
+    catch { setErr("Suppression impossible."); }
+  }
   async function run() {
-    setErr(null); setRes(null);
-    try { setRes(await supplyAnalyze(items)); }
-    catch (e) { setErr(e instanceof ApiError ? e.message : "Service indisponible."); }
+    setErr(null);
+    try { setRes(await analyzeStock()); }
+    catch (e) { setErr(e instanceof ApiError ? "Backend indisponible (DB requise)." : "Service indisponible."); }
   }
 
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-4">
-      <FlagshipHeader icon={Boxes} title="Supply Chain & Stocks" subtitle="Point de commande, alertes rupture, réapprovisionnement (déterministe)." />
+      <FlagshipHeader icon={Boxes} title="Supply Chain & Stocks" subtitle="Stock persistant + réappro/alertes rupture (déterministe)." />
+
+      {err && <Card className="ring-amber-200"><p className="text-sm text-amber-700">{err}</p></Card>}
+
       <Card>
-        <div className="grid grid-cols-[90px_1fr_70px_70px_60px_70px_32px] gap-2 text-xs font-medium text-muted">
-          <span>SKU</span><span>Article</span><span>Stock</span><span>Conso/j</span><span>Délai</span><span>Sécu</span><span />
-        </div>
-        {items.map((row, i) => (
-          <div key={i} className="mt-1 grid grid-cols-[90px_1fr_70px_70px_60px_70px_32px] gap-2">
-            <Inp value={row.sku} onChange={(v) => set(i, "sku", v)} />
-            <Inp value={row.libelle} onChange={(v) => set(i, "libelle", v)} />
-            <Inp value={row.quantite_actuelle} type="number" onChange={(v) => set(i, "quantite_actuelle", v)} />
-            <Inp value={row.conso_moyenne_jour} type="number" onChange={(v) => set(i, "conso_moyenne_jour", v)} />
-            <Inp value={row.delai_appro_jours} type="number" onChange={(v) => set(i, "delai_appro_jours", v)} />
-            <Inp value={row.stock_securite} type="number" onChange={(v) => set(i, "stock_securite", v)} />
-            <button onClick={() => del(i)} className="text-muted hover:text-red-600"><Trash2 className="h-4 w-4" /></button>
-          </div>
-        ))}
-        <div className="mt-3 flex justify-between">
-          <Button variant="ghost" onClick={add}><Plus className="h-4 w-4" /> Article</Button>
-          <Button onClick={run}>Analyser</Button>
+        <h2 className="mb-2 text-sm font-semibold">Ajouter un article</h2>
+        <div className="grid grid-cols-[90px_1fr_70px_70px_60px_70px_36px] gap-2">
+          <Inp value={form.sku} onChange={(v) => setForm({ ...form, sku: v })} placeholder="SKU" />
+          <Inp value={form.libelle} onChange={(v) => setForm({ ...form, libelle: v })} placeholder="Article" />
+          <Inp value={form.quantite_actuelle} type="number" onChange={(v) => setForm({ ...form, quantite_actuelle: v })} placeholder="Stock" />
+          <Inp value={form.conso_moyenne_jour} type="number" onChange={(v) => setForm({ ...form, conso_moyenne_jour: v })} placeholder="Conso/j" />
+          <Inp value={form.delai_appro_jours} type="number" onChange={(v) => setForm({ ...form, delai_appro_jours: Number(v) })} placeholder="Délai" />
+          <Inp value={form.stock_securite} type="number" onChange={(v) => setForm({ ...form, stock_securite: v })} placeholder="Sécu" />
+          <button onClick={add} className="grid place-items-center rounded-lg bg-primary text-white"><Plus className="h-4 w-4" /></button>
         </div>
       </Card>
 
-      {err && <Card className="ring-amber-200"><p className="text-sm text-amber-700">{err}</p></Card>}
+      <Card>
+        <div className="mb-2 flex items-center justify-between">
+          <h2 className="text-sm font-semibold">Stock ({items.length})</h2>
+          <Button onClick={run} disabled={items.length === 0}>Analyser</Button>
+        </div>
+        {items.length === 0 && <p className="text-sm text-muted">Aucun article. Ajoutez-en un.</p>}
+        {items.map((it) => (
+          <div key={it.id} className="flex items-center justify-between border-b border-black/5 py-1.5 text-sm last:border-0">
+            <span><b>{it.sku}</b> · {it.libelle}</span>
+            <span className="flex items-center gap-3 text-muted">
+              stock {it.quantite_actuelle} · conso {it.conso_moyenne_jour}/j
+              <button onClick={() => del(it.id)} className="hover:text-red-600"><Trash2 className="h-4 w-4" /></button>
+            </span>
+          </div>
+        ))}
+      </Card>
 
       {res && (
         <Card>

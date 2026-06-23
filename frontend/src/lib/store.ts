@@ -62,3 +62,87 @@ export function deleteInvoice(id: string): Promise<{ deleted: string }> {
 export function reconcile(transactions: TxInput[]): Promise<ReconcileResult> {
   return api("/v1/erp/reconcile", { body: { transactions } });
 }
+
+// ----- Écritures comptables (balance vivante) -----
+export interface JournalLineIn {
+  compte: string;
+  libelle: string;
+  debit_xaf: string;
+  credit_xaf: string;
+}
+export interface EntryRec {
+  id: string;
+  date_ecriture: string;
+  journal: string;
+  libelle: string;
+  total_debit_xaf: string;
+  total_credit_xaf: string;
+  equilibre: boolean;
+}
+export interface BalanceLine {
+  compte: string;
+  debit_xaf: string;
+  credit_xaf: string;
+  solde_xaf: string;
+}
+export interface Balance {
+  comptes: BalanceLine[];
+  total_debit_xaf: string;
+  total_credit_xaf: string;
+  equilibre: boolean;
+}
+
+export function createEntry(body: {
+  date_ecriture: string;
+  journal: string;
+  libelle: string;
+  lignes: JournalLineIn[];
+}): Promise<EntryRec> {
+  return api("/v1/erp/journal", { body });
+}
+export function listEntries(): Promise<{ entries: EntryRec[] }> {
+  return api("/v1/erp/journal");
+}
+export function getBalance(): Promise<Balance> {
+  return api("/v1/erp/journal/balance");
+}
+export function deleteEntry(id: string): Promise<{ deleted: string }> {
+  return api(`/v1/erp/journal/${id}`, { method: "DELETE" });
+}
+
+// ----- Stock persistant -----
+export interface StockRec {
+  id: string;
+  sku: string;
+  libelle: string;
+  quantite_actuelle: string;
+  conso_moyenne_jour: string;
+  delai_appro_jours: number;
+  stock_securite: string;
+}
+export interface ReapproSugg {
+  sku: string;
+  libelle: string;
+  quantite_a_commander: string;
+  jours_avant_rupture: string | null;
+  urgence: string;
+}
+export function listStock(): Promise<{ items: StockRec[] }> {
+  return api("/v1/erp/stock");
+}
+export function createStock(body: {
+  sku: string;
+  libelle: string;
+  quantite_actuelle: string;
+  conso_moyenne_jour: string;
+  delai_appro_jours: number;
+  stock_securite: string;
+}): Promise<StockRec> {
+  return api("/v1/erp/stock", { body });
+}
+export function deleteStock(id: string): Promise<{ deleted: string }> {
+  return api(`/v1/erp/stock/${id}`, { method: "DELETE" });
+}
+export function analyzeStock(): Promise<{ suggestions: ReapproSugg[]; alertes: ReapproSugg[] }> {
+  return api("/v1/erp/stock/analyze", { method: "POST", body: {} });
+}
