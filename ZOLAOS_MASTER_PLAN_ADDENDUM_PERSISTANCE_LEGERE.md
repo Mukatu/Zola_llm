@@ -70,6 +70,15 @@ La persistance n'est pas une fin : elle débloque une **compta vivante**. Princi
 - **P2** : persistance écritures/stocks/clients + relances auto + alertes proactives sur le store.
 - **P3** : prévision de trésorerie (ML) + multi-devise.
 
+## 8. État d'avancement (2026-06-23)
+
+Persistance **réelle = 3 entités sur ~19 métiers** : `store_invoices` (Factures), `store_journal_entries` (Écritures), `store_stock_items` (Stocks). Endpoints `/v1/erp/{invoices,journal,journal/balance,stock,stock/analyze,reconcile,compta/suggest}` ; migrations Alembic 0005-0006 ; tests SQLite.
+
+- **Livré** : P1 (Factures + **clôture continue**), P1b (écran Registre), P2 (Écritures + **balance vivante** + Stocks), Front P2, **auto-catégorisation** assistée.
+- **À faire (chantier #1)** : Commercial (Customer/Opportunity/Quote), Achats (Supplier/PO), RH (Employee/Contract), Facility, HSE, Marketing — le socle (repository pattern) rend l'extension **mécanique**.
+
+> Inventaire détaillé (Moteur / Écran / Persistance / Plus-value par métier) : **`docs/ETAT_PROJET.md` §3bis**.
+
 ---
 
-*Addendum établi le 2026-06-23. Identité = couche IA souveraine + interop ; ajout d'une persistance légère scopée + compta IA-native (clôture continue).*
+*Addendum établi le 2026-06-23. Identité = couche IA souveraine + interop ; ajout d'une persistance légère scopée + compta IA-native (clôture continue). Avancement : 3 entités persistées, généralisation en cours.*
