@@ -5,8 +5,9 @@ import clsx from "clsx";
 import { Sparkles, AlertCircle } from "lucide-react";
 import { Card, Button, Skeleton, SeverityBadge } from "./ui";
 import { useZola } from "./ConfigProvider";
-import { api, ApiError } from "@/lib/api";
-import type { Capability } from "@/lib/capabilities";
+import { ApiError } from "@/lib/api";
+import { runQuery } from "@/lib/query";
+import type { Capability, Intent } from "@/lib/capabilities";
 
 interface Finding { [k: string]: unknown; severity?: string; severite?: string }
 interface QueryResult {
@@ -30,13 +31,13 @@ export function CapabilityScreen({ capability }: { capability: Capability }) {
   async function run() {
     if (!input.trim()) return;
     setLoading(true); setError(null); setResult(null);
+    const label = capability.intents.find((it: Intent) => it.id === intent)?.label;
+    const q = `[${capability.label}${label ? " · " + label : ""}]\n${input}`;
     try {
-      const r = await api<QueryResult>("/v1/query", {
-        body: { query: input, pole: capability.pole, module: capability.code.split(".")[1], intent },
-      });
-      setResult(r);
+      const r = await runQuery(q);
+      setResult({ content: r.content });
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : "Service indisponible (hors-ligne ?).");
+      setError(e instanceof ApiError ? e.message : "Service indisponible (LLM/auth requis ou hors-ligne).");
     } finally {
       setLoading(false);
     }

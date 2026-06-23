@@ -12,7 +12,8 @@ export interface ApiOptions {
 export async function api<T>(path: string, opts: ApiOptions = {}): Promise<T> {
   const headers: Record<string, string> = { Accept: "application/json" };
   if (opts.body !== undefined) headers["Content-Type"] = "application/json";
-  if (opts.token) headers["Authorization"] = `Bearer ${opts.token}`;
+  const token = opts.token ?? process.env.NEXT_PUBLIC_API_TOKEN;
+  if (token) headers["Authorization"] = `Bearer ${token}`;
   const r = await fetch(`${API_BASE}${path}`, {
     method: opts.method || (opts.body !== undefined ? "POST" : "GET"),
     headers,

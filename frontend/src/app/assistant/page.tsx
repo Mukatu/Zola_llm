@@ -4,7 +4,8 @@ import { useState } from "react";
 import { Send, Sparkles } from "lucide-react";
 import { useZola } from "@/components/ConfigProvider";
 import { Card, Button } from "@/components/ui";
-import { api, ApiError } from "@/lib/api";
+import { ApiError } from "@/lib/api";
+import { runQuery } from "@/lib/query";
 
 interface Msg { role: "user" | "assistant"; content: string }
 
@@ -20,10 +21,10 @@ export default function AssistantPage() {
     setMsgs((m) => [...m, { role: "user", content: q }]);
     setInput(""); setBusy(true);
     try {
-      const r = await api<{ content?: string }>("/v1/query", { body: { query: q } });
-      setMsgs((m) => [...m, { role: "assistant", content: r.content ?? JSON.stringify(r) }]);
+      const r = await runQuery(q);
+      setMsgs((m) => [...m, { role: "assistant", content: r.content }]);
     } catch (e) {
-      const msg = e instanceof ApiError ? e.message : "Service indisponible (hors-ligne ?).";
+      const msg = e instanceof ApiError ? e.message : "Service indisponible (LLM/auth requis ou hors-ligne).";
       setMsgs((m) => [...m, { role: "assistant", content: "⚠️ " + msg }]);
     } finally {
       setBusy(false);
