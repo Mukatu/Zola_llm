@@ -36,7 +36,7 @@ Pour chaque métier, **7 livrables** :
 | P1b | Écran « Registre & clôture vivante » | ✅ |
 | P2 | Comptabilité (Écritures + **balance vivante**) + Supply (Stocks) + **auto-catégorisation** | ✅ |
 | **P2b** | **Commercial / CRM** (Customer, Opportunity, Quote) | ⏳ à faire |
-| **P2c** | **Achats** (Supplier, PurchaseOrder) + **RH** (Employee, Contract) → débloque **Paie** historisée | ⏳ |
+| **P2c** | **Achats** (Supplier, PurchaseOrder) + **SIRH de pilotage** (employés, contrats, absences, mouvements + tableau de bord RH) → débloque **Paie** historisée | ⏳ |
 | **P2d** | **Opérations** : Facility (Asset/Echeance), HSE (Risque/Incident), Marketing (MarketingContact/Campaign) | ⏳ |
 | **P2e** | **Finance** (relevés bancaires persistés) + **Secrétariat** (Mandat) + **Projets ONG** (Projet/Budget) | ⏳ |
 | **P2f** | **Documents** (transverse) : artefacts générés (contrats Droit, rapports, bulletins) → métiers génératifs | ⏳ |
@@ -71,13 +71,31 @@ Entité **nouvelle** `store_bank_transactions` (canonique : `connectors.models.B
 Entités `store_suppliers` (canonique : `achats.Supplier`) + `store_purchase_orders` (lignes JSON ; devis comparés → BC). Endpoints `/v1/erp/suppliers` (CRUD + score/conformité) + `/purchase-orders` (CRUD + comparatif). Écran `AchatsScreen` (🔁 : registre fournisseurs + historique devis/BC).
 **Plus-value** : registre fournisseurs, historique d'achats, anti-surfacturation tracée.
 
-**6. RH — ⏳ (P2c)**
-Entités `store_employees` (canonique : `connectors.models.Employee`) + `store_contracts`. Endpoints `/v1/erp/employees` (CRUD) + `/contracts`. Écran RH (🔁 de générique → 🆕 registre du personnel).
-**Plus-value** : registre des employés/contrats — **prérequis de la Paie historisée**.
+**6. RH — SIRH de pilotage — ⏳ (P2c, bloc enrichi)**
+Objectif : passer d'un simple registre à un **SIRH d'aide au pilotage**, **dans le cadre** (registres persistés + **indicateurs déterministes** + tableau de bord + échéancier ; LLM = synthèse ; interop/futur = le lourd).
 
-**7. Paie — ⏳ (P2c+, dépend de RH)**
-Entité `store_payslips`. Endpoint `/v1/erp/payslips` (génère depuis `Employee` + barème, persiste). Écran `PaieScreen` (🔁 : sélection employé stocké → bulletin → historique).
-**Plus-value** : historique des bulletins, masse salariale réelle (alimente BI).
+*Entités persistées* (canonique : `connectors.models.Employee`, étendu) :
+- `store_employees` (riche) : matricule, nom, genre, date_naissance, date_embauche, poste, département, manager_id, catégorie/échelon, salaire_base_xaf, statut (actif/sorti), date_sortie, motif_sortie, lieu.
+- `store_contracts` : type (CDI/CDD/stage/prestation), date_début, date_fin, fin_période_essai, statut.
+- `store_absences` : type (congé payé/maladie/maternité/sans solde), date_début, date_fin, jours, statut.
+- `store_hr_movements` (ou dérivé) : embauche/départ/mutation/promotion + date.
+
+*Moteur déterministe* (`agents/erp/rh_pilotage.py`) — **indicateurs RH calculés en code** :
+effectif total + **ETP**, répartition par département/contrat/genre ; **masse salariale** (totale, moyenne/médiane) ; **turnover** (taux de rotation) ; **ancienneté moyenne** + pyramide ; **pyramide des âges** ; **taux d'absentéisme** ; **ratio d'encadrement** ; **index égalité H/F** (répartition + écart salarial). Tous exacts, sans LLM.
+
+*Endpoints* : CRUD `/v1/erp/employees`, `/contracts`, `/absences` ; `/v1/erp/hr/dashboard` (indicateurs sur le store — **le pilotage**) ; `/v1/erp/hr/echeancier` (fins de période d'essai, fins de CDD, visites médicales, anniversaires d'ancienneté, congés à solder) ; `/v1/erp/hr/registre` (**registre unique du personnel** — export légal OHADA/CG).
+
+*Écran* `RHScreen` (🆕 riche, 3 onglets) : **Registre** (liste + fiche employé + ajout) · **Tableau de bord** (KPIs + mini‑graphes : effectif, masse salariale, turnover, absentéisme, égalité H/F, ancienneté) · **Échéancier RH**. + synthèse rédigée par l'agent RH (LLM).
+
+*Conformité* : registre unique du personnel (obligation légale), suivi des échéances sociales/CNSS.
+
+**Plus-value** : un **SIRH qui aide à piloter** (et pas un simple annuaire) — registre légal + tableau de bord RH + échéancier proactif, déterministe + narration IA. Prérequis de la Paie historisée.
+
+**Hors périmètre (→ interop / phase ultérieure)** : ATS recrutement, LMS/formation, entretiens & performance (workflow), pointage temps réel, portail self‑service avec circuits de validation. *(On reste « pilotage + registres », pas une suite RH transactionnelle.)*
+
+**7. Paie — ⏳ (P2c+, dépend du SIRH)**
+Entité `store_payslips`. Endpoint `/v1/erp/payslips` (génère depuis l'employé **stocké** + barème, persiste). Écran `PaieScreen` (🔁 : sélection employé du registre → bulletin → historique).
+**Plus-value** : historique des bulletins, **masse salariale réelle** qui alimente le tableau de bord RH **et** la BI.
 
 **8. Projets ONG — ⏳ (P2e)**
 Entités `store_projects` + `store_budget_lines` (ventilation bailleur/projet). Endpoints `/v1/erp/projects` (CRUD + suivi budget). Écran Projets (🆕).
@@ -141,7 +159,7 @@ Cyber : moteur + écran (hors persistance lourde initiale). Pôle K : dictionnai
 
 ## 6. Ordre d'exécution recommandé (et pourquoi)
 1. **P2b Commercial** — écran le plus parlant après la compta ; prouve la généralisation. *(priorité)*
-2. **P2c Achats + RH (+ Paie)** — registres structurants ; débloque la Paie historisée.
+2. **P2c Achats + SIRH de pilotage (+ Paie)** — registres structurants + **tableau de bord RH** ; débloque la Paie historisée. *(RH = bloc enrichi : à livrer en 2 temps — registres/contrats puis absences/dashboard/échéancier.)*
 3. **P2d Facility + HSE + Marketing** — registres « opérations » à fort effet visuel (échéanciers, risques, consentement).
 4. **P2e Finance (banque) + Secrétariat + Projets ONG** — complète le back-office ; alimente la trésorerie.
 5. **P2f Documents** — mémoire des livrables génératifs.
@@ -155,7 +173,7 @@ Cyber : moteur + écran (hors persistance lourde initiale). Pôle K : dictionnai
 |-------|--------|-----|--------|
 | P1/P1b/P2 | Factures, Écritures, Stocks | ✅ | `de476ea`,`22eccbd`,`16d3c1b`,`8edc431`,`6612f3a` |
 | P2b | Commercial | ☐ | — |
-| P2c | Achats, RH, Paie | ☐ | — |
+| P2c | Achats, SIRH (RH pilotage), Paie | ☐ | — |
 | P2d | Facility, HSE, Marketing | ☐ | — |
 | P2e | Finance, Secrétariat, Projets ONG | ☐ | — |
 | P2f | Documents (Droit/Santé/Code) | ☐ | — |
