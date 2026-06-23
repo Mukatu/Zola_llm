@@ -1,10 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Calculator, Plus, Trash2, CheckCircle2, XCircle, Save, Activity } from "lucide-react";
+import { Calculator, Plus, Trash2, CheckCircle2, XCircle, Save, Activity, Sparkles } from "lucide-react";
 import { Card, Button } from "../ui";
 import { FlagshipHeader, Inp } from "./_shared";
-import { comptaValidate, fmtXaf, type JournalLineInput, type ValidationReport } from "@/lib/erp";
+import { comptaValidate, comptaSuggest, fmtXaf, type JournalLineInput, type ValidationReport } from "@/lib/erp";
 import { ApiError } from "@/lib/api";
 import {
   createEntry, listEntries, getBalance, deleteEntry,
@@ -41,6 +41,23 @@ export function ComptaScreen() {
   }, []);
 
   useEffect(() => { refresh(); }, [refresh]);
+
+  async function autoCategorize() {
+    setErr(null);
+    try {
+      const updated = await Promise.all(
+        lignes.map(async (row) => {
+          if (row.compte.trim() || !row.libelle.trim()) return row;
+          const sens = Number(row.debit_xaf) > 0 ? "debit" : Number(row.credit_xaf) > 0 ? "credit" : undefined;
+          const { suggestions } = await comptaSuggest(row.libelle, sens);
+          return suggestions[0] ? { ...row, compte: suggestions[0].compte } : row;
+        }),
+      );
+      setLignes(updated);
+    } catch (e) {
+      setErr(e instanceof ApiError ? "Suggestion indisponible." : "Service indisponible.");
+    }
+  }
 
   async function validate() {
     setErr(null);
@@ -98,8 +115,11 @@ export function ComptaScreen() {
             <button onClick={() => del(i)} className="text-muted hover:text-red-600"><Trash2 className="h-4 w-4" /></button>
           </div>
         ))}
-        <div className="mt-3 flex justify-between">
-          <Button variant="ghost" onClick={add}><Plus className="h-4 w-4" /> Ligne</Button>
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+          <div className="flex gap-2">
+            <Button variant="ghost" onClick={add}><Plus className="h-4 w-4" /> Ligne</Button>
+            <Button variant="ghost" onClick={autoCategorize}><Sparkles className="h-4 w-4" /> Suggérer comptes</Button>
+          </div>
           <div className="flex gap-2">
             <Button variant="ghost" onClick={validate}>Valider</Button>
             <Button onClick={save}><Save className="h-4 w-4" /> Enregistrer</Button>

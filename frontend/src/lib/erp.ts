@@ -32,6 +32,10 @@ export function comptaValidate(lignes: JournalLineInput[]): Promise<ValidationRe
     body: { date_ecriture: new Date().toISOString().slice(0, 10), journal: "OD", libelle: "Saisie", lignes },
   });
 }
+export interface AccountSuggestion { compte: string; libelle_compte: string; score: number; raison: string }
+export function comptaSuggest(libelle: string, sens?: "debit" | "credit"): Promise<{ suggestions: AccountSuggestion[] }> {
+  return api("/v1/erp/compta/suggest", { body: { libelle, sens } });
+}
 
 // ----- Supply -----
 export interface StockItemInput {

@@ -146,6 +146,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     if settings.ZOLAOS_PROFILE == "box":
         from zolaos.api.v1.bi import router as bi_router
         from zolaos.api.v1.box import router as box_router
+        from zolaos.api.v1.categorisation import router as categorisation_router
         from zolaos.api.v1.crm import router as crm_router
         from zolaos.api.v1.erp import router as erp_router
         from zolaos.api.v1.mkt import router as mkt_router
@@ -154,6 +155,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         app.include_router(box_router)
         # Moteurs déterministes (ERP/ops, CRM, BI, Marketing) exposés au frontend client.
         app.include_router(erp_router)
+        app.include_router(categorisation_router)
         app.include_router(crm_router)
         app.include_router(bi_router)
         app.include_router(mkt_router)
