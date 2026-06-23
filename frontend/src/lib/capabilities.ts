@@ -5,7 +5,7 @@
 
 import {
   BarChart3, Boxes, Calculator, Code2, FileSignature, HardHat, Handshake,
-  Landmark, Megaphone, Receipt, ScrollText, ShieldCheck, ShoppingCart, Stethoscope,
+  Landmark, Megaphone, Network, Receipt, ScrollText, ShieldCheck, ShoppingCart, Stethoscope,
   Users, Wallet, Wrench, type LucideIcon,
 } from "lucide-react";
 
@@ -60,8 +60,11 @@ export const CAPABILITIES: Record<string, Capability> = Object.fromEntries(
       "Génération, refactor, debug et revue de code.",
       intents(["generate", "Générer"], ["refactor", "Refactor"], ["debug", "Debug"], ["explain", "Expliquer"], ["review", "Revue"], ["test", "Tests"])),
     cap("erp.rh", "RH", Users,
-      "Documents RH, conformité de contrat, tri de CV.",
-      intents(["contrat", "Contrat"], ["lettre", "Lettre"], ["conformite", "Conformité"], ["cv", "Tri CV"])),
+      "SIRH de pilotage : registre, tableau de bord, échéancier.",
+      intents(["registre", "Registre"], ["dashboard", "Tableau de bord"], ["echeancier", "Échéancier"]), "flagship"),
+    cap("erp.referentiels", "Référentiels & GPEC", Network,
+      "Emplois (RME), compétences (RMC), matrice de compétences + écarts GPEC.",
+      intents(["rme", "Emplois"], ["rmc", "Compétences"], ["matrice", "Matrice"]), "flagship"),
     cap("erp.paie", "Paie", Wallet,
       "Bulletin de paie déterministe (CNSS/CIPRES/IRPP).",
       intents(["bulletin", "Simuler bulletin"], ["expliquer", "Expliquer un calcul"]), "flagship"),

@@ -34,6 +34,7 @@ MODULE_CATALOGUE: dict[str, tuple[str, ...]] = {
     ),
     "erp": (
         "rh",
+        "referentiels",
         "paie",
         "finance",
         "compta",
@@ -73,6 +74,7 @@ DEFAULT_BOX_MODULES: tuple[str, ...] = (
     "droit.travail_cg",
     "droit.fiscal_cg",
     "erp.rh",
+    "erp.referentiels",
     "erp.finance",
     "erp.registre",
     "bi.pilotage",
