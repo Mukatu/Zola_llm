@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from collections.abc import AsyncIterator
-from unittest.mock import AsyncMock
 
 import pytest
 
@@ -24,8 +23,10 @@ class _FakeClient(LLMClient):
 
     async def stream(self, messages, *, model, options=None):  # type: ignore[no-untyped-def]
         _ = messages, model, options
+
         async def _gen() -> AsyncIterator[str]:
             yield self._content
+
         return _gen()
 
     async def health(self) -> bool:

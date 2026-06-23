@@ -55,7 +55,9 @@ class ErpNextConnector(HRConnector, AccountingConnector, FinanceConnector):
         if not base:
             raise ConnectorConfigError("config['base_url'] obligatoire pour ERPNext.")
         secret = self.config.get("api_secret")
-        secret_val = secret.get_secret_value() if isinstance(secret, SecretStr) else str(secret or "")
+        secret_val = (
+            secret.get_secret_value() if isinstance(secret, SecretStr) else str(secret or "")
+        )
         headers = {"Accept": "application/json"}
         if self.config.get("api_key"):
             headers["Authorization"] = f"token {self.config['api_key']}:{secret_val}"
@@ -81,7 +83,9 @@ class ErpNextConnector(HRConnector, AccountingConnector, FinanceConnector):
 
     # -- helpers --------------------------------------------------------------
 
-    async def _resource(self, doctype: str, *, fields: list[str], limit: int = 0) -> list[dict[str, Any]]:
+    async def _resource(
+        self, doctype: str, *, fields: list[str], limit: int = 0
+    ) -> list[dict[str, Any]]:
         if self._client is None:
             raise ConnectorConfigError("Connecteur ERPNext non connecté.")
         params = {"fields": json.dumps(fields), "limit_page_length": limit}
@@ -106,7 +110,12 @@ class ErpNextConnector(HRConnector, AccountingConnector, FinanceConnector):
                 self._doctype("employee", "Employee"),
                 fields=["name", "employee_name", "designation", "company_email"],
             )
-            fb = {"id_externe": "name", "nom_complet": "employee_name", "poste": "designation", "email": "company_email"}
+            fb = {
+                "id_externe": "name",
+                "nom_complet": "employee_name",
+                "poste": "designation",
+                "email": "company_email",
+            }
             return [Employee(**self._canon(r, fb)) for r in rows]
 
     async def list_invoices(self, **filters: Any) -> list[Invoice]:
@@ -144,12 +153,20 @@ class ErpNextConnector(HRConnector, AccountingConnector, FinanceConnector):
             if self._client is None:
                 raise ConnectorConfigError("Connecteur ERPNext non connecté.")
             accounts = [
-                {"account": l.compte, "debit_in_account_currency": float(l.debit_xaf),
-                 "credit_in_account_currency": float(l.credit_xaf), "user_remark": l.libelle}
+                {
+                    "account": l.compte,
+                    "debit_in_account_currency": float(l.debit_xaf),
+                    "credit_in_account_currency": float(l.credit_xaf),
+                    "user_remark": l.libelle,
+                }
                 for l in entry.lignes
             ]
-            doc = {"doctype": "Journal Entry", "posting_date": entry.date_ecriture.isoformat(),
-                   "user_remark": entry.libelle, "accounts": accounts}
+            doc = {
+                "doctype": "Journal Entry",
+                "posting_date": entry.date_ecriture.isoformat(),
+                "user_remark": entry.libelle,
+                "accounts": accounts,
+            }
             r = await self._client.post("/api/resource/Journal Entry", json=doc)
             if r.status_code >= 400:
                 raise ConnectorConnectionError(f"ERPNext push -> {r.status_code}: {r.text[:200]}")
@@ -169,9 +186,14 @@ class ErpNextConnector(HRConnector, AccountingConnector, FinanceConnector):
                 deposit = r.get("deposit") or 0
                 withdrawal = r.get("withdrawal") or 0
                 montant = deposit - withdrawal
-                out.append(BankTransaction(
-                    id_externe=str(r.get("name")), date_operation=r.get("date"),
-                    libelle=r.get("description") or "", montant_xaf=montant,
-                    sens="credit" if montant >= 0 else "debit", canal="bank",
-                ))
+                out.append(
+                    BankTransaction(
+                        id_externe=str(r.get("name")),
+                        date_operation=r.get("date"),
+                        libelle=r.get("description") or "",
+                        montant_xaf=montant,
+                        sens="credit" if montant >= 0 else "debit",
+                        canal="bank",
+                    )
+                )
             return out

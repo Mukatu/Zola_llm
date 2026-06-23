@@ -62,7 +62,7 @@ async def run_dataset(
             )
         except InsufficientContextError:
             refused = True
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             _log.exception("eval.case_error", case_id=case.id, error=str(exc))
             # Une erreur autre que le refus contrôlé = échec dur, mais on continue.
             reports.append(
@@ -76,14 +76,13 @@ async def run_dataset(
             )
             continue
         latency = time.perf_counter() - t0
-        reports.append(
-            evaluate_case(case, response, refused=refused, latency_seconds=latency)
-        )
+        reports.append(evaluate_case(case, response, refused=refused, latency_seconds=latency))
 
     return DatasetReport(dataset_name=str(Path(dataset_path).name), cases=reports)
 
 
 # ---------------- CLI minimal ----------------
+
 
 def _build_agent_from_name(name: str) -> RAGAgent:
     from zolaos.core.settings import get_settings

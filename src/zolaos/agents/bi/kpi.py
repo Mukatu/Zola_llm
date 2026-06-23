@@ -10,7 +10,7 @@ from __future__ import annotations
 from collections.abc import Iterable
 from decimal import ROUND_HALF_UP, Decimal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 from zolaos.connectors.models import BankTransaction, Employee, Invoice
 
@@ -27,12 +27,13 @@ class KpiValue(BaseModel):
     code: str
     libelle: str
     valeur: Decimal
-    unite: str = "XAF"          # XAF | % | jours | unité
-    domaine: str = "finance"    # commercial | finance | rh
+    unite: str = "XAF"  # XAF | % | jours | unité
+    domaine: str = "finance"  # commercial | finance | rh
     periode: str | None = None
 
 
 # ----------------------------------------------------------------- primitives
+
 
 def chiffre_affaires(invoices: Iterable[Invoice]) -> Decimal:
     """CA HT = somme des factures de vente (HT)."""
@@ -86,6 +87,7 @@ def dso_jours(invoices: Iterable[Invoice], *, periode_jours: int = 30) -> Decima
 
 # ----------------------------------------------------------------- assemblage
 
+
 def compute_kpis(
     *,
     invoices: list[Invoice] | None = None,
@@ -98,23 +100,59 @@ def compute_kpis(
     out: list[KpiValue] = []
 
     def add(code: str, libelle: str, valeur: Decimal | int, unite: str, domaine: str) -> None:
-        out.append(KpiValue(
-            code=code, libelle=libelle, valeur=Decimal(valeur), unite=unite,
-            domaine=domaine, periode=periode,
-        ))
+        out.append(
+            KpiValue(
+                code=code,
+                libelle=libelle,
+                valeur=Decimal(valeur),
+                unite=unite,
+                domaine=domaine,
+                periode=periode,
+            )
+        )
 
     if invoices is not None:
-        add("ca_ht", "Chiffre d'affaires (HT)", _xaf(chiffre_affaires(invoices)), "XAF", "commercial")
+        add(
+            "ca_ht",
+            "Chiffre d'affaires (HT)",
+            _xaf(chiffre_affaires(invoices)),
+            "XAF",
+            "commercial",
+        )
         add("achats_ht", "Achats (HT)", _xaf(achats(invoices)), "XAF", "commercial")
         add("marge_brute", "Marge brute", _xaf(marge_brute(invoices)), "XAF", "commercial")
-        add("encours_clients", "Encours clients (TTC)", _xaf(encours_clients(invoices)), "XAF", "finance")
-        add("dso", "DSO (délai moyen d'encaissement)", dso_jours(invoices, periode_jours=dso_jours_base), "jours", "finance")
+        add(
+            "encours_clients",
+            "Encours clients (TTC)",
+            _xaf(encours_clients(invoices)),
+            "XAF",
+            "finance",
+        )
+        add(
+            "dso",
+            "DSO (délai moyen d'encaissement)",
+            dso_jours(invoices, periode_jours=dso_jours_base),
+            "jours",
+            "finance",
+        )
 
     if transactions is not None:
-        add("tresorerie_nette", "Flux de trésorerie net", _xaf(tresorerie_nette(transactions)), "XAF", "finance")
+        add(
+            "tresorerie_nette",
+            "Flux de trésorerie net",
+            _xaf(tresorerie_nette(transactions)),
+            "XAF",
+            "finance",
+        )
 
     if employees is not None:
         add("effectif", "Effectif actif", effectif(employees), "unité", "rh")
-        add("masse_salariale", "Masse salariale brute", _xaf(masse_salariale(employees)), "XAF", "rh")
+        add(
+            "masse_salariale",
+            "Masse salariale brute",
+            _xaf(masse_salariale(employees)),
+            "XAF",
+            "rh",
+        )
 
     return out

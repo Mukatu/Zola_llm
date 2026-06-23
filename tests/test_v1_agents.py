@@ -11,8 +11,14 @@ def test_agents_catalog_lists_all_pole(client: TestClient) -> None:
     data = response.json()
     poles = {a["pole"] for a in data["agents"]}
     assert poles == {
-        "general", "health", "legal", "engineering",
-        "erp", "grc", "fintech", "cyber",
+        "general",
+        "health",
+        "legal",
+        "engineering",
+        "erp",
+        "grc",
+        "fintech",
+        "cyber",
     }
     # Phase 1 : seul "general" est enabled.
     enabled = [a for a in data["agents"] if a["enabled"]]

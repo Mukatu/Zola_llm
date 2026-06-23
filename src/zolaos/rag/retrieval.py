@@ -32,7 +32,7 @@ class Match:
     """Un résultat de recherche RAG."""
 
     content: str
-    score: float           # distance cosine (plus petit = plus proche)
+    score: float  # distance cosine (plus petit = plus proche)
     source_uri: str
     source_id: str | None
     chunk_index: int
@@ -61,8 +61,7 @@ async def retrieve(
     """
     if not required_tags:
         raise ValueError(
-            "required_tags est obligatoire (RBAC anti-leak). "
-            "Au minimum, passe `country:cg`."
+            "required_tags est obligatoire (RBAC anti-leak). " "Au minimum, passe `country:cg`."
         )
     if schema not in RAG_MODELS:
         raise ValueError(f"Schéma RAG inconnu: {schema!r}. Connus: {list(RAG_MODELS)}")

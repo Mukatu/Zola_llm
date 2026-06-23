@@ -23,7 +23,7 @@ _SYSTEM_PROMPT_CACHE: str | None = None
 
 
 def _system_prompt() -> str:
-    global _SYSTEM_PROMPT_CACHE  # noqa: PLW0603
+    global _SYSTEM_PROMPT_CACHE
     if _SYSTEM_PROMPT_CACHE is None:
         _SYSTEM_PROMPT_CACHE = load_prompt("meta", "planning.md")
     return _SYSTEM_PROMPT_CACHE

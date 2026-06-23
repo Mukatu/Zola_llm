@@ -26,12 +26,15 @@ from zolaos.llm.base import GenerationOptions, LLMClient, Message
 
 _log = get_logger("zolaos.agents.erp.hse")
 
-TypeIncident = Literal["accident_travail", "presque_accident", "environnemental", "maladie_pro", "autre"]
+TypeIncident = Literal[
+    "accident_travail", "presque_accident", "environnemental", "maladie_pro", "autre"
+]
 Gravite = Literal["mineur", "grave", "critique"]
 Niveau = Literal["faible", "moyen", "eleve", "critique"]
 
 
 # ============================================================ modèles
+
 
 class Incident(BaseModel):
     model_config = {"extra": "forbid"}
@@ -59,11 +62,12 @@ class Risque(BaseModel):
 class RisqueEvalue:
     reference: str
     libelle: str
-    criticite: int            # 1..25
+    criticite: int  # 1..25
     niveau: Niveau
 
 
 # ============================================================ moteur (pur)
+
 
 def criticite(risque: Risque) -> int:
     return risque.probabilite * risque.gravite
@@ -82,8 +86,12 @@ def niveau_criticite(c: int) -> Niveau:
 def cartographie_risques(risques: list[Risque]) -> list[RisqueEvalue]:
     """Risques évalués, triés par criticité décroissante (déterministe)."""
     evalues = [
-        RisqueEvalue(reference=r.id_externe, libelle=r.libelle, criticite=criticite(r),
-                     niveau=niveau_criticite(criticite(r)))
+        RisqueEvalue(
+            reference=r.id_externe,
+            libelle=r.libelle,
+            criticite=criticite(r),
+            niveau=niveau_criticite(criticite(r)),
+        )
         for r in risques
     ]
     return sorted(evalues, key=lambda e: e.criticite, reverse=True)
@@ -120,6 +128,7 @@ def taux_gravite(incidents: list[Incident], *, heures_travaillees: int) -> Decim
 
 # ============================================================ agent
 
+
 class HseAgent:
     """Agent HSE/RSE : indicateurs déterministes + rédaction (plans, rapports)."""
 
@@ -136,11 +145,15 @@ class HseAgent:
     def indicateurs(self, incidents: list[Incident], *, heures_travaillees: int | None = None) -> dict:  # type: ignore[type-arg]
         stats = statistiques_incidents(incidents)
         if heures_travaillees:
-            stats["taux_frequence"] = taux_frequence(incidents, heures_travaillees=heures_travaillees)
+            stats["taux_frequence"] = taux_frequence(
+                incidents, heures_travaillees=heures_travaillees
+            )
             stats["taux_gravite"] = taux_gravite(incidents, heures_travaillees=heures_travaillees)
         return stats
 
-    async def generer_plan_prevention(self, *, risques: list[RisqueEvalue], contexte: str = "") -> str:
+    async def generer_plan_prevention(
+        self, *, risques: list[RisqueEvalue], contexte: str = ""
+    ) -> str:
         lignes = "\n".join(f"- [{r.niveau}] {r.libelle} (criticité {r.criticite})" for r in risques)
         ctx = f"Contexte : {contexte}\n" if contexte else ""
         user_msg = (

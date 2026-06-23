@@ -83,7 +83,7 @@ class OdooConnector(HRConnector, AccountingConnector, FinanceConnector):
             if self._uid is None:
                 await self.connect()
             return self._uid is not None
-        except Exception:  # noqa: BLE001
+        except Exception:
             return False
 
     # -- exécution ------------------------------------------------------------
@@ -95,10 +95,12 @@ class OdooConnector(HRConnector, AccountingConnector, FinanceConnector):
             return self._models.execute_kw(
                 self.config["db"], self._uid, self._pwd(), model, method, args, kw
             )
-        except Exception as exc:  # noqa: BLE001  (xmlrpc Fault, socket…)
+        except Exception as exc:
             raise ConnectorConnectionError(f"Odoo {model}.{method} échec: {exc}") from exc
 
-    async def _search_read(self, model: str, domain: list[Any], fields: list[str]) -> list[dict[str, Any]]:
+    async def _search_read(
+        self, model: str, domain: list[Any], fields: list[str]
+    ) -> list[dict[str, Any]]:
         return await asyncio.to_thread(
             self._execute_kw_sync, model, "search_read", [domain], {"fields": fields}
         )
@@ -113,16 +115,26 @@ class OdooConnector(HRConnector, AccountingConnector, FinanceConnector):
     async def list_employees(self, **filters: Any) -> list[Employee]:
         async with self._instrument("list_employees"):
             rows = await self._search_read(
-                self._model("employee", "hr.employee"), [], ["id", "name", "job_title", "work_email"]
+                self._model("employee", "hr.employee"),
+                [],
+                ["id", "name", "job_title", "work_email"],
             )
-            fb = {"id_externe": "id", "nom_complet": "name", "poste": "job_title", "email": "work_email"}
-            return [Employee(**{**self._canon(r, fb), "id_externe": str(r.get("id"))}) for r in rows]
+            fb = {
+                "id_externe": "id",
+                "nom_complet": "name",
+                "poste": "job_title",
+                "email": "work_email",
+            }
+            return [
+                Employee(**{**self._canon(r, fb), "id_externe": str(r.get("id"))}) for r in rows
+            ]
 
     async def list_invoices(self, **filters: Any) -> list[Invoice]:
         async with self._instrument("list_invoices"):
             model = self._model("invoice", "account.move")
             rows = await self._search_read(
-                model, [["move_type", "=", "out_invoice"]],
+                model,
+                [["move_type", "=", "out_invoice"]],
                 ["id", "name", "partner_id", "invoice_date", "amount_untaxed", "amount_total"],
             )
             return [self._invoice_from_row(r) for r in rows]
@@ -131,7 +143,8 @@ class OdooConnector(HRConnector, AccountingConnector, FinanceConnector):
         async with self._instrument("read_invoice"):
             model = self._model("invoice", "account.move")
             rows = await self._search_read(
-                model, [["id", "=", int(invoice_id)]],
+                model,
+                [["id", "=", int(invoice_id)]],
                 ["id", "name", "partner_id", "invoice_date", "amount_untaxed", "amount_total"],
             )
             if not rows:
@@ -156,12 +169,23 @@ class OdooConnector(HRConnector, AccountingConnector, FinanceConnector):
         async with self._instrument("push_journal_entry"):
             model = self._model("invoice", "account.move")
             line_ids = [
-                (0, 0, {"account_id": l.compte, "name": l.libelle,
-                        "debit": float(l.debit_xaf), "credit": float(l.credit_xaf)})
+                (
+                    0,
+                    0,
+                    {
+                        "account_id": l.compte,
+                        "name": l.libelle,
+                        "debit": float(l.debit_xaf),
+                        "credit": float(l.credit_xaf),
+                    },
+                )
                 for l in entry.lignes
             ]
-            vals = {"ref": entry.reference or entry.libelle, "date": entry.date_ecriture.isoformat(),
-                    "line_ids": line_ids}
+            vals = {
+                "ref": entry.reference or entry.libelle,
+                "date": entry.date_ecriture.isoformat(),
+                "line_ids": line_ids,
+            }
             new_id = await asyncio.to_thread(self._execute_kw_sync, model, "create", [vals], {})
             return str(new_id)
 
@@ -175,9 +199,14 @@ class OdooConnector(HRConnector, AccountingConnector, FinanceConnector):
                     out.append(BankTransaction(**self.mapping.apply(r)))
                     continue
                 amount = r.get("amount") or 0
-                out.append(BankTransaction(
-                    id_externe=str(r.get("id")), date_operation=r.get("date"),
-                    libelle=r.get("payment_ref") or "", montant_xaf=amount,
-                    sens="credit" if amount >= 0 else "debit", canal="bank",
-                ))
+                out.append(
+                    BankTransaction(
+                        id_externe=str(r.get("id")),
+                        date_operation=r.get("date"),
+                        libelle=r.get("payment_ref") or "",
+                        montant_xaf=amount,
+                        sens="credit" if amount >= 0 else "debit",
+                        canal="bank",
+                    )
+                )
             return out

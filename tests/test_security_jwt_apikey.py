@@ -19,8 +19,8 @@ from zolaos.core.settings import Settings
 @pytest.fixture
 def settings() -> Settings:
     return Settings(
-        JWT_SECRET="x" * 64,  # noqa: S106
-        API_KEY_PEPPER="y" * 64,  # noqa: S106
+        JWT_SECRET="x" * 64,
+        API_KEY_PEPPER="y" * 64,
         JWT_EXPIRE_MINUTES=15,
     )
 
@@ -49,6 +49,6 @@ def test_jwt_roundtrip(settings: Settings) -> None:
 
 def test_jwt_invalid_signature_rejected(settings: Settings) -> None:
     token = create_access_token("user-123", settings=settings)
-    other_settings = Settings(JWT_SECRET="z" * 64, API_KEY_PEPPER="y" * 64)  # noqa: S106
+    other_settings = Settings(JWT_SECRET="z" * 64, API_KEY_PEPPER="y" * 64)
     with pytest.raises(InvalidTokenError):
         decode_access_token(token, settings=other_settings)

@@ -93,7 +93,9 @@ class CrmAgent:
         )
         return await self._generate(user_msg, "draft_relance")
 
-    async def draft_proposition(self, *, client_nom: str, besoin: str, montant_xaf: str | None = None) -> str:
+    async def draft_proposition(
+        self, *, client_nom: str, besoin: str, montant_xaf: str | None = None
+    ) -> str:
         """Rédige une proposition commerciale (génératif)."""
         montant = f"Budget indicatif : {montant_xaf} XAF.\n" if montant_xaf else ""
         user_msg = (

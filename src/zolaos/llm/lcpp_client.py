@@ -93,12 +93,10 @@ class LlamaCppClient(LLMClient):
                 metadata={"finish_reason": str(choice.get("finish_reason", ""))},
             )
         finally:
-            LLM_CALLS_TOTAL.labels(
-                provider=self.provider, model=model, outcome=outcome
-            ).inc()
-            LLM_CALL_DURATION_SECONDS.labels(
-                provider=self.provider, model=model
-            ).observe(time.perf_counter() - start)
+            LLM_CALLS_TOTAL.labels(provider=self.provider, model=model, outcome=outcome).inc()
+            LLM_CALL_DURATION_SECONDS.labels(provider=self.provider, model=model).observe(
+                time.perf_counter() - start
+            )
 
     async def stream(
         self,
@@ -121,21 +119,21 @@ class LlamaCppClient(LLMClient):
                     line = raw_line.encode("utf-8") if isinstance(raw_line, str) else raw_line
                     if not line.startswith(_SSE_PREFIX):
                         continue
-                    body = line[len(_SSE_PREFIX):].strip()
+                    body = line[len(_SSE_PREFIX) :].strip()
                     if body == _SSE_DONE:
                         break
                     chunk = orjson.loads(body)
-                    delta = ((chunk.get("choices") or [{}])[0].get("delta") or {}).get("content", "")
+                    delta = ((chunk.get("choices") or [{}])[0].get("delta") or {}).get(
+                        "content", ""
+                    )
                     if delta:
                         yield delta
             outcome = "ok"
         finally:
-            LLM_CALLS_TOTAL.labels(
-                provider=self.provider, model=model, outcome=outcome
-            ).inc()
-            LLM_CALL_DURATION_SECONDS.labels(
-                provider=self.provider, model=model
-            ).observe(time.perf_counter() - start)
+            LLM_CALLS_TOTAL.labels(provider=self.provider, model=model, outcome=outcome).inc()
+            LLM_CALL_DURATION_SECONDS.labels(provider=self.provider, model=model).observe(
+                time.perf_counter() - start
+            )
 
     @staticmethod
     def _build_payload(

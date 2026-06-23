@@ -31,13 +31,15 @@ from zolaos.missions.tokens import (
 )
 from zolaos.rag.retrieval import Match
 
-
 # ----------------------------------------------------------------------------
 # Helpers — création tenants/users/missions de test, nettoyés en fin de test
 # ----------------------------------------------------------------------------
 
+
 async def _setup_mission(session, *, ttl_hours: float = 2.0, status: str = "active") -> Mission:
-    cabinet = Tenant(name=f"polaris-test-{uuid.uuid4().hex[:6]}", tenant_type="cabinet", country="cg")
+    cabinet = Tenant(
+        name=f"polaris-test-{uuid.uuid4().hex[:6]}", tenant_type="cabinet", country="cg"
+    )
     client = Tenant(name=f"client-test-{uuid.uuid4().hex[:6]}", tenant_type="client", country="cg")
     session.add_all([cabinet, client])
     await session.flush()
@@ -95,13 +97,16 @@ def _reset_db_engine_cache():
 # Émission de token
 # ----------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_issue_token_active_mission_returns_valid_jwt() -> None:
     settings = get_settings()
     factory = get_session_factory()
     async with factory() as s:
         mission = await _setup_mission(s)
-        token, exp_dt = issue_mission_token(mission=mission, settings=settings, ttl=timedelta(hours=1))
+        token, exp_dt = issue_mission_token(
+            mission=mission, settings=settings, ttl=timedelta(hours=1)
+        )
         assert isinstance(token, str) and token.count(".") == 2  # header.payload.signature
         assert exp_dt > datetime.now(UTC)
         await s.rollback()
@@ -123,6 +128,7 @@ async def test_issue_token_rejects_non_active_mission() -> None:
 # ----------------------------------------------------------------------------
 # Vérification
 # ----------------------------------------------------------------------------
+
 
 @pytest.mark.asyncio
 async def test_verify_token_round_trip() -> None:
@@ -190,9 +196,11 @@ async def test_verify_token_rejects_revoked_mission() -> None:
 # Endpoint /v1/box/rag/search
 # ----------------------------------------------------------------------------
 
+
 @pytest.fixture
 def _mock_retrieve(monkeypatch):
     """Mock zolaos.api.v1.box.retrieve pour éviter l'appel embedder + DB vide."""
+
     async def fake_retrieve(*, query, schema, required_tags, k, session=None):
         return [
             Match(
@@ -212,6 +220,7 @@ def _mock_retrieve(monkeypatch):
 @pytest.mark.asyncio
 async def test_box_endpoint_401_without_token(_mock_retrieve) -> None:
     from zolaos.api.main import create_app
+
     app = create_app()
     client = TestClient(app)
     r = client.post(
@@ -225,6 +234,7 @@ async def test_box_endpoint_401_without_token(_mock_retrieve) -> None:
 @pytest.mark.asyncio
 async def test_box_endpoint_401_with_bad_token(_mock_retrieve) -> None:
     from zolaos.api.main import create_app
+
     app = create_app()
     client = TestClient(app)
     r = client.post(
@@ -291,6 +301,7 @@ async def test_box_endpoint_full_flow_with_audit(_mock_retrieve) -> None:
     # sur audit — c'est volontaire, append-only côté app). On crée un engine
     # éphémère avec le DSN migrator pour la vérif + cleanup.
     from sqlalchemy.ext.asyncio import create_async_engine
+
     audit_engine = create_async_engine(
         get_settings().postgres_dsn_migrations.replace("psycopg", "asyncpg"),
         pool_pre_ping=True,
@@ -358,12 +369,14 @@ async def test_box_endpoint_403_when_tags_outside_scope(_mock_retrieve) -> None:
 # Profil cortex : routes /v1/box/* non montées
 # ----------------------------------------------------------------------------
 
+
 def test_box_routes_not_mounted_in_cortex_profile() -> None:
     """En profil cortex, /v1/box/* doit retourner 404 (router non monté)."""
     os.environ["ZOLAOS_PROFILE"] = "cortex"
     get_settings.cache_clear()
     try:
         from zolaos.api.main import create_app
+
         app = create_app()
         client = TestClient(app)
         r = client.post(

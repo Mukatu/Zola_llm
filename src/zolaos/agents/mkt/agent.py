@@ -12,7 +12,12 @@ import time
 from datetime import date
 
 from zolaos.agents._prompts import load_prompt
-from zolaos.agents.mkt.consent import ConsentError, ConsentSummary, consent_summary, filter_consented
+from zolaos.agents.mkt.consent import (
+    ConsentError,
+    ConsentSummary,
+    consent_summary,
+    filter_consented,
+)
 from zolaos.agents.mkt.models import MarketingContact
 from zolaos.agents.mkt.segmentation import segment_contacts
 from zolaos.core.logging import get_logger
@@ -40,7 +45,9 @@ class MarketingAgent:
     ) -> dict[str, list[MarketingContact]]:
         return segment_contacts(contacts, as_of=as_of)
 
-    def eligible_audience(self, contacts: list[MarketingContact], finalite: str) -> list[MarketingContact]:
+    def eligible_audience(
+        self, contacts: list[MarketingContact], finalite: str
+    ) -> list[MarketingContact]:
         return filter_consented(contacts, finalite)
 
     # ----------------------------------------------------- génératif (LLM)
@@ -63,7 +70,9 @@ class MarketingAgent:
         finally:
             AGENT_INVOCATIONS_TOTAL.labels(agent=self.name, outcome=outcome).inc()
 
-    async def draft_content(self, *, canal: str, finalite: str, brief: str, segment_nom: str | None = None) -> str:
+    async def draft_content(
+        self, *, canal: str, finalite: str, brief: str, segment_nom: str | None = None
+    ) -> str:
         """Contenu marketing générique (non ciblé nominativement)."""
         seg = f"Segment visé : {segment_nom}.\n" if segment_nom else ""
         user_msg = (
@@ -89,6 +98,13 @@ class MarketingAgent:
                 f"Aucun contact consentant pour la finalité {finalite!r} "
                 f"({summary.total} contacts, 0 éligible) — campagne refusée (Loi 29-2019)."
             )
-        content = await self.draft_content(canal=canal, finalite=finalite, brief=brief, segment_nom=segment_nom)
-        _log.info("mkt_agent.campaign", finalite=finalite, eligibles=summary.eligibles, exclus=summary.exclus)
+        content = await self.draft_content(
+            canal=canal, finalite=finalite, brief=brief, segment_nom=segment_nom
+        )
+        _log.info(
+            "mkt_agent.campaign",
+            finalite=finalite,
+            eligibles=summary.eligibles,
+            exclus=summary.exclus,
+        )
         return {"content": content, "audience": summary}

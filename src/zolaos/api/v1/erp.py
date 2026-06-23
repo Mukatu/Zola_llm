@@ -17,12 +17,22 @@ from typing import Any
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field
 
-from zolaos.agents.erp.achats import OffreFournisseur, Supplier, comparer_offres, score_fournisseur, verifier_conformite
+from zolaos.agents.erp.achats import (
+    OffreFournisseur,
+    Supplier,
+    comparer_offres,
+    score_fournisseur,
+    verifier_conformite,
+)
 from zolaos.agents.erp.compta import ChartOfAccounts, JournalValidator
 from zolaos.agents.erp.facility import Asset, Echeance, echeances_dues, maintenances_dues
 from zolaos.agents.erp.hse import Risque, cartographie_risques
-from zolaos.agents.erp.payroll import PayrollCalculator, PayrollScaleNotValidated, load_payroll_scale
-from zolaos.agents.erp.supply import StockItem, analyser_reappro, alertes_rupture
+from zolaos.agents.erp.payroll import (
+    PayrollCalculator,
+    PayrollScaleNotValidated,
+    load_payroll_scale,
+)
+from zolaos.agents.erp.supply import StockItem, alertes_rupture, analyser_reappro
 from zolaos.connectors.models import BankTransaction, Invoice, JournalEntry
 
 router = APIRouter(prefix="/v1/erp", tags=["erp"])
@@ -32,17 +42,22 @@ _payroll = PayrollCalculator()
 
 # ---------------------------------------------------------------- Paie
 
+
 class PayrollRequest(BaseModel):
     brut_mensuel_xaf: Decimal = Field(..., ge=0)
     country: str = Field(default="cg", pattern=r"^[a-z]{2}$")
-    allow_unvalidated: bool = Field(default=False, description="Simulation explicite si barème non validé")
+    allow_unvalidated: bool = Field(
+        default=False, description="Simulation explicite si barème non validé"
+    )
 
 
 @router.post("/payroll/compute", summary="Calcul de bulletin de paie (déterministe)")
 def payroll_compute(req: PayrollRequest) -> dict[str, Any]:
     scale = load_payroll_scale(req.country)
     try:
-        result = _payroll.compute(req.brut_mensuel_xaf, scale=scale, allow_unvalidated=req.allow_unvalidated)
+        result = _payroll.compute(
+            req.brut_mensuel_xaf, scale=scale, allow_unvalidated=req.allow_unvalidated
+        )
     except PayrollScaleNotValidated as exc:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -53,6 +68,7 @@ def payroll_compute(req: PayrollRequest) -> dict[str, Any]:
 
 # ---------------------------------------------------------------- Compta
 
+
 @router.post("/compta/validate", summary="Validation d'écriture SYSCOHADA (déterministe)")
 def compta_validate(entry: JournalEntry) -> dict[str, Any]:
     report = JournalValidator(ChartOfAccounts.load(entry.country)).validate(entry)
@@ -60,6 +76,7 @@ def compta_validate(entry: JournalEntry) -> dict[str, Any]:
 
 
 # ---------------------------------------------------------------- Supply Chain
+
 
 class SupplyRequest(BaseModel):
     items: list[StockItem]
@@ -75,6 +92,7 @@ def supply_analyze(req: SupplyRequest) -> dict[str, Any]:
 
 
 # ---------------------------------------------------------------- Achats
+
 
 class AchatsCompareRequest(BaseModel):
     offres: list[OffreFournisseur]
@@ -95,6 +113,7 @@ def achats_supplier_score(supplier: Supplier) -> dict[str, Any]:
 
 # ---------------------------------------------------------------- Facility
 
+
 class FacilityRequest(BaseModel):
     assets: list[Asset] = Field(default_factory=list)
     echeances: list[Echeance] = Field(default_factory=list)
@@ -104,12 +123,17 @@ class FacilityRequest(BaseModel):
 @router.post("/facility/echeancier", summary="Maintenances + échéances dues (déterministe)")
 def facility_echeancier(req: FacilityRequest) -> dict[str, Any]:
     return {
-        "maintenances": [asdict(a) for a in maintenances_dues(req.assets, horizon_jours=req.horizon_jours)],
-        "echeances": [asdict(a) for a in echeances_dues(req.echeances, horizon_jours=req.horizon_jours)],
+        "maintenances": [
+            asdict(a) for a in maintenances_dues(req.assets, horizon_jours=req.horizon_jours)
+        ],
+        "echeances": [
+            asdict(a) for a in echeances_dues(req.echeances, horizon_jours=req.horizon_jours)
+        ],
     }
 
 
 # ---------------------------------------------------------------- HSE
+
 
 class HseRequest(BaseModel):
     risques: list[Risque]
@@ -121,6 +145,7 @@ def hse_cartographie(req: HseRequest) -> dict[str, Any]:
 
 
 # ---------------------------------------------------------------- Finance
+
 
 class FinanceRequest(BaseModel):
     transactions: list[BankTransaction] = Field(default_factory=list)

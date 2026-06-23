@@ -67,7 +67,9 @@ class SageConnector(HRConnector, InvoiceConnector, FinanceConnector):
         elif mode == "api":
             from zolaos.connectors.generic_rest import GenericRestConnector
 
-            self._rest = GenericRestConnector(config=self.config, auth=self.auth, mapping=self.mapping)
+            self._rest = GenericRestConnector(
+                config=self.config, auth=self.auth, mapping=self.mapping
+            )
             await self._rest.connect()
         else:
             raise ConnectorConfigError(f"mode Sage inconnu: {mode!r} (attendu 'odbc' ou 'api').")
@@ -118,4 +120,6 @@ class SageConnector(HRConnector, InvoiceConnector, FinanceConnector):
 
     async def list_bank_transactions(self, **filters: Any) -> list[BankTransaction]:
         async with self._instrument("list_bank_transactions"):
-            return [BankTransaction(**self._canon(r)) for r in await self._rows("bank_transactions")]
+            return [
+                BankTransaction(**self._canon(r)) for r in await self._rows("bank_transactions")
+            ]

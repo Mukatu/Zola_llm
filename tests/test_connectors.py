@@ -22,7 +22,6 @@ from zolaos.connectors import (
     BasicAuth,
     Capability,
     CapabilityNotSupported,
-    Employee,
     FieldMapping,
     HRConnector,
     IPAllowlist,
@@ -30,20 +29,20 @@ from zolaos.connectors import (
     JournalLine,
     MappingError,
 )
+from zolaos.connectors.base import ConnectorAuthError, ConnectorConfigError
 from zolaos.connectors.csv_excel import CsvExcelConnector
+from zolaos.connectors.custom_sdk.example import ExampleMemoryConnector
 from zolaos.connectors.generic_rest import GenericRestConnector
 from zolaos.connectors.generic_soap import GenericSoapConnector
 from zolaos.connectors.generic_sql import GenericSqlConnector
-from zolaos.connectors.base import ConnectorAuthError, ConnectorConfigError
-from zolaos.connectors.custom_sdk.example import ExampleMemoryConnector
 from zolaos.connectors.registry import (
     available_connectors,
     create_connector,
     register_connector,
 )
 
-
 # ============================================================ mapping
+
 
 def test_mapping_apply_transforms() -> None:
     m = FieldMapping.from_dict(
@@ -68,9 +67,7 @@ def test_mapping_apply_transforms() -> None:
 
 def test_mapping_unknown_transform_raises() -> None:
     with pytest.raises(MappingError):
-        FieldMapping.from_dict(
-            {"entity": "x", "fields": {"a": {"from": "b", "transform": "nope"}}}
-        )
+        FieldMapping.from_dict({"entity": "x", "fields": {"a": {"from": "b", "transform": "nope"}}})
 
 
 def test_mapping_from_yaml(tmp_path: Path) -> None:
@@ -84,6 +81,7 @@ def test_mapping_from_yaml(tmp_path: Path) -> None:
 
 
 # ============================================================ auth
+
 
 def test_auth_apikey_and_basic_headers() -> None:
     h: dict[str, str] = {}
@@ -103,6 +101,7 @@ def test_ip_allowlist() -> None:
 
 # ============================================================ capacités
 
+
 def test_capability_derivation_and_guard() -> None:
     class HROnly(HRConnector):
         name = "hr_only"
@@ -119,11 +118,15 @@ def test_capability_derivation_and_guard() -> None:
 
 # ============================================================ csv_excel
 
+
 async def test_csv_connector_list_employees(tmp_path: Path) -> None:
     f = tmp_path / "emp.csv"
     f.write_text("id,full_name\nE1,Awa Loemba\nE2,Paul Nkodia\n", encoding="utf-8")
     m = FieldMapping.from_dict(
-        {"entity": "employee", "fields": {"id_externe": {"from": "id"}, "nom_complet": {"from": "full_name"}}}
+        {
+            "entity": "employee",
+            "fields": {"id_externe": {"from": "id"}, "nom_complet": {"from": "full_name"}},
+        }
     )
     conn = CsvExcelConnector(config={"path": str(f)}, mapping=m)
     async with conn:
@@ -135,9 +138,13 @@ async def test_csv_push_journal_entry(tmp_path: Path) -> None:
     out = tmp_path / "ecr.csv"
     conn = CsvExcelConnector(config={"path": str(tmp_path / "x"), "journal_output_path": str(out)})
     je = JournalEntry(
-        date_ecriture=date(2026, 1, 5), journal="VT", libelle="Vente",
-        lignes=[JournalLine(compte="411", libelle="c", debit_xaf=Decimal("1000")),
-                JournalLine(compte="701", libelle="v", credit_xaf=Decimal("1000"))],
+        date_ecriture=date(2026, 1, 5),
+        journal="VT",
+        libelle="Vente",
+        lignes=[
+            JournalLine(compte="411", libelle="c", debit_xaf=Decimal("1000")),
+            JournalLine(compte="701", libelle="v", credit_xaf=Decimal("1000")),
+        ],
     )
     path = await conn.push_journal_entry(je)
     assert Path(path).exists()
@@ -148,7 +155,9 @@ async def test_csv_push_unbalanced_rejected(tmp_path: Path) -> None:
     out = tmp_path / "ecr.csv"
     conn = CsvExcelConnector(config={"path": "x", "journal_output_path": str(out)})
     je = JournalEntry(
-        date_ecriture=date(2026, 1, 5), journal="VT", libelle="X",
+        date_ecriture=date(2026, 1, 5),
+        journal="VT",
+        libelle="X",
         lignes=[JournalLine(compte="411", libelle="c", debit_xaf=Decimal("1000"))],
     )
     with pytest.raises(ConnectorConfigError):
@@ -156,6 +165,7 @@ async def test_csv_push_unbalanced_rejected(tmp_path: Path) -> None:
 
 
 # ============================================================ generic_sql
+
 
 async def test_generic_sql_sqlite(tmp_path: Path) -> None:
     db = tmp_path / "t.db"
@@ -165,7 +175,10 @@ async def test_generic_sql_sqlite(tmp_path: Path) -> None:
         cx.execute(text("INSERT INTO emp VALUES ('E9','Sylvie Ondongo')"))
     eng.dispose()
     conn = GenericSqlConnector(
-        config={"dsn": f"sqlite:///{db}", "queries": {"employees": "SELECT id_externe, nom_complet FROM emp"}}
+        config={
+            "dsn": f"sqlite:///{db}",
+            "queries": {"employees": "SELECT id_externe, nom_complet FROM emp"},
+        }
     )
     async with conn:
         assert await conn.healthcheck() is True
@@ -175,34 +188,59 @@ async def test_generic_sql_sqlite(tmp_path: Path) -> None:
 
 # ============================================================ generic_rest (respx)
 
+
 async def test_generic_rest_full_cycle() -> None:
     with respx.mock:
         respx.get("http://erp.test/api/employees").mock(
             return_value=Response(200, json=[{"id_externe": "E1", "nom_complet": "Ngoma"}])
         )
         respx.get("http://erp.test/api/invoices/INV1").mock(
-            return_value=Response(200, json={
-                "id_externe": "INV1", "numero": "INV1", "tiers": "ACME",
-                "date_emission": "2026-01-01", "montant_ht_xaf": "100", "montant_ttc_xaf": "118"})
+            return_value=Response(
+                200,
+                json={
+                    "id_externe": "INV1",
+                    "numero": "INV1",
+                    "tiers": "ACME",
+                    "date_emission": "2026-01-01",
+                    "montant_ht_xaf": "100",
+                    "montant_ttc_xaf": "118",
+                },
+            )
         )
-        respx.post("http://erp.test/api/journal").mock(return_value=Response(201, json={"id": "JE9"}))
-        conn = GenericRestConnector(config={
-            "base_url": "http://erp.test/api",
-            "endpoints": {"employees": "/employees", "invoice_by_id": "/invoices/{id}", "journal": "/journal"},
-        })
+        respx.post("http://erp.test/api/journal").mock(
+            return_value=Response(201, json={"id": "JE9"})
+        )
+        conn = GenericRestConnector(
+            config={
+                "base_url": "http://erp.test/api",
+                "endpoints": {
+                    "employees": "/employees",
+                    "invoice_by_id": "/invoices/{id}",
+                    "journal": "/journal",
+                },
+            }
+        )
         async with conn:
             emps = await conn.list_employees()
             assert emps[0].nom_complet == "Ngoma"
             inv = await conn.read_invoice("INV1")
             assert inv.tiers == "ACME"
-            jid = await conn.push_journal_entry(JournalEntry(
-                date_ecriture=date(2026, 1, 1), journal="OD", libelle="x",
-                lignes=[JournalLine(compte="6", libelle="a", debit_xaf=Decimal("1")),
-                        JournalLine(compte="7", libelle="b", credit_xaf=Decimal("1"))]))
+            jid = await conn.push_journal_entry(
+                JournalEntry(
+                    date_ecriture=date(2026, 1, 1),
+                    journal="OD",
+                    libelle="x",
+                    lignes=[
+                        JournalLine(compte="6", libelle="a", debit_xaf=Decimal("1")),
+                        JournalLine(compte="7", libelle="b", credit_xaf=Decimal("1")),
+                    ],
+                )
+            )
             assert jid == "JE9"
 
 
 # ============================================================ registry + custom SDK
+
 
 async def test_registry_create_and_custom(tmp_path: Path) -> None:
     assert "csv_excel" in available_connectors()
@@ -214,7 +252,12 @@ async def test_registry_create_and_custom(tmp_path: Path) -> None:
 
     register_connector("example_memory", ExampleMemoryConnector)
     assert "example_memory" in available_connectors()
-    c2 = create_connector({"type": "example_memory", "config": {"rows": [{"id_externe": "Z", "nom_complet": "Custom"}]}})
+    c2 = create_connector(
+        {
+            "type": "example_memory",
+            "config": {"rows": [{"id_externe": "Z", "nom_complet": "Custom"}]},
+        }
+    )
     assert (await c2.list_employees())[0].nom_complet == "Custom"
 
 
@@ -225,17 +268,28 @@ def test_registry_unknown_type_raises() -> None:
 
 # ============================================================ webhook
 
+
 def test_webhook_signature_and_ip() -> None:
     import hashlib
     import hmac
     import json
 
-    body = json.dumps({"id_externe": "F1", "numero": "INV-1", "tiers": "ACME",
-                       "date_emission": "2026-02-01", "montant_ht_xaf": "1000", "montant_ttc_xaf": "1180"}).encode()
+    body = json.dumps(
+        {
+            "id_externe": "F1",
+            "numero": "INV-1",
+            "tiers": "ACME",
+            "date_emission": "2026-02-01",
+            "montant_ht_xaf": "1000",
+            "montant_ttc_xaf": "1180",
+        }
+    ).encode()
     sig = hmac.new(b"topsecret", body, hashlib.sha256).hexdigest()
     from zolaos.connectors.webhook import WebhookConnector
 
-    wc = WebhookConnector(config={"secret": SecretStr("topsecret"), "entity": "invoice", "allowlist": ["10.0.0.0/8"]})
+    wc = WebhookConnector(
+        config={"secret": SecretStr("topsecret"), "entity": "invoice", "allowlist": ["10.0.0.0/8"]}
+    )
     inv = wc.ingest(body=body, signature=sig, ip="10.2.3.4")
     assert inv.numero == "INV-1"
     with pytest.raises(ConnectorAuthError):
@@ -245,6 +299,7 @@ def test_webhook_signature_and_ip() -> None:
 
 
 # ============================================================ dépendance optionnelle
+
 
 async def test_soap_missing_dependency_is_explicit() -> None:
     # zeep n'est pas une dépendance par défaut : erreur claire, pas d'ImportError opaque.

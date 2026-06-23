@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from zolaos.agents.meta.planning import Plan, PlanningAgent, PlanningError
+from zolaos.agents.meta.planning import PlanningAgent, PlanningError
 from zolaos.core.settings import Settings
 from zolaos.llm.base import GenerationResult, LLMClient
 

@@ -105,10 +105,7 @@ class MemoryAgent:
                 (1 - MemoryEntry.embedding.cosine_distance(embedding)).label("score"),
             )
             .where(MemoryEntry.tags.op("@>")(required_tags))
-            .where(
-                (MemoryEntry.expires_at.is_(None))
-                | (MemoryEntry.expires_at > text("now()"))
-            )
+            .where((MemoryEntry.expires_at.is_(None)) | (MemoryEntry.expires_at > text("now()")))
             .order_by(MemoryEntry.embedding.cosine_distance(embedding))
             .limit(limit)
         )

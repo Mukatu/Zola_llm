@@ -47,7 +47,7 @@ class ExpectedCitation(BaseModel):
 
     source_id: str | None = None
     source_uri: str | None = None
-    article: str | None = None     # ex: "Art. 311" — match approximatif dans le contenu
+    article: str | None = None  # ex: "Art. 311" — match approximatif dans le contenu
 
 
 class EvalCase(BaseModel):
@@ -82,7 +82,7 @@ class DatasetHeader(BaseModel):
         # on accepte les deux et on stringifie pour éviter ValidationError.
         if v is None:
             return None
-        if isinstance(v, (date, datetime)):
+        if isinstance(v, date | datetime):
             return v.isoformat()
         return str(v)
 

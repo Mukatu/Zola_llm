@@ -32,7 +32,7 @@ class Principal:
 
     user_id: uuid.UUID
     email: str
-    tenant_id: str | None             # legacy tag string
+    tenant_id: str | None  # legacy tag string
     country: str
     auth_method: str  # "api_key" | "jwt"
     scopes: tuple[str, ...] = ()
@@ -42,8 +42,8 @@ class Principal:
 async def authenticate(
     authorization: str | None = Header(default=None),
     x_api_key: str | None = Header(default=None, alias="X-API-Key"),
-    session: AsyncSession = Depends(get_session),  # noqa: B008
-    settings: Settings = Depends(get_settings),  # noqa: B008
+    session: AsyncSession = Depends(get_session),
+    settings: Settings = Depends(get_settings),
 ) -> Principal:
     """Tente d'authentifier la requête. Lève 401 sinon."""
     if x_api_key:
@@ -95,9 +95,7 @@ async def _auth_via_api_key(
     )
 
 
-async def _auth_via_jwt(
-    token: str, *, session: AsyncSession, settings: Settings
-) -> Principal:
+async def _auth_via_jwt(token: str, *, session: AsyncSession, settings: Settings) -> Principal:
     try:
         claims = decode_access_token(token, settings=settings)
     except InvalidTokenError as exc:

@@ -84,14 +84,17 @@ class FinanceAgent:
             key = (t.date_operation, t.sens, abs(t.montant_xaf), t.libelle.strip().lower())
             groups[key].append(t)
         findings: list[FinanceFinding] = []
-        for (d, sens, montant, libelle), grp in groups.items():
+        for (d, sens, montant, _libelle), grp in groups.items():
             if len(grp) > 1:
-                findings.append(FinanceFinding(
-                    type="doublon", severity="medium",
-                    libelle=f"{len(grp)}× '{grp[0].libelle}' le {d} ({sens})",
-                    montant_xaf=montant,
-                    references=[t.id_externe for t in grp],
-                ))
+                findings.append(
+                    FinanceFinding(
+                        type="doublon",
+                        severity="medium",
+                        libelle=f"{len(grp)}× '{grp[0].libelle}' le {d} ({sens})",
+                        montant_xaf=montant,
+                        references=[t.id_externe for t in grp],
+                    )
+                )
         return findings
 
     @staticmethod
@@ -103,28 +106,34 @@ class FinanceAgent:
         for t in transactions:
             if t.sens == "debit" and abs(t.montant_xaf) > threshold_xaf:
                 sev: Severity = "high" if abs(t.montant_xaf) > threshold_xaf * 2 else "medium"
-                findings.append(FinanceFinding(
-                    type="depassement", severity=sev,
-                    libelle=f"Débit important : {t.libelle} ({t.date_operation})",
-                    montant_xaf=abs(t.montant_xaf), references=[t.id_externe],
-                ))
+                findings.append(
+                    FinanceFinding(
+                        type="depassement",
+                        severity=sev,
+                        libelle=f"Débit important : {t.libelle} ({t.date_operation})",
+                        montant_xaf=abs(t.montant_xaf),
+                        references=[t.id_externe],
+                    )
+                )
         return findings
 
     @staticmethod
-    def detect_overdue_invoices(
-        invoices: list[Invoice], *, as_of: date
-    ) -> list[FinanceFinding]:
+    def detect_overdue_invoices(invoices: list[Invoice], *, as_of: date) -> list[FinanceFinding]:
         """Factures non payées dont l'échéance est dépassée."""
         findings: list[FinanceFinding] = []
         for inv in invoices:
             if not inv.payee and inv.date_echeance is not None and inv.date_echeance < as_of:
                 retard = (as_of - inv.date_echeance).days
                 sev: Severity = "high" if retard > 30 else "medium"
-                findings.append(FinanceFinding(
-                    type="echeance", severity=sev,
-                    libelle=f"Facture {inv.numero} ({inv.tiers}) en retard de {retard} j",
-                    montant_xaf=inv.montant_ttc_xaf, references=[inv.id_externe],
-                ))
+                findings.append(
+                    FinanceFinding(
+                        type="echeance",
+                        severity=sev,
+                        libelle=f"Facture {inv.numero} ({inv.tiers}) en retard de {retard} j",
+                        montant_xaf=inv.montant_ttc_xaf,
+                        references=[inv.id_externe],
+                    )
+                )
         return findings
 
     # ====================================================== analyse (pure)
@@ -187,7 +196,9 @@ class FinanceAgent:
             f"Anomalies détectées : {len(analysis.findings)}",
         ]
         for f in analysis.findings:
-            lines.append(f"- [{f.severity}] {f.type} : {f.libelle} — {f.montant_xaf} XAF (réf: {', '.join(f.references)})")
+            lines.append(
+                f"- [{f.severity}] {f.type} : {f.libelle} — {f.montant_xaf} XAF (réf: {', '.join(f.references)})"
+            )
         return "\n".join(lines)
 
     async def synthesize(self, analysis: FinanceAnalysis, *, period_label: str = "mensuel") -> str:

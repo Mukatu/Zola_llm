@@ -57,11 +57,14 @@ class BIAgent:
         invoices = await c.list_invoices() if c.supports(Capability.LIST_INVOICES) else None
         transactions = (
             await c.list_bank_transactions()
-            if c.supports(Capability.LIST_BANK_TRANSACTIONS) else None
+            if c.supports(Capability.LIST_BANK_TRANSACTIONS)
+            else None
         )
         employees = await c.list_employees() if c.supports(Capability.LIST_EMPLOYEES) else None
         return compute_kpis(
-            invoices=invoices, transactions=transactions, employees=employees,
+            invoices=invoices,
+            transactions=transactions,
+            employees=employees,
             periode=periode or date.today().isoformat(),
         )
 

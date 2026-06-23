@@ -118,13 +118,28 @@ class CsvExcelConnector(HRConnector, InvoiceConnector, FinanceConnector, Journal
             w = csv.writer(f)
             if new_file:
                 w.writerow(
-                    ["date_ecriture", "journal", "reference", "compte", "libelle", "debit_xaf", "credit_xaf"]
+                    [
+                        "date_ecriture",
+                        "journal",
+                        "reference",
+                        "compte",
+                        "libelle",
+                        "debit_xaf",
+                        "credit_xaf",
+                    ]
                 )
             for ligne in entry.lignes:
-                w.writerow([
-                    entry.date_ecriture.isoformat(), entry.journal, entry.reference or "",
-                    ligne.compte, ligne.libelle, str(ligne.debit_xaf), str(ligne.credit_xaf),
-                ])
+                w.writerow(
+                    [
+                        entry.date_ecriture.isoformat(),
+                        entry.journal,
+                        entry.reference or "",
+                        ligne.compte,
+                        ligne.libelle,
+                        str(ligne.debit_xaf),
+                        str(ligne.credit_xaf),
+                    ]
+                )
         return str(p)
 
     async def push_journal_entry(self, entry: JournalEntry) -> str:

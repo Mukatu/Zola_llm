@@ -69,7 +69,11 @@ class RouteDecision(BaseModel):
     # Champ OBLIGATOIRE pour forcer la grammar GBNF llama.cpp à le générer.
     # Valeur `null` autorisée pour requêtes génériques (pole=general typiquement).
     # `Field(...)` sans default = champ requis dans le JSON schema.
-    module: str | None = Field(..., max_length=64, description="Module métier précis (ex: ohada, travail_cg, pharmacology) ou null si générique")
+    module: str | None = Field(
+        ...,
+        max_length=64,
+        description="Module métier précis (ex: ohada, travail_cg, pharmacology) ou null si générique",
+    )
     confidence: float = Field(ge=0.0, le=1.0)
     language: Literal["fr", "ln", "kg", "other"] = "fr"
     country_hint: str = Field(default="cg", pattern=r"^[a-z]{2}$")
@@ -95,7 +99,7 @@ _SYSTEM_PROMPT_CACHE: str | None = None
 
 
 def _system_prompt() -> str:
-    global _SYSTEM_PROMPT_CACHE  # noqa: PLW0603
+    global _SYSTEM_PROMPT_CACHE
     if _SYSTEM_PROMPT_CACHE is None:
         _SYSTEM_PROMPT_CACHE = load_prompt("router.md")
     return _SYSTEM_PROMPT_CACHE

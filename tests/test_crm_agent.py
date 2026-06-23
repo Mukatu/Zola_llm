@@ -9,7 +9,7 @@ import pytest
 
 from zolaos.agents.crm.agent import CrmAgent
 from zolaos.agents.crm.engine import RelanceItem
-from zolaos.agents.crm.models import Opportunity, Quote
+from zolaos.agents.crm.models import Opportunity
 from zolaos.core.settings import Settings
 from zolaos.llm.base import GenerationResult, LLMClient
 
@@ -24,11 +24,14 @@ class _CapturingClient(LLMClient):
 
     async def generate(self, messages, *, model, options=None):  # type: ignore[no-untyped-def]
         self.last = messages[-1].content
-        return GenerationResult(content="Texte commercial généré.", model="fake", provider=self.provider)
+        return GenerationResult(
+            content="Texte commercial généré.", model="fake", provider=self.provider
+        )
 
     async def stream(self, messages, *, model, options=None):  # type: ignore[no-untyped-def]
         async def _g():
             yield ""
+
         return _g()
 
     async def health(self) -> bool:
@@ -37,8 +40,12 @@ class _CapturingClient(LLMClient):
 
 def _opp(idx: str, montant: str, etape: str, *, derniere: date | None = None) -> Opportunity:
     return Opportunity(
-        id_externe=idx, client="ACME", libelle=f"Deal {idx}",
-        montant_xaf=Decimal(montant), etape=etape, derniere_interaction=derniere,
+        id_externe=idx,
+        client="ACME",
+        libelle=f"Deal {idx}",
+        montant_xaf=Decimal(montant),
+        etape=etape,
+        derniere_interaction=derniere,
     )
 
 
@@ -48,14 +55,18 @@ def agent() -> CrmAgent:
 
 
 def test_pipeline_delegates(agent: CrmAgent) -> None:
-    stats = agent.pipeline([_opp("O1", "1000000", "prospection"), _opp("O2", "2000000", "negociation")])
+    stats = agent.pipeline(
+        [_opp("O1", "1000000", "prospection"), _opp("O2", "2000000", "negociation")]
+    )
     assert stats.nb_open == 2
     assert stats.weighted_open_xaf == Decimal("1700000")
 
 
 def test_prioritize_leads_sorted(agent: CrmAgent) -> None:
-    opps = [_opp("low", "0", "prospection", derniere=date(2025, 1, 1)),
-            _opp("high", "5000000", "negociation", derniere=AS_OF)]
+    opps = [
+        _opp("low", "0", "prospection", derniere=date(2025, 1, 1)),
+        _opp("high", "5000000", "negociation", derniere=AS_OF),
+    ]
     ranked = agent.prioritize_leads(opps, as_of=AS_OF)
     assert ranked[0][0].id_externe == "high"
     assert ranked[0][1].score >= ranked[1][1].score

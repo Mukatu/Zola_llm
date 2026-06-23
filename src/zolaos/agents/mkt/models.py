@@ -23,7 +23,9 @@ class MarketingContact(BaseModel):
     derniere_interaction: date | None = None
     # Conformité Loi 29-2019 :
     consentement_marketing: bool = False
-    finalites: list[str] = Field(default_factory=list, description="Finalités consenties (ex: 'newsletter', 'promotions')")
+    finalites: list[str] = Field(
+        default_factory=list, description="Finalités consenties (ex: 'newsletter', 'promotions')"
+    )
     country: str = Field(default="cg", pattern=r"^[a-z]{2}$")
 
 
@@ -32,6 +34,8 @@ class Campaign(BaseModel):
 
     nom: str
     canal: Literal["email", "sms", "post"] = "email"
-    finalite: str = Field(..., description="Finalité de la campagne (doit être consentie par la cible)")
+    finalite: str = Field(
+        ..., description="Finalité de la campagne (doit être consentie par la cible)"
+    )
     segment_nom: str | None = None
     objet: str | None = None

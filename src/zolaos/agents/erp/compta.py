@@ -39,6 +39,7 @@ SensNormal = Literal["debit", "credit", "mixte"]
 # Plan de comptes (déterministe, source de vérité)
 # =============================================================================
 
+
 class Account(BaseModel):
     numero: str
     libelle: str
@@ -49,19 +50,25 @@ class Account(BaseModel):
 class ChartOfAccounts:
     """Plan de comptes SYSCOHADA chargé depuis la ressource `ref`."""
 
-    def __init__(self, accounts: list[Account], *, validated: bool = False, version: str = "") -> None:
+    def __init__(
+        self, accounts: list[Account], *, validated: bool = False, version: str = ""
+    ) -> None:
         self._by_numero = {a.numero: a for a in accounts}
         self.validated = validated
         self.version = version
 
     @classmethod
     def load(cls, country: str = "cg") -> ChartOfAccounts:
-        path = _REF_DIR / ("syscohada_accounts.json" if country == "cg" else f"syscohada_accounts_{country}.json")
+        path = _REF_DIR / (
+            "syscohada_accounts.json" if country == "cg" else f"syscohada_accounts_{country}.json"
+        )
         if not path.is_file():
             raise FileNotFoundError(f"Plan de comptes introuvable : {path}")
         data = json.loads(path.read_text(encoding="utf-8"))
         accounts = [Account.model_validate(a) for a in data.get("accounts", [])]
-        return cls(accounts, validated=data.get("validated", False), version=data.get("version", ""))
+        return cls(
+            accounts, validated=data.get("validated", False), version=data.get("version", "")
+        )
 
     def get(self, numero: str) -> Account | None:
         """Compte exact."""
@@ -79,6 +86,7 @@ class ChartOfAccounts:
 # =============================================================================
 # Validation d'écritures (déterministe — aucun LLM)
 # =============================================================================
+
 
 @dataclass(frozen=True)
 class ValidationReport:
@@ -124,9 +132,13 @@ class JournalValidator:
                 errors.append(f"Ligne {li.compte} : débit ET crédit non nuls simultanément.")
             # Cohérence de sens (avertissement, pas blocage : contre-passations légitimes)
             if acc.sens_normal == "credit" and li.debit_xaf > 0 and li.credit_xaf == 0:
-                warnings.append(f"Mouvement inhabituel : débit sur compte {acc.numero} ({acc.libelle}), normalement créditeur.")
+                warnings.append(
+                    f"Mouvement inhabituel : débit sur compte {acc.numero} ({acc.libelle}), normalement créditeur."
+                )
             if acc.sens_normal == "debit" and li.credit_xaf > 0 and li.debit_xaf == 0:
-                warnings.append(f"Mouvement inhabituel : crédit sur compte {acc.numero} ({acc.libelle}), normalement débiteur.")
+                warnings.append(
+                    f"Mouvement inhabituel : crédit sur compte {acc.numero} ({acc.libelle}), normalement débiteur."
+                )
 
         return ValidationReport(
             ok=not errors,
@@ -141,9 +153,10 @@ class JournalValidator:
 # Agent Compta (RAG — interprétation fiscale uniquement)
 # =============================================================================
 
+
 class ComptaAgent(RAGAgent):
     name = "erp.compta"
-    rag_schema = "rag_legal"          # placeholder — rag_erp (AUDCIF/CGI) futur
+    rag_schema = "rag_legal"  # placeholder — rag_erp (AUDCIF/CGI) futur
     prompt_file = "erp/compta.md"
     default_tags = ("country:cg", "module:compta")
     requires_citation = True
@@ -156,9 +169,11 @@ class ComptaAgent(RAGAgent):
 
     def chart(self) -> ChartOfAccounts:
         """Plan de comptes (chargé paresseusement, partagé)."""
-        if type(self)._chart is None:
-            type(self)._chart = ChartOfAccounts.load("cg")
-        return type(self)._chart
+        chart = type(self)._chart
+        if chart is None:
+            chart = ChartOfAccounts.load("cg")
+            type(self)._chart = chart
+        return chart
 
     def validate_entry(self, entry: JournalEntry) -> ValidationReport:
         """Validation déterministe d'une écriture (sans LLM)."""

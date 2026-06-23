@@ -19,11 +19,21 @@ from zolaos.agents.mkt.segmentation import recency_bucket, segment_contacts
 AS_OF = date(2026, 2, 1)
 
 
-def _c(idx: str, *, type_: str = "client", derniere: date | None = None,
-       consent: bool = False, finalites: list[str] | None = None) -> MarketingContact:
+def _c(
+    idx: str,
+    *,
+    type_: str = "client",
+    derniere: date | None = None,
+    consent: bool = False,
+    finalites: list[str] | None = None,
+) -> MarketingContact:
     return MarketingContact(
-        id_externe=idx, nom=f"C{idx}", type=type_, derniere_interaction=derniere,
-        consentement_marketing=consent, finalites=finalites or [],
+        id_externe=idx,
+        nom=f"C{idx}",
+        type=type_,
+        derniere_interaction=derniere,
+        consentement_marketing=consent,
+        finalites=finalites or [],
     )
 
 

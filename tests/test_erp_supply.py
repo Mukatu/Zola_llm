@@ -4,8 +4,6 @@ from __future__ import annotations
 
 from decimal import Decimal
 
-import pytest
-
 from zolaos.agents.erp.supply import (
     StockItem,
     SupplyChainAgent,
@@ -18,11 +16,23 @@ from zolaos.core.settings import Settings
 from zolaos.llm.base import GenerationResult, LLMClient
 
 
-def _item(sku: str, q: str, *, conso: str = "0", delai: int = 0, secu: str = "0",
-          seuil: str | None = None, qte_reappro: str | None = None) -> StockItem:
+def _item(
+    sku: str,
+    q: str,
+    *,
+    conso: str = "0",
+    delai: int = 0,
+    secu: str = "0",
+    seuil: str | None = None,
+    qte_reappro: str | None = None,
+) -> StockItem:
     return StockItem(
-        sku=sku, libelle=f"Art {sku}", quantite_actuelle=Decimal(q),
-        conso_moyenne_jour=Decimal(conso), delai_appro_jours=delai, stock_securite=Decimal(secu),
+        sku=sku,
+        libelle=f"Art {sku}",
+        quantite_actuelle=Decimal(q),
+        conso_moyenne_jour=Decimal(conso),
+        delai_appro_jours=delai,
+        stock_securite=Decimal(secu),
         seuil_reappro=Decimal(seuil) if seuil else None,
         quantite_reappro=Decimal(qte_reappro) if qte_reappro else None,
     )
@@ -36,11 +46,14 @@ class _CapturingClient(LLMClient):
 
     async def generate(self, messages, *, model, options=None):  # type: ignore[no-untyped-def]
         self.last = messages[-1].content
-        return GenerationResult(content="Bon de commande rédigé.", model="fake", provider=self.provider)
+        return GenerationResult(
+            content="Bon de commande rédigé.", model="fake", provider=self.provider
+        )
 
     async def stream(self, messages, *, model, options=None):  # type: ignore[no-untyped-def]
         async def _g():
             yield ""
+
         return _g()
 
     async def health(self) -> bool:
@@ -59,9 +72,11 @@ def test_jours_avant_rupture() -> None:
 
 def test_analyser_reappro_urgence() -> None:
     items = [
-        _item("A", "10", conso="2", delai=5, secu="4"),   # point 14, stock 10 → suggestion, rupture 5j ≤ délai 5 → high
-        _item("B", "100", conso="1", delai=3),            # point 3, stock 100 → pas de suggestion
-        _item("C", "40", seuil="50"),                     # point 50, stock 40, conso 0 → suggestion medium
+        _item(
+            "A", "10", conso="2", delai=5, secu="4"
+        ),  # point 14, stock 10 → suggestion, rupture 5j ≤ délai 5 → high
+        _item("B", "100", conso="1", delai=3),  # point 3, stock 100 → pas de suggestion
+        _item("C", "40", seuil="50"),  # point 50, stock 40, conso 0 → suggestion medium
     ]
     sug = {s.sku: s for s in analyser_reappro(items)}
     assert set(sug) == {"A", "C"}
@@ -84,9 +99,10 @@ async def test_agent_redige_bon_commande_sans_inventer() -> None:
     out = await agent.rediger_bon_commande(bc)
     assert "rédigé" in out
     assert "SKU A" in agent._client.last  # type: ignore[attr-defined]
-    assert "18" in agent._client.last     # quantité calculée transmise  # type: ignore[attr-defined]
+    assert "18" in agent._client.last  # quantité calculée transmise  # type: ignore[attr-defined]
 
 
 def test_module_in_personalization_catalogue() -> None:
     from zolaos.core.personalization import all_module_codes
+
     assert "erp.supply_chain" in all_module_codes()

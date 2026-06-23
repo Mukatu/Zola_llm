@@ -22,9 +22,7 @@ from zolaos.tools.base import Tool, ToolError
 _log = get_logger("zolaos.tools.safe_write")
 
 # Extensions interdites en écriture, peu importe l'allowlist.
-FORBIDDEN_EXTENSIONS = frozenset(
-    {".env", ".key", ".pem", ".p12", ".pfx", ".gpg", ".asc"}
-)
+FORBIDDEN_EXTENSIONS = frozenset({".env", ".key", ".pem", ".p12", ".pfx", ".gpg", ".asc"})
 
 FORBIDDEN_FILENAMES = frozenset(
     {"id_rsa", "id_ed25519", ".htaccess", ".htpasswd", ".npmrc", ".pypirc"}
@@ -65,7 +63,7 @@ class SafeWriteTool(Tool):
 
         # 3. Pas d'écrasement silencieux.
         if resolved.exists() and not params.overwrite:
-            raise ToolError(f"safe_write refusé : fichier existant et overwrite=false.")
+            raise ToolError("safe_write refusé : fichier existant et overwrite=false.")
 
         # 4. Création des dossiers parents (uniquement à l'intérieur du workspace).
         resolved.parent.mkdir(parents=True, exist_ok=True)

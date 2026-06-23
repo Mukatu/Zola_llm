@@ -39,7 +39,9 @@ class Opportunity(BaseModel):
     libelle: str
     montant_xaf: Decimal = Field(..., ge=0)
     etape: Etape = "prospection"
-    probabilite: Decimal | None = Field(default=None, ge=0, le=1, description="Si None, dérivée de l'étape")
+    probabilite: Decimal | None = Field(
+        default=None, ge=0, le=1, description="Si None, dérivée de l'étape"
+    )
     date_creation: date | None = None
     date_cloture_prevue: date | None = None
     derniere_interaction: date | None = None

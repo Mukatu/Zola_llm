@@ -57,9 +57,7 @@ def _load_text(path: Path) -> str:
         try:
             from pypdf import PdfReader
         except ImportError as exc:
-            raise NotImplementedError(
-                "Lecture PDF nécessite `pypdf` (pip install pypdf)."
-            ) from exc
+            raise NotImplementedError("Lecture PDF nécessite `pypdf` (pip install pypdf).") from exc
         return "\n\n".join((p.extract_text() or "") for p in PdfReader(str(path)).pages)
 
     if ext == ".csv":
@@ -84,10 +82,7 @@ def _load_text(path: Path) -> str:
         for sheet in wb.worksheets:
             out.append(f"## Feuille: {sheet.title}")
             for row in sheet.iter_rows(values_only=True):
-                cells = [
-                    "" if c is None else str(c).strip()
-                    for c in row
-                ]
+                cells = ["" if c is None else str(c).strip() for c in row]
                 if any(cells):
                     out.append(" | ".join(cells))
             out.append("")
@@ -129,8 +124,7 @@ def _load_text(path: Path) -> str:
         return soup.get_text(separator="\n", strip=True)
 
     raise NotImplementedError(
-        f"Format non supporté: {ext}. "
-        f"Supportés: .txt, .md, .pdf, .csv, .xlsx, .docx, .html"
+        f"Format non supporté: {ext}. " f"Supportés: .txt, .md, .pdf, .csv, .xlsx, .docx, .html"
     )
 
 
@@ -185,9 +179,7 @@ async def ingest_text(
 
     vectors = await embeddings.aencode([c.text for c in chunks])
     if len(vectors) != len(chunks):
-        raise RuntimeError(
-            f"Embedding count mismatch: {len(vectors)} vs {len(chunks)} chunks"
-        )
+        raise RuntimeError(f"Embedding count mismatch: {len(vectors)} vs {len(chunks)} chunks")
 
     merged_meta = {**(extra_metadata or {}), **pii_meta}
     rows = [
@@ -204,8 +196,10 @@ async def ingest_text(
         for chunk, vector in zip(chunks, vectors, strict=True)
     ]
 
-    stmt = pg_insert(model).values(rows).on_conflict_do_nothing(
-        index_elements=["source_uri", "chunk_index"]
+    stmt = (
+        pg_insert(model)
+        .values(rows)
+        .on_conflict_do_nothing(index_elements=["source_uri", "chunk_index"])
     )
 
     if session is not None:

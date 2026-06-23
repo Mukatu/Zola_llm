@@ -94,13 +94,17 @@ class ConnectorRegistry:
         if kind == "none":
             return NoAuth()
         if kind == "api_key":
-            return ApiKeyAuth(SecretStr(spec["key"]), header_name=spec.get("header_name", "X-API-Key"))
+            return ApiKeyAuth(
+                SecretStr(spec["key"]), header_name=spec.get("header_name", "X-API-Key")
+            )
         if kind == "basic":
             return BasicAuth(spec["username"], SecretStr(spec["password"]))
         if kind == "oauth2":
             return OAuth2Auth(
-                token_url=spec["token_url"], client_id=spec["client_id"],
-                client_secret=SecretStr(spec["client_secret"]), scope=spec.get("scope"),
+                token_url=spec["token_url"],
+                client_id=spec["client_id"],
+                client_secret=SecretStr(spec["client_secret"]),
+                scope=spec.get("scope"),
             )
         if kind == "certificate":
             return CertificateAuth(spec["cert_path"], spec.get("key_path"))
@@ -129,7 +133,7 @@ class ConnectorRegistry:
                 from zolaos.core.settings import get_settings
 
                 config["timeout_seconds"] = get_settings().CONNECTOR_DEFAULT_TIMEOUT_SECONDS
-            except Exception:  # noqa: BLE001  (settings optionnels hors app)
+            except Exception:  # noqa: S110 — réglage best-effort, fallback silencieux acceptable
                 pass
         return cls(
             config=config,

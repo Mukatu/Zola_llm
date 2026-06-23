@@ -63,7 +63,14 @@ def test_rh_agent_instantiates_and_prompt_markers(settings: Settings) -> None:
     assert agent.rag_schema == "rag_legal"
     prompt = agent._system_prompt.lower()
     assert len(prompt) > 500
-    for marker in ("fiches de poste", "cdi", "cdd", "conformité", "code du travail", "jurisprudence"):
+    for marker in (
+        "fiches de poste",
+        "cdi",
+        "cdd",
+        "conformité",
+        "code du travail",
+        "jurisprudence",
+    ):
         assert marker in prompt, f"marqueur manquant: {marker}"
     # Assistance, pas substitution
     assert "juriste" in prompt or "avocat" in prompt

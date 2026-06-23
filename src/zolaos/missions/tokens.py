@@ -40,12 +40,13 @@ _log = get_logger("zolaos.missions.tokens")
 
 _ALGORITHM = "HS256"
 _DEFAULT_TTL = timedelta(hours=2)
-_MAX_TTL = timedelta(hours=6)        # plafond dur
+_MAX_TTL = timedelta(hours=6)  # plafond dur
 
 
 # =============================================================================
 # Modèles
 # =============================================================================
+
 
 @dataclass(frozen=True)
 class MissionClaims:
@@ -68,6 +69,7 @@ class MissionTokenError(Exception):
 # =============================================================================
 # Émission
 # =============================================================================
+
 
 def issue_mission_token(
     *,
@@ -119,6 +121,7 @@ def issue_mission_token(
 # =============================================================================
 # Vérification
 # =============================================================================
+
 
 async def verify_mission_token(
     token: str,

@@ -22,7 +22,7 @@ def test_dsn_app_is_constructed() -> None:
         POSTGRES_PORT=5433,
         POSTGRES_DB="mydb",
         POSTGRES_USER_APP="usr",
-        POSTGRES_PASSWORD_APP="pwd",  # noqa: S106
+        POSTGRES_PASSWORD_APP="pwd",
     )
     assert s.postgres_dsn_app == "postgresql+asyncpg://usr:pwd@db.local:5433/mydb"
 

@@ -12,7 +12,6 @@ Pour les vraies évaluations d'agents contre LLM réel, voir tests/eval/test_*_e
 
 from __future__ import annotations
 
-from collections.abc import AsyncIterator
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -35,6 +34,7 @@ DATASET_PATH = Path(__file__).parent / "datasets" / "dummy" / "legal_ohada.yaml"
 # ----------------------------------------------------------------------------
 # Mocks
 # ----------------------------------------------------------------------------
+
 
 @dataclass
 class _FakeAgent(RAGAgent):
@@ -77,6 +77,7 @@ def _fake_match(source_id: str, content: str = "") -> Match:
 # Tests : loader + validation
 # ----------------------------------------------------------------------------
 
+
 def test_dataset_yaml_loads_and_validates() -> None:
     ds = EvalDataset.from_yaml(DATASET_PATH)
     assert ds.dataset.agent == "legal.ohada"
@@ -92,6 +93,7 @@ def test_dataset_yaml_loads_and_validates() -> None:
 # Tests : métriques par cas
 # ----------------------------------------------------------------------------
 
+
 def test_evaluate_case_pass_with_keywords_and_citations() -> None:
     case = EvalCase(
         id="t1",
@@ -102,7 +104,9 @@ def test_evaluate_case_pass_with_keywords_and_citations() -> None:
     response = RAGAgentResponse(
         agent="x",
         content="La capitale est Paris en France, voir Art. 5.",
-        citations=[Citation(index=1, source_uri="/x", source_id="SRC1", chunk_index=0, similarity=0.9)],
+        citations=[
+            Citation(index=1, source_uri="/x", source_id="SRC1", chunk_index=0, similarity=0.9)
+        ],
         matches=[_fake_match("SRC1")],
     )
     report = evaluate_case(case, response, latency_seconds=0.1)
@@ -151,13 +155,18 @@ def test_evaluate_case_must_answer_but_refused_fails() -> None:
 # Tests : agrégation
 # ----------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_run_dataset_end_to_end_with_fake_agent() -> None:
     canned: dict = {
         "Quel est le capital social minimum d'une SARL OHADA ?": RAGAgentResponse(
             agent="legal.ohada",
             content="Le capital social minimum d'une SARL OHADA est de 1 000 000 FCFA (Art. 311 AUSCGIE).",
-            citations=[Citation(index=1, source_uri="/x", source_id="AUSCGIE", chunk_index=0, similarity=0.9)],
+            citations=[
+                Citation(
+                    index=1, source_uri="/x", source_id="AUSCGIE", chunk_index=0, similarity=0.9
+                )
+            ],
             matches=[_fake_match("AUSCGIE", "Art. 311 ...")],
         ),
         "Comment dissoudre une coopérative agricole OHADA ?": RAGAgentResponse(

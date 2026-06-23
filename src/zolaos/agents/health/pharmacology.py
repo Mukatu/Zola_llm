@@ -19,7 +19,7 @@ class PharmacologyAgent(RAGAgent):
     prompt_file = "health/pharmacology.md"
     default_tags = ("country:cg", "module:pharmacology")
     requires_citation = True
-    min_confidence = 0.50      # santé = exigeant
+    min_confidence = 0.50  # santé = exigeant
     top_k = 5
     max_tokens = 600
-    temperature = 0.1          # très peu de créativité en pharma
+    temperature = 0.1  # très peu de créativité en pharma

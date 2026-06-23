@@ -17,9 +17,9 @@ def settings() -> Settings:
     return Settings(
         APP_ENV="dev",
         ENABLE_EXTERNAL_FALLBACK=False,
-        POSTGRES_PASSWORD_APP="x",  # noqa: S106  (test only)
-        POSTGRES_PASSWORD_MIGRATIONS="x",  # noqa: S106
-        JWT_SECRET="x" * 32,  # noqa: S106
+        POSTGRES_PASSWORD_APP="x",
+        POSTGRES_PASSWORD_MIGRATIONS="x",
+        JWT_SECRET="x" * 32,
     )
 
 

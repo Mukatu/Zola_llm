@@ -80,7 +80,9 @@ class ToolRegistry:
             raise ValueError(f"Outils inconnus dans allow({agent}, ...) : {unknown}")
         self._allowlist.setdefault(agent, set()).update(tools)
 
-    async def invoke(self, *, agent: str, tool_name: str, params: dict[str, Any]) -> tuple[Any, ToolInvocation]:
+    async def invoke(
+        self, *, agent: str, tool_name: str, params: dict[str, Any]
+    ) -> tuple[Any, ToolInvocation]:
         call_id = uuid.uuid4()
         start = time.perf_counter()
 
@@ -111,7 +113,13 @@ class ToolRegistry:
             output = await tool.run(validated, call_id=call_id)
             outcome = "ok"
             return output, self._record(
-                agent, tool_name, outcome, params, output, time.perf_counter() - start, call_id=call_id
+                agent,
+                tool_name,
+                outcome,
+                params,
+                output,
+                time.perf_counter() - start,
+                call_id=call_id,
             )
         finally:
             AGENT_INVOCATIONS_TOTAL.labels(agent=f"tool.{tool_name}", outcome=outcome).inc()

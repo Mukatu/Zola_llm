@@ -4,8 +4,6 @@ from __future__ import annotations
 
 from datetime import date
 
-import pytest
-
 from zolaos.agents.erp.secretariat import (
     Mandat,
     SecretariatAgent,
@@ -27,11 +25,14 @@ class _CapturingClient(LLMClient):
 
     async def generate(self, messages, *, model, options=None):  # type: ignore[no-untyped-def]
         self.last = messages[-1].content
-        return GenerationResult(content="Procès-verbal rédigé.", model="fake", provider=self.provider)
+        return GenerationResult(
+            content="Procès-verbal rédigé.", model="fake", provider=self.provider
+        )
 
     async def stream(self, messages, *, model, options=None):  # type: ignore[no-untyped-def]
         async def _g():
             yield ""
+
         return _g()
 
     async def health(self) -> bool:
@@ -39,11 +40,19 @@ class _CapturingClient(LLMClient):
 
 
 def test_echeance_mandat() -> None:
-    m = Mandat(id_externe="M1", titulaire="A. Mabiala", fonction="administrateur",
-               date_nomination=date(2023, 3, 15), duree_annees=3)
+    m = Mandat(
+        id_externe="M1",
+        titulaire="A. Mabiala",
+        fonction="administrateur",
+        date_nomination=date(2023, 3, 15),
+        duree_annees=3,
+    )
     assert echeance_mandat(m) == date(2026, 3, 15)
     # Durée indéterminée → None
-    assert echeance_mandat(Mandat(id_externe="M2", titulaire="X", date_nomination=date(2024, 1, 1))) is None
+    assert (
+        echeance_mandat(Mandat(id_externe="M2", titulaire="X", date_nomination=date(2024, 1, 1)))
+        is None
+    )
 
 
 def test_date_limite_ago_six_mois() -> None:
@@ -53,8 +62,20 @@ def test_date_limite_ago_six_mois() -> None:
 
 def test_mandats_a_renouveler() -> None:
     mandats = [
-        Mandat(id_externe="M1", titulaire="A", fonction="administrateur", date_nomination=date(2023, 3, 15), duree_annees=3),  # éch 2026-03-15 → +42 j
-        Mandat(id_externe="M2", titulaire="B", fonction="gerant", date_nomination=date(2024, 1, 1), duree_annees=5),          # éch 2029 → hors horizon
+        Mandat(
+            id_externe="M1",
+            titulaire="A",
+            fonction="administrateur",
+            date_nomination=date(2023, 3, 15),
+            duree_annees=3,
+        ),  # éch 2026-03-15 → +42 j
+        Mandat(
+            id_externe="M2",
+            titulaire="B",
+            fonction="gerant",
+            date_nomination=date(2024, 1, 1),
+            duree_annees=5,
+        ),  # éch 2029 → hors horizon
     ]
     alertes = mandats_a_renouveler(mandats, as_of=AS_OF, horizon_jours=90)
     assert [a.reference for a in alertes] == ["M1"]
@@ -63,7 +84,8 @@ def test_mandats_a_renouveler() -> None:
 async def test_agent_generer_pv_sans_inventer() -> None:
     agent = SecretariatAgent(client=_CapturingClient(), settings=Settings())
     out = await agent.generer_pv(
-        type_reunion="AGO", date_reunion=date(2026, 6, 20),
+        type_reunion="AGO",
+        date_reunion=date(2026, 6, 20),
         resolutions=["Approbation des comptes 2025", "Affectation du résultat"],
         presents=["A. Mabiala", "B. Nkodia"],
     )

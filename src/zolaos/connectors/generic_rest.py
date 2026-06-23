@@ -117,7 +117,10 @@ class GenericRestConnector(HRConnector, AccountingConnector, FinanceConnector):
         out: list[dict[str, Any]] = []
         page = pg.get("start", 1)
         for _ in range(pg.get("max_pages", 100)):
-            params = {pg.get("page_param", "page"): page, pg.get("size_param", "page_size"): pg.get("size", 100)}
+            params = {
+                pg.get("page_param", "page"): page,
+                pg.get("size_param", "page_size"): pg.get("size", 100),
+            }
             batch = list(self._dig(await self._get(endpoint, params), items_path))
             if not batch:
                 break
@@ -147,7 +150,9 @@ class GenericRestConnector(HRConnector, AccountingConnector, FinanceConnector):
 
     async def list_bank_transactions(self, **filters: Any) -> list[BankTransaction]:
         async with self._instrument("list_bank_transactions"):
-            return [BankTransaction(**self._canon(r)) for r in await self._list("bank_transactions")]
+            return [
+                BankTransaction(**self._canon(r)) for r in await self._list("bank_transactions")
+            ]
 
     async def push_journal_entry(self, entry: JournalEntry) -> str:
         if self._client is None:

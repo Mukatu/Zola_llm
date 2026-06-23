@@ -24,15 +24,15 @@ from zolaos.agents.erp.payroll import (
 
 
 def _simple_scale(**overrides) -> PayrollScale:
-    base = dict(
-        validated=True,
-        cnss_salarie_taux=Decimal("0.04"),
-        cnss_employeur_taux=Decimal("0.08"),
-        cnss_plafond_xaf=None,
-        cipres_salarie_taux=Decimal("0"),
-        abattement_irpp_taux=Decimal("0"),
-        irpp_bareme=[IrppTranche(plafond_xaf=None, taux=Decimal("0.10"))],
-    )
+    base = {
+        "validated": True,
+        "cnss_salarie_taux": Decimal("0.04"),
+        "cnss_employeur_taux": Decimal("0.08"),
+        "cnss_plafond_xaf": None,
+        "cipres_salarie_taux": Decimal("0"),
+        "abattement_irpp_taux": Decimal("0"),
+        "irpp_bareme": [IrppTranche(plafond_xaf=None, taux=Decimal("0.10"))],
+    }
     base.update(overrides)
     return PayrollScale(**base)
 
@@ -60,7 +60,7 @@ def test_deterministic_payslip_math() -> None:
     assert res.cotisations_salariales["cnss"] == Decimal("4000")
     assert res.total_cotisations_salariales_xaf == Decimal("4000")
     assert res.base_imposable_xaf == Decimal("96000")
-    assert res.irpp_xaf == Decimal("9600")          # 96000 * 0.10
+    assert res.irpp_xaf == Decimal("9600")  # 96000 * 0.10
     assert res.net_a_payer_xaf == Decimal("86400")  # 100000 - 4000 - 9600
     assert res.cotisations_patronales["cnss_employeur"] == Decimal("8000")
     assert res.cout_employeur_xaf == Decimal("108000")

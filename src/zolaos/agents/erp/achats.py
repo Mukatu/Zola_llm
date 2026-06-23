@@ -11,7 +11,6 @@ from __future__ import annotations
 import time
 from dataclasses import dataclass, field
 from decimal import ROUND_HALF_UP, Decimal
-from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -29,6 +28,7 @@ DOCS_REQUIS: tuple[str, ...] = ("rccm", "niu", "attestation_fiscale")
 
 
 # ============================================================ modèles
+
 
 class Supplier(BaseModel):
     model_config = {"extra": "forbid"}
@@ -61,8 +61,8 @@ class OffreFournisseur(BaseModel):
 class SupplierScore:
     id_externe: str
     nom: str
-    score: int                 # 0-100
-    grade: str                 # A | B | C | D
+    score: int  # 0-100
+    grade: str  # A | B | C | D
     raisons: list[str] = field(default_factory=list)
 
 
@@ -72,11 +72,12 @@ class ComparatifLigne:
     fournisseur: str
     montant_ttc_xaf: Decimal
     delai_livraison_jours: int
-    score: int                 # 0-100 (mieux = plus haut)
+    score: int  # 0-100 (mieux = plus haut)
     rang: int
 
 
 # ============================================================ conformité (pur)
+
 
 def verifier_conformite(supplier: Supplier) -> list[str]:
     """Pièces de conformité manquantes (déterministe)."""
@@ -86,6 +87,7 @@ def verifier_conformite(supplier: Supplier) -> list[str]:
 
 # ============================================================ scoring fournisseur (pur)
 
+
 @dataclass(frozen=True)
 class ScoringWeights:
     qualite: Decimal = Decimal("0.45")
@@ -94,11 +96,17 @@ class ScoringWeights:
     delai_reference_jours: int = 30
 
 
-def score_fournisseur(supplier: Supplier, *, weights: ScoringWeights | None = None) -> SupplierScore:
+def score_fournisseur(
+    supplier: Supplier, *, weights: ScoringWeights | None = None
+) -> SupplierScore:
     w = weights or ScoringWeights()
     qualite_s = supplier.note_qualite / Decimal("5")
-    conformite_s = Decimal(len(DOCS_REQUIS) - len(verifier_conformite(supplier))) / Decimal(len(DOCS_REQUIS))
-    delai_s = max(_ZERO, Decimal("1") - Decimal(supplier.delai_moyen_jours) / Decimal(w.delai_reference_jours))
+    conformite_s = Decimal(len(DOCS_REQUIS) - len(verifier_conformite(supplier))) / Decimal(
+        len(DOCS_REQUIS)
+    )
+    delai_s = max(
+        _ZERO, Decimal("1") - Decimal(supplier.delai_moyen_jours) / Decimal(w.delai_reference_jours)
+    )
     score01 = w.qualite * qualite_s + w.conformite * conformite_s + w.delai * delai_s
     score = int((score01 * 100).quantize(Decimal("1"), rounding=ROUND_HALF_UP))
     grade = "A" if score >= 75 else "B" if score >= 50 else "C" if score >= 25 else "D"
@@ -107,10 +115,13 @@ def score_fournisseur(supplier: Supplier, *, weights: ScoringWeights | None = No
         f"conformité={conformite_s.quantize(Decimal('0.01'))}",
         f"délai={delai_s.quantize(Decimal('0.01'))}",
     ]
-    return SupplierScore(id_externe=supplier.id_externe, nom=supplier.nom, score=score, grade=grade, raisons=raisons)
+    return SupplierScore(
+        id_externe=supplier.id_externe, nom=supplier.nom, score=score, grade=grade, raisons=raisons
+    )
 
 
 # ============================================================ comparaison d'offres (pur)
+
 
 def _normalize_lower_better(value: Decimal, lo: Decimal, hi: Decimal) -> Decimal:
     """1 = meilleur (le plus bas), 0 = pire (le plus haut)."""
@@ -141,20 +152,29 @@ def comparer_offres(
     for o in offres:
         prix_s = _normalize_lower_better(o.montant_ttc_xaf, pmin, pmax)
         delai_s = _normalize_lower_better(Decimal(o.delai_livraison_jours), dmin, dmax)
-        score = int(((w.prix * prix_s + w.delai * delai_s) * 100).quantize(Decimal("1"), rounding=ROUND_HALF_UP))
+        score = int(
+            ((w.prix * prix_s + w.delai * delai_s) * 100).quantize(
+                Decimal("1"), rounding=ROUND_HALF_UP
+            )
+        )
         scored.append((o, score))
 
     scored.sort(key=lambda t: t[1], reverse=True)
     return [
         ComparatifLigne(
-            offre_id=o.id_externe, fournisseur=o.fournisseur, montant_ttc_xaf=o.montant_ttc_xaf,
-            delai_livraison_jours=o.delai_livraison_jours, score=score, rang=i + 1,
+            offre_id=o.id_externe,
+            fournisseur=o.fournisseur,
+            montant_ttc_xaf=o.montant_ttc_xaf,
+            delai_livraison_jours=o.delai_livraison_jours,
+            score=score,
+            rang=i + 1,
         )
         for i, (o, score) in enumerate(scored)
     ]
 
 
 # ============================================================ agent
+
 
 class AchatsAgent:
     """Agent Achats : scoring/comparaison/conformité (déterministe) + contrats (LLM)."""
@@ -168,7 +188,9 @@ class AchatsAgent:
 
     # -- déterministe --
     def scorer_fournisseurs(self, suppliers: list[Supplier]) -> list[SupplierScore]:
-        return sorted((score_fournisseur(s) for s in suppliers), key=lambda x: x.score, reverse=True)
+        return sorted(
+            (score_fournisseur(s) for s in suppliers), key=lambda x: x.score, reverse=True
+        )
 
     def comparer(self, offres: list[OffreFournisseur]) -> list[ComparatifLigne]:
         return comparer_offres(offres)
@@ -177,7 +199,9 @@ class AchatsAgent:
         return verifier_conformite(supplier)
 
     # -- génératif --
-    async def rediger_contrat(self, *, fournisseur: str, objet: str, montant_xaf: str, conditions: str = "") -> str:
+    async def rediger_contrat(
+        self, *, fournisseur: str, objet: str, montant_xaf: str, conditions: str = ""
+    ) -> str:
         """Rédige un contrat de fourniture/prestation ancré sur le droit commercial OHADA."""
         cond = f"Conditions particulières : {conditions}\n" if conditions else ""
         user_msg = (

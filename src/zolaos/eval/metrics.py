@@ -123,9 +123,7 @@ def evaluate_case(
         report.refusal_correct = ok
         if not ok:
             report.passed = False
-            report.failure_reasons.append(
-                "must_refuse=true mais l'agent a répondu sans refuser"
-            )
+            report.failure_reasons.append("must_refuse=true mais l'agent a répondu sans refuser")
         # On ne calcule pas le reste (mots-clés / citations) si on attendait un refus
         if response is not None:
             report.raw_response_preview = (response.content or "")[:200]
@@ -168,9 +166,7 @@ def evaluate_case(
         n_resp_citations = len(response.citations)
         report.citation_precision = (matched / n_resp_citations) if n_resp_citations else 0.0
         if matched < expected:
-            report.failure_reasons.append(
-                f"citations attendues manquantes ({matched}/{expected})"
-            )
+            report.failure_reasons.append(f"citations attendues manquantes ({matched}/{expected})")
             report.passed = False
 
     return report
@@ -229,9 +225,7 @@ class DatasetReport:
             for fr in c.failure_reasons:
                 lines.append(f"     · {fr}")
         lines.append("")
-        lines.append(
-            f"Pass rate     : {self.passed}/{self.total} ({self.pass_rate:.0%})"
-        )
+        lines.append(f"Pass rate     : {self.passed}/{self.total} ({self.pass_rate:.0%})")
         lines.append(f"Latency p50/p95: {self.latency_p50:.2f}s / {self.latency_p95:.2f}s")
         lines.append(f"Hallucination : {self.hallucination_rate:.0%}")
         for sev, (ok, tot) in self.by_severity().items():

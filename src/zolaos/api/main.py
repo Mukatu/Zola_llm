@@ -76,7 +76,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 redis_client=make_redis_client(settings),
                 per_minute=settings.RATE_LIMIT_PER_MINUTE,
             )
-        except Exception:  # noqa: BLE001
+        except Exception:
             rate_limiter = None  # Redis indispo : on dégrade sans bloquer.
 
     @app.middleware("http")
@@ -107,7 +107,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         response = await call_next(request)
         elapsed = time.perf_counter() - start
 
-        path = request.scope.get("route").path if request.scope.get("route") else request.url.path
+        route = request.scope.get("route")
+        path = route.path if route is not None else request.url.path
         HTTP_REQUESTS_TOTAL.labels(
             method=request.method,
             path=path,

@@ -24,8 +24,8 @@ from __future__ import annotations
 
 import time
 from abc import ABC, abstractmethod
-from contextlib import asynccontextmanager
 from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from enum import Enum
 from typing import Any, ClassVar
 
@@ -45,6 +45,7 @@ _log = get_logger("zolaos.connectors.base")
 # =============================================================================
 # Erreurs
 # =============================================================================
+
 
 class ConnectorError(RuntimeError):
     """Erreur générique d'un connecteur."""
@@ -70,6 +71,7 @@ class CapabilityNotSupported(ConnectorError):
 # Capacités
 # =============================================================================
 
+
 class Capability(str, Enum):
     LIST_EMPLOYEES = "list_employees"
     READ_INVOICE = "read_invoice"
@@ -81,6 +83,7 @@ class Capability(str, Enum):
 # =============================================================================
 # Connecteur de base
 # =============================================================================
+
 
 class BaseConnector(ABC):
     """Base de tous les connecteurs : cycle de vie, capacités, instrumentation."""
@@ -170,16 +173,17 @@ class BaseConnector(ABC):
                 CONNECTOR_CALLS_TOTAL.labels(
                     connector=self.name, operation=op, outcome=outcome
                 ).inc()
-                CONNECTOR_CALL_DURATION_SECONDS.labels(
-                    connector=self.name, operation=op
-                ).observe(duration)
-            except Exception:  # noqa: BLE001  (métriques optionnelles, jamais bloquantes)
+                CONNECTOR_CALL_DURATION_SECONDS.labels(connector=self.name, operation=op).observe(
+                    duration
+                )
+            except Exception:  # noqa: S110 — métriques best-effort, ne doit jamais casser l'appel
                 pass
 
 
 # =============================================================================
 # Mixins de capacité (interface unique)
 # =============================================================================
+
 
 class HRConnector(BaseConnector):
     """Capacité RH : liste des salariés."""

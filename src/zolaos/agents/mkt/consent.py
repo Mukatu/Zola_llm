@@ -46,4 +46,6 @@ class ConsentSummary:
 def consent_summary(contacts: list[MarketingContact], finalite: str) -> ConsentSummary:
     eligibles = len(filter_consented(contacts, finalite))
     total = len(contacts)
-    return ConsentSummary(finalite=finalite, eligibles=eligibles, exclus=total - eligibles, total=total)
+    return ConsentSummary(
+        finalite=finalite, eligibles=eligibles, exclus=total - eligibles, total=total
+    )

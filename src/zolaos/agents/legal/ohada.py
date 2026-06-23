@@ -18,7 +18,7 @@ class OhadaAgent(RAGAgent):
     prompt_file = "legal/ohada.md"
     default_tags = ("country:cg", "module:ohada")
     requires_citation = True
-    min_confidence = 0.55      # juridique = précision exigée
+    min_confidence = 0.55  # juridique = précision exigée
     top_k = 6
-    max_tokens = 1200          # un peu plus pour les contrats
+    max_tokens = 1200  # un peu plus pour les contrats
     temperature = 0.15

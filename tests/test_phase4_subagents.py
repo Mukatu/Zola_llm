@@ -41,9 +41,10 @@ def test_agent_instantiates_and_loads_prompt(agent_cls, settings) -> None:
         agent = agent_cls(client=client, settings=settings)
         assert issubclass(agent_cls, RAGAgent), f"{agent_cls.__name__} doit hériter de RAGAgent"
         assert agent.name, f"{agent_cls.__name__} sans nom"
-        assert agent.rag_schema in ("rag_legal", "rag_health"), (
-            f"{agent_cls.__name__} doit utiliser un schéma RAG existant"
-        )
+        assert agent.rag_schema in (
+            "rag_legal",
+            "rag_health",
+        ), f"{agent_cls.__name__} doit utiliser un schéma RAG existant"
         assert agent.prompt_file, f"{agent_cls.__name__} sans prompt_file"
         prompt = agent._system_prompt
         assert len(prompt) > 500, f"Prompt {agent.name} suspect trop court ({len(prompt)})"
@@ -58,6 +59,7 @@ def test_agent_instantiates_and_loads_prompt(agent_cls, settings) -> None:
     finally:
         # client httpx — clean close
         import asyncio
+
         asyncio.run(client.aclose())
 
 
@@ -71,9 +73,15 @@ def test_admin_cg_has_political_sensitivity_marker(settings) -> None:
         assert "neutralité" in prompt or "factuel" in prompt
         assert "qualification politique" in prompt or "politique" in prompt
         # Refus de l'attribution nominative
-        assert "attribution personnelle" in prompt or "anonymise" in prompt or "anonymisé" in prompt or "anonymisée" in prompt
+        assert (
+            "attribution personnelle" in prompt
+            or "anonymise" in prompt
+            or "anonymisé" in prompt
+            or "anonymisée" in prompt
+        )
     finally:
         import asyncio
+
         asyncio.run(client.aclose())
 
 
@@ -83,15 +91,20 @@ def test_reporting_bailleurs_multilang_capability(settings) -> None:
     try:
         agent = ReportingBailleursAgent(client=client, settings=settings)
         prompt = agent._system_prompt.lower()
-        assert ("anglais" in prompt) or ("english" in prompt) or ("en " in prompt and "fr" in prompt)
+        assert (
+            ("anglais" in prompt) or ("english" in prompt) or ("en " in prompt and "fr" in prompt)
+        )
         # Mentions des bailleurs principaux
         for bailleur in ("ue", "onu", "banque mondiale"):
             assert bailleur in prompt, f"bailleur '{bailleur}' non mentionné"
     finally:
         import asyncio
+
         asyncio.run(client.aclose())
 
 
 def test_phase4_agents_count_matches_expectation() -> None:
     """Garde-fou : on s'attend à 3 sous-agents Phase 4 livrés."""
-    assert len(PHASE4_AGENTS) == 3, "Phase 4 attendue : 3 sous-agents (admin CG, reporting bailleurs, projets ONG)"
+    assert (
+        len(PHASE4_AGENTS) == 3
+    ), "Phase 4 attendue : 3 sous-agents (admin CG, reporting bailleurs, projets ONG)"

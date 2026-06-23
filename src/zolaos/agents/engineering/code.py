@@ -59,8 +59,8 @@ class CodeArtifact(BaseModel):
 class CodeAgentResponse:
     agent: str
     intent: CodeIntent
-    content: str                              # JSON si structured_output, sinon texte libre
-    artifact: CodeArtifact | None = None      # parsé si structured_output=True et JSON valide
+    content: str  # JSON si structured_output, sinon texte libre
+    artifact: CodeArtifact | None = None  # parsé si structured_output=True et JSON valide
     duration_seconds: float = 0.0
     metadata: dict[str, str] = field(default_factory=dict)
 
@@ -68,6 +68,7 @@ class CodeAgentResponse:
 # =============================================================================
 # Agent
 # =============================================================================
+
 
 class CodeAgent:
     """Sous-agent Code — génération, refactor, debug, explication, review, tests."""
@@ -143,7 +144,7 @@ class CodeAgent:
             if structured_output and result.content:
                 try:
                     artifact = CodeArtifact.model_validate_json(result.content)
-                except Exception as exc:  # noqa: BLE001
+                except Exception as exc:
                     # On laisse `artifact=None` ; le contenu brut reste dans `content`.
                     _log.warning(
                         "code_agent.parse_artifact_failed",

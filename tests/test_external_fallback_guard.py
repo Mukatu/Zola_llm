@@ -21,7 +21,7 @@ from zolaos.llm.guard import (
 def test_fallback_blocked_when_flag_off() -> None:
     settings = Settings(
         ENABLE_EXTERNAL_FALLBACK=False,
-        ANTHROPIC_API_KEY="dummy-but-irrelevant",  # noqa: S106
+        ANTHROPIC_API_KEY="dummy-but-irrelevant",
         EXTERNAL_FALLBACK_BUDGET_MONTHLY_USD=100.0,
     )
     with pytest.raises(ExternalFallbackDisabledError, match="ENABLE_EXTERNAL_FALLBACK=false"):
@@ -32,7 +32,7 @@ def test_fallback_blocked_when_flag_off() -> None:
 def test_fallback_blocked_when_no_api_key() -> None:
     settings = Settings(
         ENABLE_EXTERNAL_FALLBACK=True,
-        ANTHROPIC_API_KEY="",  # noqa: S106
+        ANTHROPIC_API_KEY="",
         EXTERNAL_FALLBACK_BUDGET_MONTHLY_USD=100.0,
     )
     with pytest.raises(ExternalFallbackDisabledError, match="ANTHROPIC_API_KEY vide"):
@@ -43,7 +43,7 @@ def test_fallback_blocked_when_no_api_key() -> None:
 def test_fallback_blocked_when_no_budget() -> None:
     settings = Settings(
         ENABLE_EXTERNAL_FALLBACK=True,
-        ANTHROPIC_API_KEY="dummy",  # noqa: S106
+        ANTHROPIC_API_KEY="dummy",
         EXTERNAL_FALLBACK_BUDGET_MONTHLY_USD=0.0,
     )
     with pytest.raises(ExternalFallbackDisabledError, match="plafond budgétaire"):
@@ -55,7 +55,7 @@ def test_fallback_allowed_when_all_conditions_met() -> None:
     """Le garde-fou laisse passer uniquement si toutes les conditions sont réunies."""
     settings = Settings(
         ENABLE_EXTERNAL_FALLBACK=True,
-        ANTHROPIC_API_KEY="dummy",  # noqa: S106
+        ANTHROPIC_API_KEY="dummy",
         EXTERNAL_FALLBACK_BUDGET_MONTHLY_USD=100.0,
     )
     # Ne doit PAS lever.

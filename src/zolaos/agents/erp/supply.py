@@ -13,7 +13,7 @@ brique dédiée ultérieure.
 from __future__ import annotations
 
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import date
 from decimal import ROUND_CEILING, ROUND_HALF_UP, Decimal
 from typing import Literal
@@ -33,6 +33,7 @@ Urgence = Literal["high", "medium", "low"]
 
 
 # ============================================================ modèles
+
 
 class StockItem(BaseModel):
     model_config = {"extra": "forbid"}
@@ -81,6 +82,7 @@ class ReapproSuggestion:
 
 # ============================================================ moteur (pur)
 
+
 def _ceil(v: Decimal) -> Decimal:
     return v.quantize(Decimal("1"), rounding=ROUND_CEILING)
 
@@ -120,11 +122,17 @@ def analyser_reappro(items: list[StockItem]) -> list[ReapproSuggestion]:
         urgence: Urgence = (
             "high" if (jr is not None and jr <= Decimal(it.delai_appro_jours)) else "medium"
         )
-        out.append(ReapproSuggestion(
-            sku=it.sku, libelle=it.libelle, quantite_actuelle=it.quantite_actuelle,
-            point_de_commande=point, quantite_a_commander=quantite_a_commander(it, point),
-            jours_avant_rupture=jr, urgence=urgence,
-        ))
+        out.append(
+            ReapproSuggestion(
+                sku=it.sku,
+                libelle=it.libelle,
+                quantite_actuelle=it.quantite_actuelle,
+                point_de_commande=point,
+                quantite_a_commander=quantite_a_commander(it, point),
+                jours_avant_rupture=jr,
+                urgence=urgence,
+            )
+        )
     return out
 
 
@@ -136,31 +144,44 @@ def alertes_rupture(items: list[StockItem], *, horizon_jours: int = 30) -> list[
         if jr is not None and jr <= Decimal(horizon_jours):
             point = point_de_commande(it)
             urgence: Urgence = "high" if jr <= Decimal(it.delai_appro_jours) else "medium"
-            out.append(ReapproSuggestion(
-                sku=it.sku, libelle=it.libelle, quantite_actuelle=it.quantite_actuelle,
-                point_de_commande=point, quantite_a_commander=quantite_a_commander(it, point),
-                jours_avant_rupture=jr, urgence=urgence,
-            ))
+            out.append(
+                ReapproSuggestion(
+                    sku=it.sku,
+                    libelle=it.libelle,
+                    quantite_actuelle=it.quantite_actuelle,
+                    point_de_commande=point,
+                    quantite_a_commander=quantite_a_commander(it, point),
+                    jours_avant_rupture=jr,
+                    urgence=urgence,
+                )
+            )
     return out
 
 
 def generer_bon_commande(
-    suggestions: list[ReapproSuggestion], *, fournisseur: str | None = None,
-    reference: str | None = None, as_of: date | None = None,
+    suggestions: list[ReapproSuggestion],
+    *,
+    fournisseur: str | None = None,
+    reference: str | None = None,
+    as_of: date | None = None,
 ) -> BonCommande:
     """Construit un bon de commande (déterministe) à partir des suggestions."""
     as_of = as_of or date.today()
     lignes = [
         BonCommandeLigne(sku=s.sku, libelle=s.libelle, quantite=s.quantite_a_commander)
-        for s in suggestions if s.quantite_a_commander > 0
+        for s in suggestions
+        if s.quantite_a_commander > 0
     ]
     return BonCommande(
         reference=reference or f"BC-{as_of.isoformat()}",
-        fournisseur=fournisseur, date_emission=as_of, lignes=lignes,
+        fournisseur=fournisseur,
+        date_emission=as_of,
+        lignes=lignes,
     )
 
 
 # ============================================================ agent
+
 
 class SupplyChainAgent:
     """Agent Supply Chain : analyse déterministe + rédaction générative."""
@@ -179,7 +200,9 @@ class SupplyChainAgent:
             "alertes": alertes_rupture(items, horizon_jours=horizon_jours),
         }
 
-    def bon_commande(self, suggestions: list[ReapproSuggestion], *, fournisseur: str | None = None) -> BonCommande:
+    def bon_commande(
+        self, suggestions: list[ReapproSuggestion], *, fournisseur: str | None = None
+    ) -> BonCommande:
         return generer_bon_commande(suggestions, fournisseur=fournisseur)
 
     # -- génératif --
@@ -199,7 +222,8 @@ class SupplyChainAgent:
         al = analyse["alertes"]
         lignes = "\n".join(
             f"- [{s.urgence}] {s.libelle} : stock {s.quantite_actuelle}, point {s.point_de_commande}, "
-            f"à commander {s.quantite_a_commander}, rupture ~{s.jours_avant_rupture} j" for s in sug
+            f"à commander {s.quantite_a_commander}, rupture ~{s.jours_avant_rupture} j"
+            for s in sug
         )
         user_msg = (
             f"--- Analyse de stock (déjà calculée) ---\n"

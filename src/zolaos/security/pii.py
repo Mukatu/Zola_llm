@@ -45,12 +45,13 @@ _log = get_logger("zolaos.security.pii")
 # Politiques
 # =============================================================================
 
+
 class PIIRedactionPolicy(str, Enum):
-    NONE = "none"          # corpus public — aucune modification
-    GENERIC = "generic"    # PII communes (email, tel, IBAN, carte)
-    FISCAL = "fiscal"      # tiers comptables → hash pseudonyme stable
-    RH = "rh"              # noms/adresses/ID masqués ; salaires → tranches
-    MEDICAL = "medical"    # identité patient masquée ; pathologies conservées
+    NONE = "none"  # corpus public — aucune modification
+    GENERIC = "generic"  # PII communes (email, tel, IBAN, carte)
+    FISCAL = "fiscal"  # tiers comptables → hash pseudonyme stable
+    RH = "rh"  # noms/adresses/ID masqués ; salaires → tranches
+    MEDICAL = "medical"  # identité patient masquée ; pathologies conservées
 
 
 # =============================================================================
@@ -66,9 +67,7 @@ _PHONE_CG = re.compile(
 _EMAIL = re.compile(r"[\w._%+\-]+@[\w.\-]+\.[A-Za-z]{2,}", re.IGNORECASE)
 
 # IBAN simplifié (FR, CG, BJ, CM, …) — 15 à 34 alphanum avec espaces optionnels.
-_IBAN = re.compile(
-    r"\b[A-Z]{2}\d{2}[\s]?(?:[A-Z\d]{4}[\s]?){3,7}[A-Z\d]{0,4}\b"
-)
+_IBAN = re.compile(r"\b[A-Z]{2}\d{2}[\s]?(?:[A-Z\d]{4}[\s]?){3,7}[A-Z\d]{0,4}\b")
 
 # Carte bancaire (Luhn approximé : 13-19 chiffres avec espaces/tirets éventuels).
 _CARD = re.compile(r"\b(?:\d[\s\-]?){13,19}\b")
@@ -99,15 +98,26 @@ _NAME_HEURISTIC = re.compile(
 
 # Stop-list pour éviter des faux positifs courants sur l'heuristique noms.
 _NAME_STOPLIST = {
-    "République", "Brazzaville", "Pointe", "Noire", "Pointe Noire", "Pointe-Noire",
-    "Code Travail", "Code Général", "Cour Suprême", "Loi Finances",
-    "Lingala Kituba", "République Démocratique", "République Congo",
+    "République",
+    "Brazzaville",
+    "Pointe",
+    "Noire",
+    "Pointe Noire",
+    "Pointe-Noire",
+    "Code Travail",
+    "Code Général",
+    "Cour Suprême",
+    "Loi Finances",
+    "Lingala Kituba",
+    "République Démocratique",
+    "République Congo",
 }
 
 
 # =============================================================================
 # Hash pseudonyme stable (pour FISCAL)
 # =============================================================================
+
 
 def _stable_hash(value: str, prefix: str, length: int = 5) -> str:
     """Hash court et stable. Le même `value` produit toujours le même pseudonyme
@@ -120,6 +130,7 @@ def _stable_hash(value: str, prefix: str, length: int = 5) -> str:
 # =============================================================================
 # Tranches de salaire (pour RH)
 # =============================================================================
+
 
 def _bucket_amount_fcfa(raw: str) -> str:
     """Transforme un montant FCFA en tranche.
@@ -147,6 +158,7 @@ def _bucket_amount_fcfa(raw: str) -> str:
 # Comptes (statistiques)
 # =============================================================================
 
+
 @dataclass
 class RedactionStats:
     """Compteurs de ce qui a été masqué — utile pour audit / observabilité."""
@@ -162,15 +174,21 @@ class RedactionStats:
 
     def as_dict(self) -> dict[str, int]:
         return {
-            "emails": self.emails, "phones": self.phones, "ibans": self.ibans,
-            "cards": self.cards, "cnss": self.cnss, "names": self.names,
-            "amounts": self.amounts, "tiers_hashed": len(self.tiers_hashes),
+            "emails": self.emails,
+            "phones": self.phones,
+            "ibans": self.ibans,
+            "cards": self.cards,
+            "cnss": self.cnss,
+            "names": self.names,
+            "amounts": self.amounts,
+            "tiers_hashed": len(self.tiers_hashes),
         }
 
 
 # =============================================================================
 # Détection / redaction
 # =============================================================================
+
 
 def _redact_generic(text: str, stats: RedactionStats) -> str:
     """Masque les PII communes universelles."""
@@ -273,6 +291,7 @@ def _redact_fiscal(text: str, stats: RedactionStats) -> str:
 # =============================================================================
 # API publique
 # =============================================================================
+
 
 def redact_text(text: str, policy: PIIRedactionPolicy) -> tuple[str, RedactionStats]:
     """Applique la politique d'anonymisation. Retourne (texte_anonymisé, stats).

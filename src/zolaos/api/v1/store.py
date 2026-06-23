@@ -62,7 +62,7 @@ class ReconcileIn(BaseModel):
 async def create_invoice(
     body: InvoiceIn,
     tenant_id: str = "local",
-    session: AsyncSession = Depends(get_session),  # noqa: B008
+    session: AsyncSession = Depends(get_session),
 ) -> dict[str, Any]:
     rec = await InvoiceRepository(session).create({**body.model_dump(), "tenant_id": tenant_id})
     await session.commit()
@@ -74,7 +74,7 @@ async def list_invoices(
     tenant_id: str = "local",
     sens: str | None = None,
     payee: bool | None = None,
-    session: AsyncSession = Depends(get_session),  # noqa: B008
+    session: AsyncSession = Depends(get_session),
 ) -> dict[str, Any]:
     rows = await InvoiceRepository(session).list(tenant_id=tenant_id, sens=sens, payee=payee)
     return {"invoices": [r.to_dict() for r in rows]}
@@ -84,7 +84,7 @@ async def list_invoices(
 async def get_invoice(
     invoice_id: str,
     tenant_id: str = "local",
-    session: AsyncSession = Depends(get_session),  # noqa: B008
+    session: AsyncSession = Depends(get_session),
 ) -> dict[str, Any]:
     rec = await InvoiceRepository(session).get(invoice_id, tenant_id=tenant_id)
     if rec is None:
@@ -97,7 +97,7 @@ async def patch_invoice(
     invoice_id: str,
     body: InvoicePatch,
     tenant_id: str = "local",
-    session: AsyncSession = Depends(get_session),  # noqa: B008
+    session: AsyncSession = Depends(get_session),
 ) -> dict[str, Any]:
     rec = await InvoiceRepository(session).update(
         invoice_id, tenant_id=tenant_id, fields=body.model_dump(exclude_none=True)
@@ -112,7 +112,7 @@ async def patch_invoice(
 async def pay_invoice(
     invoice_id: str,
     tenant_id: str = "local",
-    session: AsyncSession = Depends(get_session),  # noqa: B008
+    session: AsyncSession = Depends(get_session),
 ) -> dict[str, Any]:
     rec = await InvoiceRepository(session).mark_paid(invoice_id, tenant_id=tenant_id)
     if rec is None:
@@ -125,7 +125,7 @@ async def pay_invoice(
 async def delete_invoice(
     invoice_id: str,
     tenant_id: str = "local",
-    session: AsyncSession = Depends(get_session),  # noqa: B008
+    session: AsyncSession = Depends(get_session),
 ) -> dict[str, Any]:
     ok = await InvoiceRepository(session).delete(invoice_id, tenant_id=tenant_id)
     if not ok:
@@ -141,7 +141,7 @@ async def delete_invoice(
 async def reconcile(
     body: ReconcileIn,
     tenant_id: str = "local",
-    session: AsyncSession = Depends(get_session),  # noqa: B008
+    session: AsyncSession = Depends(get_session),
 ) -> dict[str, Any]:
     rows = await InvoiceRepository(session).list(tenant_id=tenant_id, sens="vente", payee=False)
     invoices = [
@@ -191,7 +191,7 @@ class JournalEntryIn(BaseModel):
 async def create_entry(
     body: JournalEntryIn,
     tenant_id: str = "local",
-    session: AsyncSession = Depends(get_session),  # noqa: B008
+    session: AsyncSession = Depends(get_session),
 ) -> dict[str, Any]:
     entry = JournalEntry(
         date_ecriture=body.date_ecriture,
@@ -237,7 +237,7 @@ async def create_entry(
 @router.get("/journal", summary="Lister les écritures")
 async def list_entries(
     tenant_id: str = "local",
-    session: AsyncSession = Depends(get_session),  # noqa: B008
+    session: AsyncSession = Depends(get_session),
 ) -> dict[str, Any]:
     rows = await JournalRepository(session).list(tenant_id=tenant_id)
     return {"entries": [r.to_dict() for r in rows]}
@@ -246,7 +246,7 @@ async def list_entries(
 @router.get("/journal/balance", summary="Balance vivante des comptes (clôture continue)")
 async def trial_balance(
     tenant_id: str = "local",
-    session: AsyncSession = Depends(get_session),  # noqa: B008
+    session: AsyncSession = Depends(get_session),
 ) -> dict[str, Any]:
     rows = await JournalRepository(session).list(tenant_id=tenant_id)
     agg: dict[str, dict[str, Decimal]] = {}
@@ -278,7 +278,7 @@ async def trial_balance(
 async def delete_entry(
     entry_id: str,
     tenant_id: str = "local",
-    session: AsyncSession = Depends(get_session),  # noqa: B008
+    session: AsyncSession = Depends(get_session),
 ) -> dict[str, Any]:
     ok = await JournalRepository(session).delete(entry_id, tenant_id=tenant_id)
     if not ok:
@@ -312,7 +312,7 @@ class StockPatch(BaseModel):
 async def create_stock(
     body: StockItemIn,
     tenant_id: str = "local",
-    session: AsyncSession = Depends(get_session),  # noqa: B008
+    session: AsyncSession = Depends(get_session),
 ) -> dict[str, Any]:
     rec = await StockRepository(session).create({**body.model_dump(), "tenant_id": tenant_id})
     await session.commit()
@@ -322,7 +322,7 @@ async def create_stock(
 @router.get("/stock", summary="Lister les articles de stock")
 async def list_stock(
     tenant_id: str = "local",
-    session: AsyncSession = Depends(get_session),  # noqa: B008
+    session: AsyncSession = Depends(get_session),
 ) -> dict[str, Any]:
     rows = await StockRepository(session).list(tenant_id=tenant_id)
     return {"items": [r.to_dict() for r in rows]}
@@ -333,7 +333,7 @@ async def patch_stock(
     item_id: str,
     body: StockPatch,
     tenant_id: str = "local",
-    session: AsyncSession = Depends(get_session),  # noqa: B008
+    session: AsyncSession = Depends(get_session),
 ) -> dict[str, Any]:
     rec = await StockRepository(session).update(
         item_id, tenant_id=tenant_id, fields=body.model_dump(exclude_none=True)
@@ -348,7 +348,7 @@ async def patch_stock(
 async def delete_stock(
     item_id: str,
     tenant_id: str = "local",
-    session: AsyncSession = Depends(get_session),  # noqa: B008
+    session: AsyncSession = Depends(get_session),
 ) -> dict[str, Any]:
     ok = await StockRepository(session).delete(item_id, tenant_id=tenant_id)
     if not ok:
@@ -360,7 +360,7 @@ async def delete_stock(
 @router.post("/stock/analyze", summary="Réappro + alertes rupture sur le stock stocké")
 async def analyze_stock(
     tenant_id: str = "local",
-    session: AsyncSession = Depends(get_session),  # noqa: B008
+    session: AsyncSession = Depends(get_session),
 ) -> dict[str, Any]:
     rows = await StockRepository(session).list(tenant_id=tenant_id)
     items = [

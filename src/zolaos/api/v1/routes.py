@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
@@ -39,8 +39,8 @@ _AGENT_CATALOG: list[AgentInfo] = [
 @router.post("/query", response_model=QueryResponse)
 async def query(
     payload: QueryRequest,
-    orch: Orchestrator = Depends(get_orchestrator),  # noqa: B008
-    principal: Principal = Depends(authenticate),  # noqa: B008
+    orch: Orchestrator = Depends(get_orchestrator),
+    principal: Principal = Depends(authenticate),
 ) -> QueryResponse:
     """Point d'entrée unique pour adresser une requête utilisateur à ZolaOS."""
     _ = principal  # placeholder pour Phase 1 ; sera utilisé pour le tagging RBAC en Phase 2
@@ -59,9 +59,7 @@ async def query(
             PlanOut(
                 needs_planning=result.plan.needs_planning,
                 rationale=result.plan.rationale,
-                steps=[
-                    PlanStepOut(**s.model_dump()) for s in result.plan.steps
-                ],
+                steps=[PlanStepOut(**s.model_dump()) for s in result.plan.steps],
             )
             if result.plan
             else None
@@ -84,5 +82,5 @@ async def list_agents() -> AgentsListResponse:
     """Catalogue des pôles, avec leur état d'activation par phase."""
     return AgentsListResponse(
         agents=_AGENT_CATALOG,
-        server_time=datetime.now(tz=timezone.utc),
+        server_time=datetime.now(tz=UTC),
     )

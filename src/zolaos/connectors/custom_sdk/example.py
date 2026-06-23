@@ -22,7 +22,5 @@ class ExampleMemoryConnector(HRConnector):
     async def list_employees(self, **filters: Any) -> list[Employee]:
         async with self._instrument("list_employees"):
             rows = self.config.get("rows", [])
-            canon = (
-                [self.mapping.apply(r) for r in rows] if self.mapping is not None else rows
-            )
+            canon = [self.mapping.apply(r) for r in rows] if self.mapping is not None else rows
             return [Employee(**r) for r in canon]

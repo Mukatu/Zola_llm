@@ -40,7 +40,9 @@ class PayrollScaleNotValidated(RuntimeError):
 
 
 class IrppTranche(BaseModel):
-    plafond_xaf: Decimal | None = Field(default=None, description="Borne haute (None = tranche ouverte)")
+    plafond_xaf: Decimal | None = Field(
+        default=None, description="Borne haute (None = tranche ouverte)"
+    )
     taux: Decimal = Field(..., ge=0, le=1)
 
 

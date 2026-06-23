@@ -42,7 +42,9 @@ class Orchestrator:
         self._brigade = brigade
         self._settings = settings
 
-    async def handle(self, user_query: str, *, request_id: uuid.UUID | None = None) -> OrchestrationResult:
+    async def handle(
+        self, user_query: str, *, request_id: uuid.UUID | None = None
+    ) -> OrchestrationResult:
         request_id = request_id or uuid.uuid4()
         start = time.perf_counter()
 

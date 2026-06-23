@@ -39,6 +39,7 @@ router = APIRouter(prefix="/v1/box", tags=["box"], dependencies=[Depends(require
 # Dépendance : extraction + vérification du JWT mission
 # ---------------------------------------------------------------------------
 
+
 async def _mission_claims(
     authorization: Annotated[str | None, Header(alias="Authorization")] = None,
     session: AsyncSession = Depends(get_session),
@@ -65,6 +66,7 @@ async def _mission_claims(
 # ---------------------------------------------------------------------------
 # Schémas I/O
 # ---------------------------------------------------------------------------
+
 
 class RagSearchRequest(BaseModel):
     schema_name: str = Field(..., alias="schema", description="rag_health | rag_legal")
@@ -101,6 +103,7 @@ class RagSearchResponse(BaseModel):
 # ---------------------------------------------------------------------------
 # Endpoint
 # ---------------------------------------------------------------------------
+
 
 @router.post(
     "/rag/search",

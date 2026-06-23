@@ -110,7 +110,9 @@ class User(Base):
         nullable=False,
     )
 
-    api_keys: Mapped[list[ApiKey]] = relationship(back_populates="user", cascade="all, delete-orphan")
+    api_keys: Mapped[list[ApiKey]] = relationship(
+        back_populates="user", cascade="all, delete-orphan"
+    )
     tenant: Mapped[Tenant | None] = relationship(foreign_keys=[tenant_uuid])
 
 

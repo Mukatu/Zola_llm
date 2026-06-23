@@ -40,10 +40,13 @@ def _xaf(v: Decimal) -> Decimal:
 
 
 def _prob(opp: Opportunity) -> Decimal:
-    return opp.probabilite if opp.probabilite is not None else STAGE_PROBABILITY.get(opp.etape, _ZERO)
+    return (
+        opp.probabilite if opp.probabilite is not None else STAGE_PROBABILITY.get(opp.etape, _ZERO)
+    )
 
 
 # ----------------------------------------------------------------- pipeline
+
 
 @dataclass(frozen=True)
 class PipelineStats:
@@ -61,7 +64,9 @@ def pipeline_stats(opportunities: list[Opportunity]) -> PipelineStats:
     gagnees = sum(1 for o in opportunities if o.etape == "gagnee")
     perdues = sum(1 for o in opportunities if o.etape == "perdue")
     closed = gagnees + perdues
-    win_rate = (Decimal(gagnees) / Decimal(closed) * 100).quantize(Decimal("0.1")) if closed else _ZERO
+    win_rate = (
+        (Decimal(gagnees) / Decimal(closed) * 100).quantize(Decimal("0.1")) if closed else _ZERO
+    )
     par_etape: dict[str, Decimal] = defaultdict(lambda: _ZERO)
     for o in open_opps:
         par_etape[o.etape] += o.montant_xaf
@@ -76,6 +81,7 @@ def pipeline_stats(opportunities: list[Opportunity]) -> PipelineStats:
 
 # ----------------------------------------------------------------- scoring
 
+
 @dataclass(frozen=True)
 class LeadScoringWeights:
     stage: Decimal = Decimal("0.40")
@@ -87,8 +93,8 @@ class LeadScoringWeights:
 
 @dataclass(frozen=True)
 class LeadScore:
-    score: int                 # 0-100
-    grade: str                 # A | B | C | D
+    score: int  # 0-100
+    grade: str  # A | B | C | D
     raisons: list[str] = field(default_factory=list)
 
 
@@ -114,11 +120,17 @@ def score_lead(
 
     stage_s = STAGE_PROBABILITY.get(opp.etape, _ZERO)
     recency_s = _recency_score(opp.derniere_interaction, as_of)
-    montant_s = min(Decimal("1"), opp.montant_xaf / w.montant_reference_xaf) if w.montant_reference_xaf > 0 else _ZERO
+    montant_s = (
+        min(Decimal("1"), opp.montant_xaf / w.montant_reference_xaf)
+        if w.montant_reference_xaf > 0
+        else _ZERO
+    )
     # source portée par l'opportunité non disponible ici → neutre (0.4) ; affiné via Customer en CRM-2
     source_s = SOURCE_WEIGHT["autre"]
 
-    score01 = w.stage * stage_s + w.recency * recency_s + w.montant * montant_s + w.source * source_s
+    score01 = (
+        w.stage * stage_s + w.recency * recency_s + w.montant * montant_s + w.source * source_s
+    )
     score = int((score01 * 100).quantize(Decimal("1"), rounding=ROUND_HALF_UP))
     grade = "A" if score >= 75 else "B" if score >= 50 else "C" if score >= 25 else "D"
     raisons = [
@@ -131,12 +143,13 @@ def score_lead(
 
 # ----------------------------------------------------------------- relances
 
+
 @dataclass(frozen=True)
 class RelanceItem:
-    type: str                  # devis_expire | devis_relance | opportunite
+    type: str  # devis_expire | devis_relance | opportunite
     reference: str
     libelle: str
-    priorite: str              # high | medium | low
+    priorite: str  # high | medium | low
 
 
 def detect_relances(
@@ -153,9 +166,20 @@ def detect_relances(
         if q.statut != "envoye":
             continue
         if q.date_validite is not None and q.date_validite < as_of:
-            out.append(RelanceItem("devis_expire", q.id_externe, f"Devis {q.numero} expiré sans réponse", "high"))
+            out.append(
+                RelanceItem(
+                    "devis_expire", q.id_externe, f"Devis {q.numero} expiré sans réponse", "high"
+                )
+            )
         elif (as_of - q.date_emission).days >= seuil_jours:
-            out.append(RelanceItem("devis_relance", q.id_externe, f"Devis {q.numero} envoyé sans réponse depuis {seuil_jours}+ j", "medium"))
+            out.append(
+                RelanceItem(
+                    "devis_relance",
+                    q.id_externe,
+                    f"Devis {q.numero} envoyé sans réponse depuis {seuil_jours}+ j",
+                    "medium",
+                )
+            )
 
     for o in opportunities:
         if o.etape not in OPEN_STAGES or o.derniere_interaction is None:
@@ -163,17 +187,27 @@ def detect_relances(
         jours = (as_of - o.derniere_interaction).days
         if jours >= seuil_jours:
             prio = "high" if o.montant_xaf >= Decimal("5000000") else "medium"
-            out.append(RelanceItem("opportunite", o.id_externe, f"Opportunité '{o.libelle}' sans contact depuis {jours} j", prio))
+            out.append(
+                RelanceItem(
+                    "opportunite",
+                    o.id_externe,
+                    f"Opportunité '{o.libelle}' sans contact depuis {jours} j",
+                    prio,
+                )
+            )
 
     return out
 
 
 # ----------------------------------------------------------------- devis→facture
 
+
 def quote_to_invoice(quote: Quote) -> Invoice:
     """Convertit un devis **accepté** en facture canonique (branche la Compta)."""
     if quote.statut != "accepte":
-        raise ValueError(f"Devis {quote.numero} non accepté (statut={quote.statut}) — conversion refusée.")
+        raise ValueError(
+            f"Devis {quote.numero} non accepté (statut={quote.statut}) — conversion refusée."
+        )
     return Invoice(
         id_externe=quote.id_externe,
         numero=quote.numero,

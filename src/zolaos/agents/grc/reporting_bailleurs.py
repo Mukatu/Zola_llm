@@ -17,11 +17,11 @@ from zolaos.agents.rag_agent import RAGAgent
 
 class ReportingBailleursAgent(RAGAgent):
     name = "grc.reporting_bailleurs"
-    rag_schema = "rag_legal"      # placeholder — rag_grc/rag_ong futur Phase 5
+    rag_schema = "rag_legal"  # placeholder — rag_grc/rag_ong futur Phase 5
     prompt_file = "grc/reporting_bailleurs.md"
     default_tags = ("country:cg", "module:reporting_bailleurs")
     requires_citation = True
-    min_confidence = 0.50         # sources moins canoniques (guides bailleurs variés)
+    min_confidence = 0.50  # sources moins canoniques (guides bailleurs variés)
     top_k = 8
     max_tokens = 2000
     temperature = 0.15

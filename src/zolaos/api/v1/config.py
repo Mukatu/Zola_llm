@@ -35,7 +35,9 @@ class ConfigUpdate(BaseModel):
     connecteurs_actifs: list[str] | None = None
 
 
-@router.get("/config", response_model=TenantConfig, summary="Configuration effective (personnalisation)")
+@router.get(
+    "/config", response_model=TenantConfig, summary="Configuration effective (personnalisation)"
+)
 async def get_config(
     tenant_id: str | None = None,
     settings: Settings = Depends(get_settings),
@@ -68,5 +70,7 @@ async def put_config(
     try:
         service.set_overrides(update.tenant_id, overrides)
     except PersonalizationError as exc:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)
+        ) from exc
     return service.resolve("box", tenant_id=update.tenant_id)

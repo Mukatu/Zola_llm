@@ -23,7 +23,7 @@ def _shared_clients() -> tuple[Settings, object, object]:
 
 
 def get_orchestrator(
-    settings: Settings = Depends(get_settings),  # noqa: B008
+    settings: Settings = Depends(get_settings),
 ) -> Orchestrator:
     """Construit l'orchestrateur. Cache les clients pour réutiliser les connexions HTTP."""
     _, router_client, core_client = _shared_clients()

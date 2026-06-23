@@ -29,10 +29,11 @@ Usage :
 
 from __future__ import annotations
 
+import inspect
+from collections.abc import Callable
 from enum import Enum
 from functools import wraps
-from typing import Any, Callable, TypeVar
-import inspect
+from typing import Any, TypeVar
 
 from zolaos.core.settings import get_settings
 
@@ -70,16 +71,19 @@ def _profile_decorator(*allowed: Profile) -> Callable[[F], F]:
 
     def decorator(fn: F) -> F:
         if inspect.iscoroutinefunction(fn):
+
             @wraps(fn)
             async def async_wrapper(*args: Any, **kwargs: Any) -> Any:
                 require_profile(*allowed)
                 return await fn(*args, **kwargs)
+
             return async_wrapper  # type: ignore[return-value]
 
         @wraps(fn)
         def sync_wrapper(*args: Any, **kwargs: Any) -> Any:
             require_profile(*allowed)
             return fn(*args, **kwargs)
+
         return sync_wrapper  # type: ignore[return-value]
 
     return decorator
@@ -98,6 +102,7 @@ def box_only(fn: F) -> F:
 # ---------------------------------------------------------------------------
 # Dépendances FastAPI (à importer depuis les routers Cortex/Box)
 # ---------------------------------------------------------------------------
+
 
 def require_cortex() -> Profile:
     """Dépendance FastAPI : autorise uniquement le profil cortex."""

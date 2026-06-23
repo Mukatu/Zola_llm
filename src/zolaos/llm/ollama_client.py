@@ -83,12 +83,10 @@ class OllamaClient(LLMClient):
                 metadata={"done_reason": str(data.get("done_reason", ""))},
             )
         finally:
-            LLM_CALLS_TOTAL.labels(
-                provider=self.provider, model=model, outcome=outcome
-            ).inc()
-            LLM_CALL_DURATION_SECONDS.labels(
-                provider=self.provider, model=model
-            ).observe(time.perf_counter() - start)
+            LLM_CALLS_TOTAL.labels(provider=self.provider, model=model, outcome=outcome).inc()
+            LLM_CALL_DURATION_SECONDS.labels(provider=self.provider, model=model).observe(
+                time.perf_counter() - start
+            )
 
     async def stream(
         self,
@@ -116,12 +114,10 @@ class OllamaClient(LLMClient):
                         yield content
             outcome = "ok"
         finally:
-            LLM_CALLS_TOTAL.labels(
-                provider=self.provider, model=model, outcome=outcome
-            ).inc()
-            LLM_CALL_DURATION_SECONDS.labels(
-                provider=self.provider, model=model
-            ).observe(time.perf_counter() - start)
+            LLM_CALLS_TOTAL.labels(provider=self.provider, model=model, outcome=outcome).inc()
+            LLM_CALL_DURATION_SECONDS.labels(provider=self.provider, model=model).observe(
+                time.perf_counter() - start
+            )
 
     @staticmethod
     def _build_payload(

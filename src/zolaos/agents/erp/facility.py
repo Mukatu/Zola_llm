@@ -30,6 +30,7 @@ Urgence = Literal["high", "medium", "low"]
 
 # ============================================================ modèles
 
+
 class Asset(BaseModel):
     model_config = {"extra": "forbid"}
 
@@ -57,11 +58,12 @@ class FacilityAlerte:
     reference: str
     libelle: str
     date_cible: date
-    jours_restants: int          # négatif = en retard
+    jours_restants: int  # négatif = en retard
     urgence: Urgence
 
 
 # ============================================================ moteur (pur)
+
 
 def prochaine_maintenance(asset: Asset) -> date | None:
     """Dernière maintenance + intervalle. None si non planifiable."""
@@ -71,7 +73,7 @@ def prochaine_maintenance(asset: Asset) -> date | None:
 
 
 def _urgence(jours: int) -> Urgence:
-    if jours <= 7:        # en retard (négatif) ou imminent
+    if jours <= 7:  # en retard (négatif) ou imminent
         return "high"
     return "medium"
 
@@ -87,11 +89,16 @@ def maintenances_dues(
             continue
         jours = (d - as_of).days
         if jours <= horizon_jours:
-            out.append(FacilityAlerte(
-                categorie="maintenance", reference=a.id_externe,
-                libelle=f"Maintenance préventive : {a.libelle}", date_cible=d,
-                jours_restants=jours, urgence=_urgence(jours),
-            ))
+            out.append(
+                FacilityAlerte(
+                    categorie="maintenance",
+                    reference=a.id_externe,
+                    libelle=f"Maintenance préventive : {a.libelle}",
+                    date_cible=d,
+                    jours_restants=jours,
+                    urgence=_urgence(jours),
+                )
+            )
     return out
 
 
@@ -103,15 +110,21 @@ def echeances_dues(
     for e in echeances:
         jours = (e.date_echeance - as_of).days
         if jours <= horizon_jours:
-            out.append(FacilityAlerte(
-                categorie="echeance", reference=e.id_externe,
-                libelle=f"{e.type_echeance} : {e.libelle}", date_cible=e.date_echeance,
-                jours_restants=jours, urgence=_urgence(jours),
-            ))
+            out.append(
+                FacilityAlerte(
+                    categorie="echeance",
+                    reference=e.id_externe,
+                    libelle=f"{e.type_echeance} : {e.libelle}",
+                    date_cible=e.date_echeance,
+                    jours_restants=jours,
+                    urgence=_urgence(jours),
+                )
+            )
     return out
 
 
 # ============================================================ agent
+
 
 class FacilityAgent:
     """Agent Moyens Généraux : échéancier déterministe + rédaction générative."""
@@ -124,8 +137,12 @@ class FacilityAgent:
         self._settings = settings
 
     def analyser(
-        self, assets: list[Asset], echeances: list[Echeance], *,
-        as_of: date | None = None, horizon_jours: int = 30,
+        self,
+        assets: list[Asset],
+        echeances: list[Echeance],
+        *,
+        as_of: date | None = None,
+        horizon_jours: int = 30,
     ) -> dict:  # type: ignore[type-arg]
         return {
             "maintenances": maintenances_dues(assets, as_of=as_of, horizon_jours=horizon_jours),

@@ -23,7 +23,7 @@ class AdminCgAgent(RAGAgent):
     prompt_file = "legal/admin_cg.md"
     default_tags = ("country:cg", "module:admin_cg")
     requires_citation = True
-    min_confidence = 0.60         # exigeant — sujet sensible
+    min_confidence = 0.60  # exigeant — sujet sensible
     top_k = 8
     max_tokens = 1500
-    temperature = 0.05            # quasi-déterministe pour neutralité
+    temperature = 0.05  # quasi-déterministe pour neutralité

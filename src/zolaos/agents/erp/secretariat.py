@@ -25,7 +25,9 @@ from zolaos.llm.base import GenerationOptions, LLMClient, Message
 
 _log = get_logger("zolaos.agents.erp.secretariat")
 
-Fonction = Literal["gerant", "administrateur", "president_ca", "directeur_general", "commissaire_comptes", "autre"]
+Fonction = Literal[
+    "gerant", "administrateur", "president_ca", "directeur_general", "commissaire_comptes", "autre"
+]
 TypeReunion = Literal["AGO", "AGE", "CA"]
 Urgence = Literal["high", "medium", "low"]
 
@@ -34,6 +36,7 @@ DELAI_AGO_MOIS = 6
 
 
 # ============================================================ modèles
+
 
 class Mandat(BaseModel):
     model_config = {"extra": "forbid"}
@@ -52,11 +55,12 @@ class SecretariatAlerte:
     reference: str
     libelle: str
     date_cible: date
-    jours_restants: int          # négatif = dépassé
+    jours_restants: int  # négatif = dépassé
     urgence: Urgence
 
 
 # ============================================================ helpers dates
+
 
 def _add_years(d: date, n: int) -> date:
     try:
@@ -73,6 +77,7 @@ def _add_months(d: date, n: int) -> date:
 
 
 # ============================================================ moteur (pur)
+
 
 def echeance_mandat(mandat: Mandat) -> date | None:
     """Fin du mandat = nomination + durée. None si durée indéterminée."""
@@ -101,29 +106,36 @@ def mandats_a_renouveler(
             continue
         jours = (ech - as_of).days
         if jours <= horizon_jours:
-            out.append(SecretariatAlerte(
-                categorie="mandat", reference=m.id_externe,
-                libelle=f"Mandat {m.fonction} de {m.titulaire} à renouveler", date_cible=ech,
-                jours_restants=jours, urgence=_urgence(jours, seuil_high=30),
-            ))
+            out.append(
+                SecretariatAlerte(
+                    categorie="mandat",
+                    reference=m.id_externe,
+                    libelle=f"Mandat {m.fonction} de {m.titulaire} à renouveler",
+                    date_cible=ech,
+                    jours_restants=jours,
+                    urgence=_urgence(jours, seuil_high=30),
+                )
+            )
     return out
 
 
-def echeance_ago(
-    date_cloture_exercice: date, *, as_of: date | None = None
-) -> SecretariatAlerte:
+def echeance_ago(date_cloture_exercice: date, *, as_of: date | None = None) -> SecretariatAlerte:
     """Alerte sur l'AGO d'approbation des comptes (date limite AUSCGIE)."""
     as_of = as_of or date.today()
     limite = date_limite_ago(date_cloture_exercice)
     jours = (limite - as_of).days
     return SecretariatAlerte(
-        categorie="ago", reference=f"AGO-{date_cloture_exercice.year}",
-        libelle="AGO d'approbation des comptes (délai légal AUSCGIE)", date_cible=limite,
-        jours_restants=jours, urgence=_urgence(jours, seuil_high=30),
+        categorie="ago",
+        reference=f"AGO-{date_cloture_exercice.year}",
+        libelle="AGO d'approbation des comptes (délai légal AUSCGIE)",
+        date_cible=limite,
+        jours_restants=jours,
+        urgence=_urgence(jours, seuil_high=30),
     )
 
 
 # ============================================================ agent
+
 
 class SecretariatAgent:
     """Agent Secrétariat sociétaire : échéancier déterministe + rédaction (PV/ODJ)."""
@@ -136,8 +148,12 @@ class SecretariatAgent:
         self._settings = settings
 
     def echeancier(
-        self, mandats: list[Mandat], *, date_cloture_exercice: date | None = None,
-        as_of: date | None = None, horizon_jours: int = 90,
+        self,
+        mandats: list[Mandat],
+        *,
+        date_cloture_exercice: date | None = None,
+        as_of: date | None = None,
+        horizon_jours: int = 90,
     ) -> list[SecretariatAlerte]:
         out = mandats_a_renouveler(mandats, as_of=as_of, horizon_jours=horizon_jours)
         if date_cloture_exercice is not None:
@@ -154,8 +170,12 @@ class SecretariatAgent:
         return await self._generate(user_msg, "generer_ordre_du_jour")
 
     async def generer_pv(
-        self, *, type_reunion: TypeReunion, date_reunion: date,
-        resolutions: list[str], presents: list[str] | None = None,
+        self,
+        *,
+        type_reunion: TypeReunion,
+        date_reunion: date,
+        resolutions: list[str],
+        presents: list[str] | None = None,
     ) -> str:
         res = "\n".join(f"- {r}" for r in resolutions)
         pres = ("Présents : " + ", ".join(presents) + "\n") if presents else ""

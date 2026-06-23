@@ -55,7 +55,7 @@ class ExternalLLMClient(LLMClient):
         # En mode actif, on considère le SDK comme up tant qu'il s'instancie.
         try:
             self._ensure_ready(caller="health")
-        except Exception:  # noqa: BLE001
+        except Exception:
             return False
         return True
 
@@ -71,15 +71,13 @@ class ExternalLLMClient(LLMClient):
 
         system_prompts = [m.content for m in messages if m.role == "system"]
         chat_messages = [
-            {"role": m.role, "content": m.content}
-            for m in messages
-            if m.role != "system"
+            {"role": m.role, "content": m.content} for m in messages if m.role != "system"
         ]
 
         start = time.perf_counter()
         outcome = "error"
         try:
-            assert self._client is not None  # noqa: S101
+            assert self._client is not None
             response = await self._client.messages.create(
                 model=model,
                 system="\n\n".join(system_prompts) if system_prompts else "",
@@ -104,12 +102,10 @@ class ExternalLLMClient(LLMClient):
                 metadata={"stop_reason": str(response.stop_reason)},
             )
         finally:
-            LLM_CALLS_TOTAL.labels(
-                provider=self.provider, model=model, outcome=outcome
-            ).inc()
-            LLM_CALL_DURATION_SECONDS.labels(
-                provider=self.provider, model=model
-            ).observe(time.perf_counter() - start)
+            LLM_CALLS_TOTAL.labels(provider=self.provider, model=model, outcome=outcome).inc()
+            LLM_CALL_DURATION_SECONDS.labels(provider=self.provider, model=model).observe(
+                time.perf_counter() - start
+            )
 
     async def stream(
         self,

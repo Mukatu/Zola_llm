@@ -29,8 +29,8 @@ class Chunk:
     """Un chunk prêt pour embedding + indexation."""
 
     text: str
-    index: int          # position dans le document source (0-based)
-    tokens: int         # nombre de tokens (mesuré par le tokenizer)
+    index: int  # position dans le document source (0-based)
+    tokens: int  # nombre de tokens (mesuré par le tokenizer)
 
 
 class Chunker:
@@ -60,7 +60,7 @@ class Chunker:
         if not text or not text.strip():
             return []
         self._ensure_tokenizer()
-        assert self._tokenizer is not None  # noqa: S101
+        assert self._tokenizer is not None
 
         encoded = self._tokenizer(text, add_special_tokens=False, return_tensors=None)
         ids = encoded["input_ids"]

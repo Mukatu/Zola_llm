@@ -33,11 +33,14 @@ def test_box_default_config(service: TenantConfigService) -> None:
 
 
 def test_box_overrides_applied(service: TenantConfigService) -> None:
-    service.set_overrides("client-1", {
-        "modules_actifs": ["sante.pharmacology", "erp.compta"],
-        "branding": {"nom_affichage": "Polyclinique X", "couleur_primaire": "#00AA55"},
-        "locale": "fr",
-    })
+    service.set_overrides(
+        "client-1",
+        {
+            "modules_actifs": ["sante.pharmacology", "erp.compta"],
+            "branding": {"nom_affichage": "Polyclinique X", "couleur_primaire": "#00AA55"},
+            "locale": "fr",
+        },
+    )
     cfg = service.resolve("box", tenant_id="client-1")
     assert cfg.modules_actifs == ["sante.pharmacology", "erp.compta"]
     assert cfg.branding.nom_affichage == "Polyclinique X"

@@ -92,8 +92,8 @@ class AccountingChunker:
             return self._fallback.chunk(text)
 
         # Compteur de tokens : on réutilise le tokenizer du fallback.
-        self._fallback._ensure_tokenizer()  # noqa: SLF001
-        tok = self._fallback._tokenizer  # noqa: SLF001
+        self._fallback._ensure_tokenizer()
+        tok = self._fallback._tokenizer
         assert tok is not None
 
         chunks: list[Chunk] = []
@@ -187,7 +187,9 @@ class LegalClauseChunker:
     def chunk(self, text: str) -> list[Chunk]:
         positions = [m.start() for m in _CLAUSE_HEADER_RE.finditer(text)]
         if len(positions) < 2:
-            _log.info("clause.fallback_generic", reason="not enough clause headers", count=len(positions))
+            _log.info(
+                "clause.fallback_generic", reason="not enough clause headers", count=len(positions)
+            )
             return self._fallback.chunk(text)
 
         # Borner par la fin du texte.
@@ -195,8 +197,8 @@ class LegalClauseChunker:
         clauses = [text[positions[i] : positions[i + 1]].strip() for i in range(len(positions) - 1)]
         clauses = [c for c in clauses if c]
 
-        self._fallback._ensure_tokenizer()  # noqa: SLF001
-        tok = self._fallback._tokenizer  # noqa: SLF001
+        self._fallback._ensure_tokenizer()
+        tok = self._fallback._tokenizer
         assert tok is not None
 
         chunks: list[Chunk] = []
@@ -248,15 +250,21 @@ class LegalArticleChunker:
     def chunk(self, text: str) -> list[Chunk]:
         positions = [m.start() for m in _LEGAL_ARTICLE_RE.finditer(text)]
         if len(positions) < 2:
-            _log.info("legal_article.fallback_generic", reason="not enough article headers", count=len(positions))
+            _log.info(
+                "legal_article.fallback_generic",
+                reason="not enough article headers",
+                count=len(positions),
+            )
             return self._fallback.chunk(text)
 
         positions.append(len(text))
-        articles = [text[positions[i] : positions[i + 1]].strip() for i in range(len(positions) - 1)]
+        articles = [
+            text[positions[i] : positions[i + 1]].strip() for i in range(len(positions) - 1)
+        ]
         articles = [a for a in articles if a]
 
-        self._fallback._ensure_tokenizer()  # noqa: SLF001
-        tok = self._fallback._tokenizer  # noqa: SLF001
+        self._fallback._ensure_tokenizer()
+        tok = self._fallback._tokenizer
         assert tok is not None
 
         chunks: list[Chunk] = []
@@ -310,15 +318,19 @@ class MedicalCaseChunker:
     def chunk(self, text: str) -> list[Chunk]:
         positions = [m.start() for m in _MEDICAL_SECTION_RE.finditer(text)]
         if len(positions) < 2:
-            _log.info("medical.fallback_generic", reason="not enough sections", count=len(positions))
+            _log.info(
+                "medical.fallback_generic", reason="not enough sections", count=len(positions)
+            )
             return self._fallback.chunk(text)
 
         positions.append(len(text))
-        sections = [text[positions[i] : positions[i + 1]].strip() for i in range(len(positions) - 1)]
+        sections = [
+            text[positions[i] : positions[i + 1]].strip() for i in range(len(positions) - 1)
+        ]
         sections = [s for s in sections if s]
 
-        self._fallback._ensure_tokenizer()  # noqa: SLF001
-        tok = self._fallback._tokenizer  # noqa: SLF001
+        self._fallback._ensure_tokenizer()
+        tok = self._fallback._tokenizer
         assert tok is not None
 
         chunks: list[Chunk] = []
@@ -347,7 +359,9 @@ CHUNKER_REGISTRY = {
 }
 
 
-def get_specialized_chunker(domain: str) -> AccountingChunker | LegalClauseChunker | LegalArticleChunker | MedicalCaseChunker:
+def get_specialized_chunker(
+    domain: str,
+) -> AccountingChunker | LegalClauseChunker | LegalArticleChunker | MedicalCaseChunker:
     """Retourne une instance de chunker selon le domaine. ValueError si inconnu."""
     cls = CHUNKER_REGISTRY.get(domain)
     if cls is None:

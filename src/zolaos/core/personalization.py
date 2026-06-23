@@ -21,10 +21,30 @@ from pydantic import BaseModel, Field
 
 MODULE_CATALOGUE: dict[str, tuple[str, ...]] = {
     "sante": ("pharmacology", "diagnosis", "case"),
-    "droit": ("ohada", "travail_cg", "fiscal_cg", "admin_cg", "social_cg",
-              "civil_cg", "penal_cg", "ip_oapi", "data_protection_cg"),
-    "erp": ("rh", "paie", "finance", "compta", "registre", "projets_ong",
-            "supply_chain", "achats", "moyens_generaux", "secretariat_societaire", "hse"),
+    "droit": (
+        "ohada",
+        "travail_cg",
+        "fiscal_cg",
+        "admin_cg",
+        "social_cg",
+        "civil_cg",
+        "penal_cg",
+        "ip_oapi",
+        "data_protection_cg",
+    ),
+    "erp": (
+        "rh",
+        "paie",
+        "finance",
+        "compta",
+        "registre",
+        "projets_ong",
+        "supply_chain",
+        "achats",
+        "moyens_generaux",
+        "secretariat_societaire",
+        "hse",
+    ),
     "bi": ("pilotage",),
     "commercial": ("crm",),
     "marketing": ("campagnes",),
@@ -42,13 +62,20 @@ def all_module_codes() -> frozenset[str]:
 
 # Config uniforme du consultant Polaris (cortex) — outils de mission.
 CORTEX_MODULES: tuple[str, ...] = (
-    "polaris.missions", "polaris.audit", "polaris.reports",
+    "polaris.missions",
+    "polaris.audit",
+    "polaris.reports",
 )
 
 # Modules activés par défaut pour un nouveau client (box).
 DEFAULT_BOX_MODULES: tuple[str, ...] = (
-    "droit.ohada", "droit.travail_cg", "droit.fiscal_cg",
-    "erp.rh", "erp.finance", "erp.registre", "bi.pilotage",
+    "droit.ohada",
+    "droit.travail_cg",
+    "droit.fiscal_cg",
+    "erp.rh",
+    "erp.finance",
+    "erp.registre",
+    "bi.pilotage",
 )
 
 
@@ -59,6 +86,7 @@ class PersonalizationError(ValueError):
 # ---------------------------------------------------------------------------
 # Modèles
 # ---------------------------------------------------------------------------
+
 
 class Branding(BaseModel):
     model_config = {"extra": "forbid"}
@@ -85,6 +113,7 @@ class TenantConfig(BaseModel):
 # Stockage des overrides (pluggable)
 # ---------------------------------------------------------------------------
 
+
 class ConfigStore(Protocol):
     def get(self, tenant_id: str) -> dict[str, Any] | None: ...
     def set(self, tenant_id: str, overrides: dict[str, Any]) -> None: ...
@@ -106,6 +135,7 @@ class InMemoryConfigStore:
 # ---------------------------------------------------------------------------
 # Service
 # ---------------------------------------------------------------------------
+
 
 class TenantConfigService:
     """Résout la configuration effective d'un tenant selon le profil."""

@@ -17,8 +17,8 @@ from zolaos.agents.erp.compta import (
     ValidationReport,
 )
 from zolaos.agents.erp.facility import Asset, Echeance, FacilityAgent, FacilityAlerte
-from zolaos.agents.erp.hse import HseAgent, Incident, Risque, RisqueEvalue
 from zolaos.agents.erp.finance import FinanceAgent
+from zolaos.agents.erp.hse import HseAgent, Incident, Risque, RisqueEvalue
 from zolaos.agents.erp.payroll import (
     PayrollCalculator,
     PayrollScale,

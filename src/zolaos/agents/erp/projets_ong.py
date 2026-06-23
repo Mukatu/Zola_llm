@@ -16,7 +16,7 @@ from zolaos.agents.rag_agent import RAGAgent
 
 class ProjetsOngAgent(RAGAgent):
     name = "erp.projets_ong"
-    rag_schema = "rag_legal"      # placeholder — rag_erp futur Phase 4
+    rag_schema = "rag_legal"  # placeholder — rag_erp futur Phase 4
     prompt_file = "erp/projets_ong.md"
     default_tags = ("country:cg", "module:projets_ong")
     requires_citation = True

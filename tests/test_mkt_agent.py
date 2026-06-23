@@ -19,11 +19,14 @@ class _CapturingClient(LLMClient):
 
     async def generate(self, messages, *, model, options=None):  # type: ignore[no-untyped-def]
         self.last = messages[-1].content
-        return GenerationResult(content="Objet : Offre spéciale\nBonjour…", model="fake", provider=self.provider)
+        return GenerationResult(
+            content="Objet : Offre spéciale\nBonjour…", model="fake", provider=self.provider
+        )
 
     async def stream(self, messages, *, model, options=None):  # type: ignore[no-untyped-def]
         async def _g():
             yield ""
+
         return _g()
 
     async def health(self) -> bool:
@@ -31,7 +34,9 @@ class _CapturingClient(LLMClient):
 
 
 def _c(idx: str, *, consent: bool, finalites: list[str]) -> MarketingContact:
-    return MarketingContact(id_externe=idx, nom=f"C{idx}", consentement_marketing=consent, finalites=finalites)
+    return MarketingContact(
+        id_externe=idx, nom=f"C{idx}", consentement_marketing=consent, finalites=finalites
+    )
 
 
 @pytest.fixture
@@ -40,9 +45,15 @@ def agent() -> MarketingAgent:
 
 
 async def test_generate_campaign_with_consent(agent: MarketingAgent) -> None:
-    contacts = [_c("1", consent=True, finalites=["promotions"]), _c("2", consent=False, finalites=[])]
+    contacts = [
+        _c("1", consent=True, finalites=["promotions"]),
+        _c("2", consent=False, finalites=[]),
+    ]
     result = await agent.generate_campaign(
-        contacts=contacts, finalite="promotions", canal="email", brief="Soldes de janvier",
+        contacts=contacts,
+        finalite="promotions",
+        canal="email",
+        brief="Soldes de janvier",
     )
     assert "Offre spéciale" in result["content"]
     assert result["audience"].eligibles == 1
@@ -51,11 +62,17 @@ async def test_generate_campaign_with_consent(agent: MarketingAgent) -> None:
 
 
 async def test_generate_campaign_without_consent_refused(agent: MarketingAgent) -> None:
-    contacts = [_c("1", consent=False, finalites=[]), _c("2", consent=True, finalites=["newsletter"])]
+    contacts = [
+        _c("1", consent=False, finalites=[]),
+        _c("2", consent=True, finalites=["newsletter"]),
+    ]
     # Aucune cible consentante pour 'promotions' → refus (privacy by design)
     with pytest.raises(ConsentError):
         await agent.generate_campaign(
-            contacts=contacts, finalite="promotions", canal="email", brief="X",
+            contacts=contacts,
+            finalite="promotions",
+            canal="email",
+            brief="X",
         )
 
 

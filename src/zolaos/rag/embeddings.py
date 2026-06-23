@@ -47,7 +47,7 @@ class EmbeddingService:
         Normalise (cosine-ready). Gère le batching interne via sentence-transformers.
         """
         self._ensure_loaded()
-        assert self._model is not None  # noqa: S101
+        assert self._model is not None
         vectors: np.ndarray = self._model.encode(
             texts,
             batch_size=self._batch_size,

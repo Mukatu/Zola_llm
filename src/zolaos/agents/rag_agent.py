@@ -49,7 +49,7 @@ _log = get_logger("zolaos.agents.rag_agent")
 class Citation:
     """Citation d'un chunk RAG dans la réponse de l'agent."""
 
-    index: int          # numéro [1], [2]… dans la réponse
+    index: int  # numéro [1], [2]… dans la réponse
     source_uri: str
     source_id: str | None
     chunk_index: int
@@ -61,9 +61,9 @@ class RAGAgentResponse:
     """Résultat d'un appel à un sous-agent RAG."""
 
     agent: str
-    content: str                  # réponse libre OU JSON sérialisé selon response_schema
+    content: str  # réponse libre OU JSON sérialisé selon response_schema
     citations: list[Citation]
-    matches: list[Match] = field(default_factory=list)   # chunks bruts pour audit
+    matches: list[Match] = field(default_factory=list)  # chunks bruts pour audit
     duration_seconds: float = 0.0
 
 
@@ -90,8 +90,8 @@ class RAGAgent:
 
     # --- contrat optionnel ---
     response_schema: ClassVar[type[BaseModel] | None] = None
-    min_confidence: ClassVar[float | None] = None      # ex: 0.55 pour Droit (refus si < seuil)
-    requires_citation: ClassVar[bool] = True            # False = autorise réponse hors RAG
+    min_confidence: ClassVar[float | None] = None  # ex: 0.55 pour Droit (refus si < seuil)
+    requires_citation: ClassVar[bool] = True  # False = autorise réponse hors RAG
     top_k: ClassVar[int] = 5
     max_tokens: ClassVar[int] = 800
     temperature: ClassVar[float] = 0.2
@@ -108,9 +108,7 @@ class RAGAgent:
         Réservé au profil cortex.
         """
         if not self.name or not self.rag_schema or not self.prompt_file:
-            raise ValueError(
-                f"{type(self).__name__} doit définir name, rag_schema et prompt_file."
-            )
+            raise ValueError(f"{type(self).__name__} doit définir name, rag_schema et prompt_file.")
         self._client = client
         self._settings = settings
         self._mission_client = mission_client
@@ -215,9 +213,7 @@ class RAGAgent:
         finally:
             AGENT_INVOCATIONS_TOTAL.labels(agent=self.name, outcome=outcome).inc()
 
-    async def _do_retrieve(
-        self, *, query: str, tags: list[str], k: int
-    ) -> list[Match]:
+    async def _do_retrieve(self, *, query: str, tags: list[str], k: int) -> list[Match]:
         """Délègue le retrieve : MissionClient si présent (Cortex → Box), sinon DB locale."""
         if self._mission_client is not None:
             raw = await self._mission_client.rag_search(
@@ -234,7 +230,9 @@ class RAGAgent:
                     source_id=m.get("source_id"),
                     chunk_index=int(m["chunk_index"]),
                     tags=list(m.get("tags", [])),
-                    extra_metadata=dict(m.get("extra_metadata", {})) if m.get("extra_metadata") else {},
+                    extra_metadata=(
+                        dict(m.get("extra_metadata", {})) if m.get("extra_metadata") else {}
+                    ),
                 )
                 for m in raw
             ]
@@ -253,6 +251,8 @@ class RAGAgent:
         lines = ["--- Contexte RAG ---"]
         for i, m in enumerate(matches, start=1):
             src = m.source_id or m.source_uri.rsplit("/", 1)[-1]
-            lines.append(f"\n[{i}] source={src} chunk={m.chunk_index} similarité={m.similarity:.2f}")
+            lines.append(
+                f"\n[{i}] source={src} chunk={m.chunk_index} similarité={m.similarity:.2f}"
+            )
             lines.append(m.content.strip())
         return "\n".join(lines)

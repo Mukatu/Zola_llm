@@ -65,7 +65,7 @@ class GenericSqlConnector(HRConnector, InvoiceConnector, FinanceConnector):
         try:
             await asyncio.to_thread(self._exec_sync, "SELECT 1", {})
             return True
-        except Exception:  # noqa: BLE001
+        except Exception:
             return False
 
     # -- exécution ------------------------------------------------------------
@@ -76,7 +76,9 @@ class GenericSqlConnector(HRConnector, InvoiceConnector, FinanceConnector):
             result = conn.execute(text(sql), params)
             return [dict(row) for row in result.mappings().all()]
 
-    async def _run(self, query_key: str, params: dict[str, Any] | None = None) -> list[dict[str, Any]]:
+    async def _run(
+        self, query_key: str, params: dict[str, Any] | None = None
+    ) -> list[dict[str, Any]]:
         if self._engine is None:
             raise ConnectorConfigError("Connecteur non connecté (appeler connect()).")
         sql = self.config.get("queries", {}).get(query_key)
@@ -86,7 +88,7 @@ class GenericSqlConnector(HRConnector, InvoiceConnector, FinanceConnector):
             return await asyncio.to_thread(self._exec_sync, sql, params or {})
         except ConnectorConfigError:
             raise
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             raise ConnectorConnectionError(f"Requête {query_key!r} échec: {exc}") from exc
 
     def _canon(self, row: dict[str, Any]) -> dict[str, Any]:
