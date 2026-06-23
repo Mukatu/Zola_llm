@@ -1,4 +1,5 @@
 // Client API typé minimal vers l'API ZolaOS (/v1).
+import { getToken } from "./auth";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000";
 
@@ -12,7 +13,7 @@ export interface ApiOptions {
 export async function api<T>(path: string, opts: ApiOptions = {}): Promise<T> {
   const headers: Record<string, string> = { Accept: "application/json" };
   if (opts.body !== undefined) headers["Content-Type"] = "application/json";
-  const token = opts.token ?? process.env.NEXT_PUBLIC_API_TOKEN;
+  const token = opts.token ?? getToken();
   if (token) headers["Authorization"] = `Bearer ${token}`;
   const r = await fetch(`${API_BASE}${path}`, {
     method: opts.method || (opts.body !== undefined ? "POST" : "GET"),
