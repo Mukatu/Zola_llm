@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { ConfigProvider } from "@/components/ConfigProvider";
 import { AppShell } from "@/components/AppShell";
+import { Pwa } from "@/components/Pwa";
 
 export const metadata: Metadata = {
   title: "ZolaOS",
@@ -21,6 +22,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         <ConfigProvider>
           <AppShell>{children}</AppShell>
+          <Pwa />
         </ConfigProvider>
       </body>
     </html>

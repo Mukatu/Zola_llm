@@ -38,6 +38,16 @@ export async function fetchConfig(tenantId?: string): Promise<TenantConfig> {
   return (await r.json()) as TenantConfig;
 }
 
+export async function saveConfig(tenantId: string, overrides: Partial<TenantConfig>): Promise<TenantConfig> {
+  const r = await fetch(new URL("/v1/config", API_BASE).toString(), {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify({ tenant_id: tenantId, ...overrides }),
+  });
+  if (!r.ok) throw new Error(`save ${r.status}`);
+  return (await r.json()) as TenantConfig;
+}
+
 /** Convertit #RRGGBB en triplet "r g b" pour les variables CSS Tailwind. */
 export function hexToRgbTriplet(hex: string): string {
   const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim());

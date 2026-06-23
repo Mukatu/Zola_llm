@@ -1,14 +1,17 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState } from "react";
-import { DEFAULT_CONFIG, fetchConfig, hexToRgbTriplet, type TenantConfig } from "@/lib/config";
+import { DEFAULT_CONFIG, fetchConfig, hexToRgbTriplet, saveConfig, type TenantConfig } from "@/lib/config";
 import { makeT } from "@/lib/i18n";
+
+const TENANT = "local"; // box mono-client (DB persistance plus tard)
 
 interface Ctx {
   config: TenantConfig;
   loading: boolean;
   online: boolean;
   t: (key: string) => string;
+  save: (overrides: Partial<TenantConfig>) => Promise<void>;
 }
 
 const ConfigContext = createContext<Ctx | null>(null);
@@ -20,7 +23,7 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     let alive = true;
-    fetchConfig()
+    fetchConfig(TENANT)
       .then((c) => { if (alive) { setConfig(c); setOnline(true); } })
       .catch(() => { if (alive) setOnline(false); })
       .finally(() => { if (alive) setLoading(false); });
@@ -28,9 +31,7 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    document.documentElement.style.setProperty(
-      "--zo-primary", hexToRgbTriplet(config.branding.couleur_primaire),
-    );
+    document.documentElement.style.setProperty("--zo-primary", hexToRgbTriplet(config.branding.couleur_primaire));
     document.documentElement.lang = config.locale;
   }, [config]);
 
@@ -42,8 +43,13 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
     return () => { window.removeEventListener("online", on); window.removeEventListener("offline", off); };
   }, []);
 
+  async function save(overrides: Partial<TenantConfig>) {
+    const updated = await saveConfig(TENANT, overrides);
+    setConfig(updated);
+  }
+
   return (
-    <ConfigContext.Provider value={{ config, loading, online, t: makeT(config.locale) }}>
+    <ConfigContext.Provider value={{ config, loading, online, t: makeT(config.locale), save }}>
       {children}
     </ConfigContext.Provider>
   );
