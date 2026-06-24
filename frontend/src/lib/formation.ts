@@ -27,3 +27,26 @@ export function patchEnrollment(id: string, statut: string): Promise<Enrollment>
   return api(`/v1/erp/formation/enrollments/${id}`, { method: "PATCH", body: { statut } });
 }
 export function getFormationDashboard(): Promise<FormationDashboard> { return api("/v1/erp/formation/dashboard"); }
+
+// ----- Évaluations & GPEC avancé (SIRH-3b) -----
+export interface TalentReview {
+  grid: Record<string, string[]>;
+  distribution_performance: Record<string, number>;
+  top_talents: string[];
+  sous_performeurs: string[];
+  hauts_potentiels: string[];
+}
+export interface PlanFormation {
+  suggestions: { matricule: string; code_competence: string; ecart: number; formations: string[] }[];
+}
+export interface GpecRisks {
+  risques: { type: string; code_competence?: string; matricule?: string; age?: number }[];
+  opportunites: { type: string; matricule?: string; code_competence?: string; experts?: number }[];
+}
+
+export function createEvaluation(b: { employee_matricule: string; periode: string; performance: number; potentiel: number }): Promise<unknown> {
+  return api("/v1/erp/hr/evaluations", { body: b });
+}
+export function getTalentReview(): Promise<TalentReview> { return api("/v1/erp/hr/talent-review"); }
+export function getPlanFormation(): Promise<PlanFormation> { return api("/v1/erp/hr/gpec/plan-formation"); }
+export function getGpecRisks(): Promise<GpecRisks> { return api("/v1/erp/hr/gpec/risks"); }
