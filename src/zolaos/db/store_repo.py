@@ -26,6 +26,10 @@ from zolaos.db.store_models import (
     RoleSkillRecord,
     SkillRecord,
     StockItemRecord,
+    TrainingEnrollmentRecord,
+    TrainingEvaluationRecord,
+    TrainingRecord,
+    TrainingSessionRecord,
     VacancyRecord,
 )
 
@@ -287,6 +291,34 @@ class RoleSkillRepository(_SimpleRepo):
 
 class DocumentRepository(_SimpleRepo):
     model = DocumentRecord
+
+
+class TrainingRepository(_SimpleRepo):
+    model = TrainingRecord
+
+
+class TrainingSessionRepository(_SimpleRepo):
+    model = TrainingSessionRecord
+
+
+class TrainingEnrollmentRepository(_SimpleRepo):
+    model = TrainingEnrollmentRecord
+
+    async def update(
+        self, rec_id: str, *, tenant_id: str, fields: dict[str, Any]
+    ) -> TrainingEnrollmentRecord | None:
+        rec = await self._s.get(TrainingEnrollmentRecord, rec_id)
+        if rec is None or rec.tenant_id != tenant_id:
+            return None
+        for k, v in fields.items():
+            if hasattr(rec, k) and k not in {"id", "tenant_id", "created_at"}:
+                setattr(rec, k, v)
+        await self._s.flush()
+        return rec
+
+
+class TrainingEvaluationRepository(_SimpleRepo):
+    model = TrainingEvaluationRecord
 
 
 class VacancyRepository(_SimpleRepo):

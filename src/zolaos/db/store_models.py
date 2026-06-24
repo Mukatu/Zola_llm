@@ -518,3 +518,109 @@ class DocumentRecord(StoreBase):
             "statut": self.statut,
             "created_at": self.created_at.isoformat() if self.created_at else None,
         }
+
+
+class TrainingRecord(StoreBase):
+    """Catalogue de formation (SIRH-3)."""
+
+    __tablename__ = "store_trainings"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    tenant_id: Mapped[str] = mapped_column(String(64), index=True)
+    code: Mapped[str] = mapped_column(String(32))
+    intitule: Mapped[str] = mapped_column(String(200))
+    competences_visees: Mapped[list[Any]] = mapped_column(JSON, default=list)
+    modalite: Mapped[str] = mapped_column(String(20), default="presentiel")
+    duree_heures: Mapped[Decimal] = mapped_column(Numeric(8, 2), default=Decimal("0"))
+    cout_xaf: Mapped[Decimal] = mapped_column(Numeric(18, 2), default=Decimal("0"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "tenant_id": self.tenant_id,
+            "code": self.code,
+            "intitule": self.intitule,
+            "competences_visees": self.competences_visees,
+            "modalite": self.modalite,
+            "duree_heures": str(self.duree_heures),
+            "cout_xaf": str(self.cout_xaf),
+        }
+
+
+class TrainingSessionRecord(StoreBase):
+    """Session de formation planifiée."""
+
+    __tablename__ = "store_training_sessions"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    tenant_id: Mapped[str] = mapped_column(String(64), index=True)
+    training_code: Mapped[str] = mapped_column(String(32), index=True)
+    date_debut: Mapped[date] = mapped_column(Date)
+    date_fin: Mapped[date | None] = mapped_column(Date, nullable=True)
+    lieu: Mapped[str] = mapped_column(String(120), default="")
+    formateur: Mapped[str] = mapped_column(String(120), default="")
+    places: Mapped[int] = mapped_column(Integer, default=0)
+    statut: Mapped[str] = mapped_column(String(12), default="planifiee")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "tenant_id": self.tenant_id,
+            "training_code": self.training_code,
+            "date_debut": self.date_debut.isoformat() if self.date_debut else None,
+            "date_fin": self.date_fin.isoformat() if self.date_fin else None,
+            "lieu": self.lieu,
+            "formateur": self.formateur,
+            "places": self.places,
+            "statut": self.statut,
+        }
+
+
+class TrainingEnrollmentRecord(StoreBase):
+    """Inscription d'un employé à une session."""
+
+    __tablename__ = "store_training_enrollments"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    tenant_id: Mapped[str] = mapped_column(String(64), index=True)
+    session_id: Mapped[str] = mapped_column(String(36), index=True)
+    employee_matricule: Mapped[str] = mapped_column(String(32), index=True)
+    statut: Mapped[str] = mapped_column(String(12), default="inscrit")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "tenant_id": self.tenant_id,
+            "session_id": self.session_id,
+            "employee_matricule": self.employee_matricule,
+            "statut": self.statut,
+        }
+
+
+class TrainingEvaluationRecord(StoreBase):
+    """Évaluation de formation (à chaud / à froid)."""
+
+    __tablename__ = "store_training_evaluations"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    tenant_id: Mapped[str] = mapped_column(String(64), index=True)
+    enrollment_id: Mapped[str] = mapped_column(String(36), index=True)
+    type: Mapped[str] = mapped_column(String(8), default="chaud")
+    satisfaction: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    acquis: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    date_eval: Mapped[date | None] = mapped_column(Date, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "tenant_id": self.tenant_id,
+            "enrollment_id": self.enrollment_id,
+            "type": self.type,
+            "satisfaction": self.satisfaction,
+            "acquis": self.acquis,
+            "date_eval": self.date_eval.isoformat() if self.date_eval else None,
+        }
