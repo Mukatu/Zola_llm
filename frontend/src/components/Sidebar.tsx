@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import clsx from "clsx";
-import { LayoutDashboard, MessagesSquare, FolderOpen, BookOpen, Settings, Briefcase } from "lucide-react";
+import { LayoutDashboard, MessagesSquare, FolderOpen, BookOpen, Settings, Briefcase, FileSpreadsheet } from "lucide-react";
 import { useZola } from "./ConfigProvider";
 import { navGroupsFromModules } from "@/lib/capabilities";
 
@@ -12,6 +12,7 @@ const TRANSVERSES = [
   { href: "/assistant", label: "Assistant", icon: MessagesSquare },
   { href: "/documents", label: "Documents", icon: FolderOpen },
   { href: "/kb", label: "Consultation", icon: BookOpen },
+  { href: "/import", label: "Import / Export", icon: FileSpreadsheet },
 ];
 
 export function Sidebar() {
