@@ -149,6 +149,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         from zolaos.api.v1.box import router as box_router
         from zolaos.api.v1.categorisation import router as categorisation_router
         from zolaos.api.v1.crm import router as crm_router
+        from zolaos.api.v1.documents import router as documents_router
         from zolaos.api.v1.erp import router as erp_router
         from zolaos.api.v1.gpec import router as gpec_router
         from zolaos.api.v1.hr import router as hr_router
@@ -171,6 +172,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         app.include_router(gpec_router)
         # SIRH — Recrutement (vacances, candidats, pipeline, indicateurs).
         app.include_router(recrutement_router)
+        # Documents (artefacts générés, transverse) + génération RH.
+        app.include_router(documents_router)
 
     # Routes Zolacortex (gestion missions) : exposées uniquement en profil `cortex`.
     # Inversement, en profil `box`, 404 sur /v1/cortex/*.

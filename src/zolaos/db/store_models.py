@@ -16,7 +16,7 @@ from datetime import UTC, date, datetime
 from decimal import Decimal
 from typing import Any
 
-from sqlalchemy import JSON, Boolean, Date, DateTime, Integer, Numeric, String
+from sqlalchemy import JSON, Boolean, Date, DateTime, Integer, Numeric, String, Text
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
@@ -486,4 +486,35 @@ class InterviewRecord(StoreBase):
             "score_global": self.score_global,
             "recommandation": self.recommandation,
             "statut": self.statut,
+        }
+
+
+class DocumentRecord(StoreBase):
+    """Artefact généré persisté (transverse : RH, Droit, rapports…)."""
+
+    __tablename__ = "store_documents"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    tenant_id: Mapped[str] = mapped_column(String(64), index=True)
+    type: Mapped[str] = mapped_column(String(32), default="autre")
+    metier: Mapped[str] = mapped_column(String(20), default="rh")
+    titre: Mapped[str] = mapped_column(String(200))
+    contenu: Mapped[str] = mapped_column(Text, default="")
+    tags: Mapped[list[Any]] = mapped_column(JSON, default=list)
+    source_ref: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    statut: Mapped[str] = mapped_column(String(12), default="brouillon")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "tenant_id": self.tenant_id,
+            "type": self.type,
+            "metier": self.metier,
+            "titre": self.titre,
+            "contenu": self.contenu,
+            "tags": self.tags,
+            "source_ref": self.source_ref,
+            "statut": self.statut,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
         }

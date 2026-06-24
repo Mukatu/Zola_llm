@@ -16,6 +16,7 @@ from zolaos.db.store_models import (
     ApplicationRecord,
     CandidateRecord,
     ContractRecord,
+    DocumentRecord,
     EmployeeRecord,
     EmployeeSkillRecord,
     InterviewRecord,
@@ -282,6 +283,10 @@ class SkillRepository(_SimpleRepo):
 
 class RoleSkillRepository(_SimpleRepo):
     model = RoleSkillRecord
+
+
+class DocumentRepository(_SimpleRepo):
+    model = DocumentRecord
 
 
 class VacancyRepository(_SimpleRepo):
