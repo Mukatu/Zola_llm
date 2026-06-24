@@ -6,7 +6,7 @@
 import {
   BarChart3, Boxes, Calculator, Code2, FileSignature, HardHat, Handshake,
   Landmark, Megaphone, Network, Receipt, ScrollText, ShieldCheck, ShoppingCart, Stethoscope,
-  Users, Wallet, Wrench, type LucideIcon,
+  UserPlus, Users, Wallet, Wrench, type LucideIcon,
 } from "lucide-react";
 
 export const POLE_LABELS: Record<string, string> = {
@@ -65,6 +65,9 @@ export const CAPABILITIES: Record<string, Capability> = Object.fromEntries(
     cap("erp.referentiels", "Référentiels & GPEC", Network,
       "Emplois (RME), compétences (RMC), matrice de compétences + écarts GPEC.",
       intents(["rme", "Emplois"], ["rmc", "Compétences"], ["matrice", "Matrice"]), "flagship"),
+    cap("erp.recrutement", "Recrutement", UserPlus,
+      "Vacances, pipeline de candidatures (kanban) et indicateurs.",
+      intents(["vacances", "Vacances"], ["pipeline", "Pipeline"], ["kpis", "Indicateurs"]), "flagship"),
     cap("erp.paie", "Paie", Wallet,
       "Bulletin de paie déterministe (CNSS/CIPRES/IRPP).",
       intents(["bulletin", "Simuler bulletin"], ["expliquer", "Expliquer un calcul"]), "flagship"),
