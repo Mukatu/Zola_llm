@@ -18,6 +18,7 @@ import { RegistreScreen } from "@/components/flagship/RegistreScreen";
 import { RHScreen } from "@/components/flagship/RHScreen";
 import { ReferentielsScreen } from "@/components/flagship/ReferentielsScreen";
 import { RecrutementScreen } from "@/components/flagship/RecrutementScreen";
+import { DeveloppementScreen } from "@/components/flagship/DeveloppementScreen";
 import { getCapability } from "@/lib/capabilities";
 import { Card } from "@/components/ui";
 import type { ComponentType } from "react";
@@ -38,6 +39,7 @@ const FLAGSHIPS: Record<string, ComponentType> = {
   "erp.rh": RHScreen,
   "erp.referentiels": ReferentielsScreen,
   "erp.recrutement": RecrutementScreen,
+  "erp.developpement": DeveloppementScreen,
   "engineering.code": CodeScreen,
   "droit.ohada": DroitScreen,
   "droit.travail_cg": DroitScreen,

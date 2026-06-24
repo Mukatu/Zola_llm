@@ -4,7 +4,7 @@
 // mais un écran tailored par capacité.
 
 import {
-  BarChart3, Boxes, Calculator, Code2, FileSignature, HardHat, Handshake,
+  BarChart3, Boxes, Calculator, Code2, FileSignature, GraduationCap, HardHat, Handshake,
   Landmark, Megaphone, Network, Receipt, ScrollText, ShieldCheck, ShoppingCart, Stethoscope,
   UserPlus, Users, Wallet, Wrench, type LucideIcon,
 } from "lucide-react";
@@ -68,6 +68,9 @@ export const CAPABILITIES: Record<string, Capability> = Object.fromEntries(
     cap("erp.recrutement", "Recrutement", UserPlus,
       "Vacances, pipeline de candidatures (kanban) et indicateurs.",
       intents(["vacances", "Vacances"], ["pipeline", "Pipeline"], ["kpis", "Indicateurs"]), "flagship"),
+    cap("erp.developpement", "Développement RH", GraduationCap,
+      "Formation (catalogue, sessions, inscriptions) + indicateurs.",
+      intents(["formation", "Formation"], ["indicateurs", "Indicateurs"]), "flagship"),
     cap("erp.paie", "Paie", Wallet,
       "Bulletin de paie déterministe (CNSS/CIPRES/IRPP).",
       intents(["bulletin", "Simuler bulletin"], ["expliquer", "Expliquer un calcul"]), "flagship"),

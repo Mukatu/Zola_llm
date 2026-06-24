@@ -36,6 +36,7 @@ MODULE_CATALOGUE: dict[str, tuple[str, ...]] = {
         "rh",
         "referentiels",
         "recrutement",
+        "developpement",
         "paie",
         "finance",
         "compta",
