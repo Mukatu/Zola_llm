@@ -151,6 +151,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         from zolaos.api.v1.crm import router as crm_router
         from zolaos.api.v1.documents import router as documents_router
         from zolaos.api.v1.erp import router as erp_router
+        from zolaos.api.v1.evaluation import router as evaluation_router
         from zolaos.api.v1.formation import router as formation_router
         from zolaos.api.v1.gpec import router as gpec_router
         from zolaos.api.v1.hr import router as hr_router
@@ -177,6 +178,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         app.include_router(documents_router)
         # SIRH — Formation (catalogue, sessions, inscriptions, indicateurs).
         app.include_router(formation_router)
+        # SIRH — Évaluations (9-box) + GPEC avancé (plan formation, risques/opportunités).
+        app.include_router(evaluation_router)
 
     # Routes Zolacortex (gestion missions) : exposées uniquement en profil `cortex`.
     # Inversement, en profil `box`, 404 sur /v1/cortex/*.

@@ -624,3 +624,33 @@ class TrainingEvaluationRecord(StoreBase):
             "acquis": self.acquis,
             "date_eval": self.date_eval.isoformat() if self.date_eval else None,
         }
+
+
+class EvaluationRecord(StoreBase):
+    """Évaluation annuelle : performance × potentiel (SIRH-3b)."""
+
+    __tablename__ = "store_evaluations"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    tenant_id: Mapped[str] = mapped_column(String(64), index=True)
+    employee_matricule: Mapped[str] = mapped_column(String(32), index=True)
+    periode: Mapped[str] = mapped_column(String(16), default="")
+    performance: Mapped[int] = mapped_column(Integer, default=3)
+    potentiel: Mapped[int] = mapped_column(Integer, default=3)
+    objectifs: Mapped[str] = mapped_column(Text, default="")
+    commentaire: Mapped[str] = mapped_column(Text, default="")
+    statut: Mapped[str] = mapped_column(String(12), default="brouillon")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "tenant_id": self.tenant_id,
+            "employee_matricule": self.employee_matricule,
+            "periode": self.periode,
+            "performance": self.performance,
+            "potentiel": self.potentiel,
+            "objectifs": self.objectifs,
+            "commentaire": self.commentaire,
+            "statut": self.statut,
+        }

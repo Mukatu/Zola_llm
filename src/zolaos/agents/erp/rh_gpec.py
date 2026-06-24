@@ -9,6 +9,7 @@ risque de perte de compétence clé. Le LLM (séparément) génère fiches/grill
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from datetime import date
 from decimal import Decimal
 
 from pydantic import BaseModel, Field
@@ -18,6 +19,13 @@ class EmployeeRef(BaseModel):
     matricule: str
     nom_complet: str
     code_emploi: str | None = None
+    date_naissance: date | None = None
+
+
+class TrainingForGpec(BaseModel):
+    code: str
+    intitule: str = ""
+    competences_visees: list[str] = Field(default_factory=list)
 
 
 class SkillRef(BaseModel):
@@ -177,3 +185,79 @@ def gpec_gap(
             for c in critiques
         ],
     }
+
+
+def plan_formation(
+    employees: list[EmployeeRef],
+    role_skills: list[RoleSkillRef],
+    notes: list[EmpSkillRef],
+    trainings: list[TrainingForGpec],
+) -> list[dict[str, object]]:
+    """Plan de formation suggéré : pour chaque écart GPEC, propose les formations
+    du catalogue couvrant la compétence (déterministe)."""
+    req_by_emploi: dict[str, list[tuple[str, int]]] = {}
+    for rs in role_skills:
+        req_by_emploi.setdefault(rs.code_emploi, []).append((rs.code_competence, rs.niveau_requis))
+    held = {(n.matricule, n.code_competence): n.note for n in notes}
+    cover: dict[str, list[str]] = {}
+    for t in trainings:
+        for code in t.competences_visees:
+            cover.setdefault(code, []).append(t.code)
+
+    out: list[dict[str, object]] = []
+    for e in employees:
+        for code, niveau in req_by_emploi.get(e.code_emploi or "", []):
+            detenu = held.get((e.matricule, code), 0)
+            ecart = niveau - detenu
+            if ecart > 0:
+                out.append(
+                    {
+                        "matricule": e.matricule,
+                        "code_competence": code,
+                        "ecart": ecart,
+                        "formations": sorted(set(cover.get(code, []))),
+                    }
+                )
+    return out
+
+
+def risques_opportunites(
+    employees: list[EmployeeRef],
+    role_skills: list[RoleSkillRef],
+    notes: list[EmpSkillRef],
+    *,
+    hauts_potentiels: list[str],
+    today: date | None = None,
+    age_seuil: int = 58,
+) -> dict[str, object]:
+    """Matrice risques & opportunités RH (déterministe), sur données déjà saisies."""
+    today = today or date.today()
+    experts: dict[str, int] = {}
+    for n in notes:
+        if n.note >= 4:
+            experts[n.code_competence] = experts.get(n.code_competence, 0) + 1
+    requise: dict[str, int] = {}
+    for rs in role_skills:
+        requise[rs.code_competence] = requise.get(rs.code_competence, 0) + 1
+
+    risques: list[dict[str, object]] = []
+    for code, _cnt in sorted(requise.items()):
+        e = experts.get(code, 0)
+        if e == 0:
+            risques.append({"type": "competence_critique", "code_competence": code})
+        elif e == 1:
+            risques.append({"type": "bus_factor", "code_competence": code})
+    for emp in employees:
+        if emp.date_naissance is not None:
+            age = (today - emp.date_naissance).days // 365
+            if age >= age_seuil:
+                risques.append({"type": "depart_proche", "matricule": emp.matricule, "age": age})
+
+    opportunites: list[dict[str, object]] = [
+        {"type": "haut_potentiel", "matricule": m} for m in hauts_potentiels
+    ]
+    for code, e in sorted(experts.items()):
+        if e > requise.get(code, 0):
+            opportunites.append({"type": "surcapacite", "code_competence": code, "experts": e})
+
+    return {"risques": risques, "opportunites": opportunites}
