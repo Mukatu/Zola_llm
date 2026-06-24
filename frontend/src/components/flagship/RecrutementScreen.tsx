@@ -2,17 +2,26 @@
 
 import { useCallback, useEffect, useState } from "react";
 import clsx from "clsx";
-import { UserPlus, Briefcase, KanbanSquare, BarChart3, Plus } from "lucide-react";
-import { Card, Button } from "../ui";
+import { UserPlus, Briefcase, KanbanSquare, BarChart3, Plus, Sparkles, Save } from "lucide-react";
+import { Card, Button, Skeleton } from "../ui";
 import { FlagshipHeader, Inp, Urg } from "./_shared";
 import { ApiError } from "@/lib/api";
+import { runQuery } from "@/lib/query";
+import { hrGeneratePrompt, createDocument } from "@/lib/documents";
 import {
   ETAPES, listVacancies, createVacancy, listCandidates, createCandidate,
   listApplications, createApplication, moveApplication, getRecruitmentDashboard,
   type Vacancy, type Candidate, type Application, type RecruitmentDashboard,
 } from "@/lib/recrutement";
 
-type Tab = "vacances" | "pipeline" | "kpis";
+type Tab = "vacances" | "pipeline" | "kpis" | "generation";
+
+const GEN_TYPES = [
+  { id: "fiche_poste", label: "Fiche de poste" },
+  { id: "grille_entretien", label: "Grille d'entretien" },
+  { id: "annonce", label: "Annonce" },
+  { id: "plan_recrutement", label: "Plan de recrutement" },
+];
 const ALL_STAGES = [...ETAPES, "rejeté", "désisté"];
 
 export function RecrutementScreen() {
@@ -25,6 +34,14 @@ export function RecrutementScreen() {
 
   const [vForm, setVForm] = useState({ code_vacance: "", intitule: "", date_ouverture: "2026-06-01", departement: "" });
   const [aForm, setAForm] = useState({ nom: "", source: "spontanee", code_vacance: "" });
+
+  // Génération
+  const [gType, setGType] = useState("fiche_poste");
+  const [gEmploi, setGEmploi] = useState("");
+  const [gTitre, setGTitre] = useState("");
+  const [gDraft, setGDraft] = useState<string | null>(null);
+  const [gLoading, setGLoading] = useState(false);
+  const [gSaved, setGSaved] = useState(false);
 
   const refresh = useCallback(async () => {
     setErr(null);
@@ -55,6 +72,23 @@ export function RecrutementScreen() {
     try { await moveApplication(id, etape); await refresh(); } catch { setErr("Déplacement impossible."); }
   }
 
+  async function generate() {
+    setGLoading(true); setErr(null); setGDraft(null); setGSaved(false);
+    try {
+      const { titre, prompt } = await hrGeneratePrompt({ type: gType, code_emploi: gEmploi || undefined });
+      setGTitre(titre);
+      const r = await runQuery(prompt);
+      setGDraft(r.content);
+    } catch (e) {
+      setErr(e instanceof ApiError ? "Génération indisponible (LLM/auth requis ou backend)." : "Service indisponible.");
+    } finally { setGLoading(false); }
+  }
+  async function saveDoc() {
+    if (!gDraft) return;
+    try { await createDocument({ type: gType, titre: gTitre, contenu: gDraft, source_ref: gEmploi || undefined }); setGSaved(true); }
+    catch { setErr("Enregistrement impossible (backend/DB)."); }
+  }
+
   const nameOf = new Map(cands.map((c) => [c.id, `${c.prenom} ${c.nom}`.trim()]));
 
   return (
@@ -65,6 +99,7 @@ export function RecrutementScreen() {
         <TabBtn active={tab === "vacances"} onClick={() => setTab("vacances")} icon={Briefcase} label="Vacances" />
         <TabBtn active={tab === "pipeline"} onClick={() => setTab("pipeline")} icon={KanbanSquare} label="Pipeline" />
         <TabBtn active={tab === "kpis"} onClick={() => setTab("kpis")} icon={BarChart3} label="Indicateurs" />
+        <TabBtn active={tab === "generation"} onClick={() => setTab("generation")} icon={Sparkles} label="Génération" />
       </div>
 
       {err && <Card className="ring-amber-200"><p className="text-sm text-amber-700">{err}</p></Card>}
@@ -158,6 +193,32 @@ export function RecrutementScreen() {
                   <span className="text-muted">ouverte depuis {v.jours_ouverte} j</span>
                 </div>
               ))}
+            </Card>
+          )}
+        </>
+      )}
+
+      {tab === "generation" && (
+        <>
+          <Card className="flex flex-col gap-3">
+            <div className="grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
+              <select value={gType} onChange={(e) => setGType(e.target.value)} className="rounded-lg border border-black/10 bg-white px-2 py-1 text-sm">
+                {GEN_TYPES.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}
+              </select>
+              <Inp value={gEmploi} onChange={setGEmploi} placeholder="Code emploi (RME) — optionnel" />
+              <Button onClick={generate} disabled={gLoading}><Sparkles className="h-4 w-4" /> Générer</Button>
+            </div>
+            <p className="text-xs text-muted">Le prompt est composé depuis le RME/RMC (déterministe) ; la rédaction est faite par l'agent RH (brouillon à valider).</p>
+          </Card>
+          {gLoading && <Card><Skeleton className="mb-2 h-4 w-1/3" /><Skeleton className="h-4 w-full" /></Card>}
+          {gDraft && (
+            <Card>
+              <div className="mb-2 flex items-center justify-between">
+                <span className="text-sm font-semibold">{gTitre}</span>
+                <Button variant="ghost" onClick={saveDoc}><Save className="h-4 w-4" /> {gSaved ? "Enregistré" : "Enregistrer"}</Button>
+              </div>
+              <div className="mb-2 rounded-lg bg-amber-100 px-3 py-1 text-xs text-amber-800">Brouillon — à valider avant usage.</div>
+              <pre className="whitespace-pre-wrap font-sans text-sm leading-relaxed">{gDraft}</pre>
             </Card>
           )}
         </>

@@ -126,7 +126,7 @@ Dépendances : SIRH-2 et SIRH-3 s'appuient sur SIRH-1 (employés/postes). Paie h
 | SIRH-1 | Core HR & Pilotage (registres employés/contrats/absences + tableau de bord + échéancier + registre légal) | ✅ | `e13a97f` (back) · `22ca9ea` (écran) |
 | Socle Référentiels | RME + RMC + matrice + écarts GPEC | ✅ | `ea01ef9` · `6ebf40d` |
 | **SIRH-2a** | Recrutement : registres + pipeline + indicateurs (entonnoir, time-to-hire) | ✅ | `37f4414` · `d51479d` |
-| SIRH-2b | Recrutement : génération (fiche poste, grille, plan, contrats en masse) + `store_documents` | ☐ | — |
+| **SIRH-2b** | Recrutement : génération (fiche poste/grille/annonce/plan + contrats en masse) + `store_documents` | ✅ | `e334fde` (back) · front |
 | SIRH-3 | Développement (GPEC/Formation) | ☐ | — |
 
 > SIRH-1 livré : moteur déterministe (effectif/ETP, masse salariale, turnover, absentéisme, ancienneté, pyramide des âges, égalité H/F, ratio d'encadrement), échéancier (essai/CDD/anniversaires), registre unique du personnel ; écran RH 3 onglets. Restant SIRH-1 : organigramme visuel, mouvements RH dédiés, génération de contrats/attestations (rattachée à `store_documents`, P2f).
