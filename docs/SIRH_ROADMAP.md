@@ -89,6 +89,15 @@ Construit **au début de SIRH-2** car il alimente **recrutement** (fiches de pos
 
 **Hors périmètre / interop** : LMS (contenu e-learning, SCORM) → interop ; gestion fine de la performance par objectifs (OKR workflow) → léger seulement.
 
+### Périmètre validé (2026-06-24) — détail & découpage
+**Formation** : `store_trainings` (catalogue : code, intitulé, **compétences visées** [RMC], modalité, durée, coût) · `store_training_sessions` (date/lieu/formateur/places/statut) · `store_training_enrollments` (employé × session, statut) · `store_training_evaluations` (**à chaud / à froid**, satisfaction/acquis 1-5). Indicateurs : taux de réalisation, coût total/employé, heures/employé, satisfaction, efficacité, **couverture des besoins GPEC**. Génération : plan de formation (depuis écarts), formulaires chaud/froid. Échéances : sessions à venir, évaluations à froid à planifier.
+**Évaluations & revue de talents** : `store_evaluations` (employé × période → **perf 1-5**, **potentiel 1-5**, objectifs, statut). Indicateurs : **9-box**, distribution, complétion, top talents/sous-performeurs. Génération : support entretien annuel, **PDI**.
+**GPEC avancé (déterministe sur le socle)** : **plan de formation suggéré** (écart × catalogue), **matrice risques/opportunités** (compétence critique sans expert/bus factor + pyramide + turnover ; hauts potentiels + mobilité), **revue de talents** (9-box).
+**Décisions actées** : (1) capacité dédiée **`erp.developpement`** (onglets Formation/Évaluations/GPEC) ; (2) évaluation = **enregistrement léger** (perf/potentiel + période), pas de BPM de campagne ; (3) **pas de LMS** (contenu e-learning → interop) ; (4) matrice risques/opportunités = **réutilisation** des données déjà saisies (pas de nouvelle saisie).
+**Découpage** :
+- **SIRH-3a** Formation (catalogue + sessions + inscriptions + évaluations chaud/froid + indicateurs + échéancier + génération). *Déterministe → testable.*
+- **SIRH-3b** Évaluations + 9-box + GPEC avancé (plan de formation suggéré, matrice risques/opportunités, PDI). *Déterministe → testable.*
+
 ---
 
 ## 5. Capacités « à la demande » — récapitulatif (ce que le système/agent RH génère)
@@ -127,7 +136,8 @@ Dépendances : SIRH-2 et SIRH-3 s'appuient sur SIRH-1 (employés/postes). Paie h
 | Socle Référentiels | RME + RMC + matrice + écarts GPEC | ✅ | `ea01ef9` · `6ebf40d` |
 | **SIRH-2a** | Recrutement : registres + pipeline + indicateurs (entonnoir, time-to-hire) | ✅ | `37f4414` · `d51479d` |
 | **SIRH-2b** | Recrutement : génération (fiche poste/grille/annonce/plan + contrats en masse) + `store_documents` | ✅ | `e334fde` (back) · front |
-| SIRH-3 | Développement (GPEC/Formation) | ☐ | — |
+| SIRH-3a | Développement — Formation (catalogue/sessions/inscriptions/évaluations + indicateurs) | ☐ | — |
+| SIRH-3b | Développement — Évaluations (9-box) + GPEC avancé (plan suggéré, matrice risques/opportunités, PDI) | ☐ | — |
 
 > SIRH-1 livré : moteur déterministe (effectif/ETP, masse salariale, turnover, absentéisme, ancienneté, pyramide des âges, égalité H/F, ratio d'encadrement), échéancier (essai/CDD/anniversaires), registre unique du personnel ; écran RH 3 onglets. Restant SIRH-1 : organigramme visuel, mouvements RH dédiés, génération de contrats/attestations (rattachée à `store_documents`, P2f).
 
