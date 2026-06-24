@@ -59,7 +59,7 @@ Employés=`matricule` · Emplois=`code_emploi` · Compétences=`code_competence`
 ## 10. Suivi
 | Lot | Périmètre | Statut | Commit |
 |-----|-----------|--------|--------|
-| IMP-1 | Framework + Employés/Factures + écran | ☐ | — |
+| IMP-1 | Framework + Employés/Factures + écran | ✅ | `80caaf9` · `0c8e959` |
 | IMP-2 | Toutes entités + références + classeur pôle | ☐ | — |
 | IMP-3 | Assist LLM mapping + sync connecteurs | ☐ | — |
 
