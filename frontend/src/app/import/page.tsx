@@ -1,15 +1,38 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { FileSpreadsheet, Download, Upload, CheckCircle2, AlertTriangle, Layers } from "lucide-react";
+import { FileSpreadsheet, Download, Upload, CheckCircle2, AlertTriangle, Layers, Wand2 } from "lucide-react";
 import { Card, Button } from "@/components/ui";
 import {
   listImportEntities, downloadTemplate, exportEntity, importFile,
   downloadPoleTemplate, exportPole, importPoleFile,
-  type ImportEntity, type ImportPole, type ImportReport, type PoleReport,
+  type ImportEntity, type ImportPole, type ImportReport, type PoleReport, type MappingInfo,
 } from "@/lib/imports";
 
 type Mode = "entity" | "pole";
+
+// Restitue le rapprochement automatique des colonnes (IMP-3).
+function MappingNote({ mapping }: { mapping?: MappingInfo | null }) {
+  if (!mapping) return null;
+  const renommages = Object.entries(mapping.renommages);
+  if (renommages.length === 0 && mapping.non_resolus.length === 0) return null;
+  return (
+    <div className="mt-2 rounded-lg bg-black/[0.03] p-2 text-xs">
+      {renommages.length > 0 && (
+        <div className="flex items-start gap-2 text-emerald-700">
+          <Wand2 className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+          <span>Colonnes reconnues : {renommages.map(([h, f]) => `« ${h} » → ${f}`).join(" · ")}.</span>
+        </div>
+      )}
+      {mapping.non_resolus.length > 0 && (
+        <div className="mt-1 flex items-start gap-2 text-amber-700">
+          <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+          <span>Colonnes ignorées (non reconnues) : {mapping.non_resolus.join(", ")}.</span>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function ImportPage() {
   const [mode, setMode] = useState<Mode>("pole");
@@ -162,6 +185,7 @@ export default function ImportPage() {
               <Button onClick={commit} disabled={(report.valides ?? 0) === 0}>Confirmer l'import</Button>
             </div>
           )}
+          <MappingNote mapping={report.mapping} />
           {report.erreurs.length > 0 && (
             <div className="mt-2 max-h-64 overflow-y-auto text-sm">
               {report.erreurs.map((e) => (
@@ -200,6 +224,7 @@ export default function ImportPage() {
                         : `${r.valides ?? 0}/${r.total} valide(s) · ${rej} erreur(s)`}
                     </span>
                   </div>
+                  <MappingNote mapping={r.mapping} />
                   {r.erreurs.length > 0 && (
                     <div className="mt-1 max-h-40 overflow-y-auto">
                       {r.erreurs.map((e) => (

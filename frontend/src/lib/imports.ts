@@ -21,6 +21,12 @@ export interface ImportPole {
   entities: string[];
 }
 
+// Info de mapping auto (IMP-3) : colonnes renommées + en-têtes non reconnus.
+export interface MappingInfo {
+  renommages: Record<string, string>;
+  non_resolus: string[];
+}
+
 export interface ImportReport {
   total: number;
   valides?: number;
@@ -28,6 +34,7 @@ export interface ImportReport {
   mis_a_jour?: number;
   rejetes?: number;
   erreurs: { ligne: number; motifs: string[] }[];
+  mapping?: MappingInfo | null;
 }
 
 // Rapport par pôle : une entrée par feuille/entité (label + compteurs).

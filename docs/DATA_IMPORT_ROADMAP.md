@@ -36,7 +36,8 @@ Un **registre** déclare, par entité : `EntitySpec(entity, label, model, column
 - `GET /v1/erp/import/entities` → catalogue (entités + colonnes).
 - `GET /v1/erp/import/template/{entité}` → `.xlsx` généré.
 - `POST /v1/erp/import/{entité}?dry_run=true` → **rapport** (total, valides, erreurs[ligne, motifs]).
-- `POST /v1/erp/import/{entité}` → import (upsert) + journal (importés/mis à jour/rejetés).
+- `POST /v1/erp/import/{entité}` → import (upsert) + journal (importés/mis à jour/rejetés). `auto_map=true` (défaut) rapproche les en-têtes proches.
+- `POST /v1/erp/import/{entité}/inspect` → **prévisualise** le mapping de colonnes (déterministe ; `use_llm=true` pour augmenter les en-têtes non résolus). N'écrit rien.
 - `GET /v1/erp/export/{entité}` → `.xlsx` des données existantes (relire/corriger/réimporter).
 
 ## 6. Clés naturelles (upsert)
@@ -54,14 +55,25 @@ Employés=`matricule` · Emplois=`code_emploi` · Compétences=`code_competence`
 ## 9. Découpage
 - **IMP-1 (socle)** : framework (Column/EntitySpec, validate, build_template, parse, export) + endpoints + **2 pilotes : Employés + Factures** + tests + écran Import/Export.
 - **IMP-2** : décliner à **toutes les entités** persistées (SIRH, supply, référentiels…) + feuilles de référence + classeur par pôle.
-- **IMP-3** : assistance LLM au mapping de colonnes ; sync connecteurs → store.
+- **IMP-3** : **mapping de colonnes assisté** — rapprochement déterministe (accents/casse/ponctuation + alias déclarés + similarité) appliqué automatiquement à l'import (`auto_map`), endpoint `/inspect` de prévisualisation, augmentation LLM **optionnelle** (en-têtes non résolus uniquement, jamais pour valider).
+
+> **Note de périmètre** : le bullet « sync connecteurs → store » initialement listé avec IMP-3 relève du **module interop/connecteurs**, pas du module Import Excel. Il est réassigné à la roadmap interop pour ne pas croiser deux modules. Le module **Import Excel est clos** avec IMP-3.
 
 ## 10. Suivi
 | Lot | Périmètre | Statut | Commit |
 |-----|-----------|--------|--------|
 | IMP-1 | Framework + Employés/Factures + écran | ✅ | `80caaf9` · `0c8e959` |
-| IMP-2 | Toutes entités (11) + **classeurs par pôle** (RH, Compta) multi-feuilles + écran à 2 modes | ✅ | _(ce lot)_ |
-| IMP-3 | Assist LLM mapping + sync connecteurs | ☐ | — |
+| IMP-2 | Toutes entités (11) + **classeurs par pôle** (RH, Compta) multi-feuilles + écran à 2 modes | ✅ | `5fbabf0` |
+| IMP-3 | **Mapping de colonnes assisté** (déterministe + LLM optionnel) + `/inspect` + écran | ✅ | _(ce lot)_ |
+| — | _(réassigné interop)_ sync connecteurs → store | ➡️ | roadmap interop |
+
+### Détail IMP-3 (livré 2026-06-25)
+- **Moteur déterministe** `imports/mapping.py` : `normalize` (accents/casse/ponctuation), similarité (ratio de séquence ∪ Jaccard de jetons), **alias** déclarés par colonne, affectation gloutonne 1↔1, seuil 0.80.
+- `Column.aliases` + alias renseignés sur Employés et Factures (pilotes) ; alias documentés dans la feuille **Dictionnaire** du template.
+- **`auto_map=true`** par défaut sur `/import/{entité}` et `/import/pole/{pole}` : les en-têtes proches sont renommés avant validation ; le rapport expose `mapping{renommages, non_resolus}`.
+- **`POST /import/{entité}/inspect`** : prévisualise le mapping (scores, champs manquants) sans rien écrire ; `use_llm=true` augmente les en-têtes non résolus via le client routeur 8B (dégradation gracieuse si LLM indisponible).
+- **`imports/mapping_llm.py`** : suggestion LLM **optionnelle** (JSON mode, température 0), strictement complémentaire, jamais pour valider une donnée.
+- Écran : bloc « colonnes reconnues / ignorées » dans le rapport (modes entité et pôle).
 
 ### Détail IMP-2 (livré 2026-06-25)
 - **11 entités** câblées au registre : Employés, Contrats, Absences, Emplois (RME), Compétences (RMC), Profil requis, Matrice compétences, Vacances, Formations, Évaluations, Factures.

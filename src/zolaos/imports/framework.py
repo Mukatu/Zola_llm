@@ -21,10 +21,11 @@ from openpyxl.worksheet.datavalidation import DataValidation
 @dataclass(frozen=True)
 class Column:
     name: str
-    kind: str = "str"  # str | int | decimal | date | bool
+    kind: str = "str"  # str | int | decimal | date | bool | list
     required: bool = False
     enum: tuple[str, ...] | None = None
     help: str = ""
+    aliases: tuple[str, ...] = field(default_factory=tuple)  # synonymes d'en-tête (IMP-3)
 
 
 @dataclass(frozen=True)
@@ -106,7 +107,7 @@ def build_template(spec: EntitySpec) -> bytes:
             ws.add_data_validation(dv)
 
     d = wb.create_sheet("Dictionnaire")
-    d.append(["Colonne", "Type", "Obligatoire", "Valeurs permises", "Aide"])
+    d.append(["Colonne", "Type", "Obligatoire", "Valeurs permises", "Alias acceptés", "Aide"])
     for col in spec.columns:
         d.append(
             [
@@ -114,6 +115,7 @@ def build_template(spec: EntitySpec) -> bytes:
                 col.kind,
                 "oui" if col.required else "non",
                 ", ".join(col.enum) if col.enum else "",
+                ", ".join(col.aliases) if col.aliases else "",
                 col.help,
             ]
         )
@@ -193,7 +195,9 @@ def build_pole_template(pole: PoleSpec) -> bytes:
     for spec in pole.entities:
         _add_data_sheet(wb, spec)
     d = wb.create_sheet("Dictionnaire")
-    d.append(["Entité", "Colonne", "Type", "Obligatoire", "Valeurs permises", "Aide"])
+    d.append(
+        ["Entité", "Colonne", "Type", "Obligatoire", "Valeurs permises", "Alias acceptés", "Aide"]
+    )
     for spec in pole.entities:
         for col in spec.columns:
             d.append(
@@ -203,6 +207,7 @@ def build_pole_template(pole: PoleSpec) -> bytes:
                     col.kind,
                     "oui" if col.required else "non",
                     ", ".join(col.enum) if col.enum else "",
+                    ", ".join(col.aliases) if col.aliases else "",
                     col.help,
                 ]
             )

@@ -10,8 +10,9 @@ import openpyxl
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
+from zolaos.api.dependencies import get_router_client
 from zolaos.api.main import create_app
-from zolaos.core.settings import Settings
+from zolaos.core.settings import Settings, get_settings
 from zolaos.db.session import get_session
 from zolaos.db.store_models import StoreBase
 from zolaos.imports.framework import (
@@ -21,7 +22,9 @@ from zolaos.imports.framework import (
     parse_sheet,
     validate_row,
 )
+from zolaos.imports.mapping import apply_mapping, propose_mapping
 from zolaos.imports.registry import POLES, REGISTRY
+from zolaos.llm.base import GenerationResult
 
 _EMP_COLS = [
     "matricule",
@@ -85,8 +88,26 @@ def _settings() -> Settings:
     )
 
 
+class _FakeLLM:
+    """Client LLM factice : renvoie un JSON de mapping figé (aucun réseau)."""
+
+    provider = "fake"
+
+    def __init__(self, content: str = "{}") -> None:
+        self._content = content
+
+    async def generate(self, messages, *, model, options=None):  # type: ignore[no-untyped-def]
+        return GenerationResult(content=self._content, model=model, provider="fake")
+
+    async def stream(self, *a, **k):  # type: ignore[no-untyped-def]  # pragma: no cover
+        yield ""
+
+    async def health(self) -> bool:  # pragma: no cover
+        return True
+
+
 @asynccontextmanager
-async def _client(tmp_path):  # type: ignore[no-untyped-def]
+async def _client(tmp_path, llm: Any | None = None):  # type: ignore[no-untyped-def]
     engine = create_async_engine(f"sqlite+aiosqlite:///{tmp_path}/imp.db")
     async with engine.begin() as conn:
         await conn.run_sync(StoreBase.metadata.create_all)
@@ -96,8 +117,11 @@ async def _client(tmp_path):  # type: ignore[no-untyped-def]
         async with factory() as s:
             yield s
 
-    app = create_app(settings=_settings())
+    settings = _settings()
+    app = create_app(settings=settings)
     app.dependency_overrides[get_session] = _override
+    app.dependency_overrides[get_settings] = lambda: settings
+    app.dependency_overrides[get_router_client] = lambda: (llm or _FakeLLM())
     client = AsyncClient(transport=ASGITransport(app=app), base_url="http://test")
     try:
         yield client
@@ -209,3 +233,81 @@ def parse_pole_bytes(wb: Any, pole: Any) -> dict[str, Any]:
     bio = BytesIO()
     wb.save(bio)
     return parse_pole(bio.getvalue(), pole)
+
+
+# --------------------------------------------------------------- IMP-3 : mapping
+
+
+def _sheet_xlsx(title: str, headers: list[str], rows: list[list[Any]]) -> bytes:
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = title
+    ws.append(headers)
+    for r in rows:
+        ws.append(r)
+    bio = BytesIO()
+    wb.save(bio)
+    return bio.getvalue()
+
+
+def test_propose_mapping_aliases_fuzzy_and_unresolved() -> None:
+    spec = REGISTRY["employees"]
+    headers = ["Matricule RH", "Nom et Prénom", "Date d'embauche", "Couleur préférée"]
+    res = propose_mapping(spec, headers)
+    assert res.mapping["Nom et Prénom"] == "nom_complet"  # alias normalisé
+    assert res.mapping["Date d'embauche"] == "date_embauche"  # fuzzy
+    assert res.mapping["Matricule RH"] == "matricule"
+    assert "Couleur préférée" in res.non_resolus  # rien d'assez proche
+    # un champ n'est jamais affecté deux fois
+    assert len(set(res.mapping.values())) == len(res.mapping)
+
+
+def test_apply_mapping_renames_keys() -> None:
+    out = apply_mapping({"Nom et Prénom": "Awa", "x": 1}, {"Nom et Prénom": "nom_complet"})
+    assert out == {"nom_complet": "Awa", "x": 1}
+
+
+async def test_import_auto_map_synonym_headers(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    # en-têtes synonymes (pas les noms canoniques) → auto_map les rapproche
+    xlsx = _sheet_xlsx(
+        "Employés",
+        ["Matricule RH", "Nom et Prénom", "Date d'embauche"],
+        [["E1", "Awa", "2024-01-01"]],
+    )
+    async with _client(tmp_path) as ac:
+        r = await ac.post("/v1/erp/import/employees?dry_run=true", content=xlsx)
+        body = r.json()
+        assert body["valides"] == 1
+        assert body["mapping"]["renommages"]["Nom et Prénom"] == "nom_complet"
+
+        r = await ac.post("/v1/erp/import/employees", content=xlsx)
+        assert r.json()["importes"] == 1
+        emps = (await ac.get("/v1/erp/employees")).json()["employees"]
+        assert emps[0]["nom_complet"] == "Awa"
+
+
+async def test_import_auto_map_disabled_rejects_synonyms(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    xlsx = _sheet_xlsx("Employés", ["Matricule RH", "Nom et Prénom"], [["E1", "Awa"]])
+    async with _client(tmp_path) as ac:
+        r = await ac.post("/v1/erp/import/employees?dry_run=true&auto_map=false", content=xlsx)
+        body = r.json()
+        assert body["valides"] == 0  # colonnes non reconnues → ligne rejetée
+        assert body["mapping"] is None
+
+
+async def test_inspect_deterministic_and_llm(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    xlsx = _sheet_xlsx("Employés", ["Nom et Prénom", "Identifiant agent"], [["Awa", "E1"]])
+    # déterministe : "Identifiant agent" non résolu, "Nom et Prénom" résolu
+    async with _client(tmp_path) as ac:
+        r = await ac.post("/v1/erp/import/employees/inspect", content=xlsx)
+        body = r.json()
+        assert body["mapping"]["Nom et Prénom"] == "nom_complet"
+        assert "Identifiant agent" in body["non_resolus"]
+        assert body["suggestions_llm"] == {}  # use_llm absent → pas d'appel
+
+    # augmentation LLM : le client factice propose matricule pour l'en-tête non résolu
+    llm = _FakeLLM('{"Identifiant agent": "matricule"}')
+    async with _client(tmp_path, llm=llm) as ac:
+        r = await ac.post("/v1/erp/import/employees/inspect?use_llm=true", content=xlsx)
+        body = r.json()
+        assert body["suggestions_llm"]["Identifiant agent"] == "matricule"

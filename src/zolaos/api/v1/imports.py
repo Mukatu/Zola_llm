@@ -13,6 +13,8 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from zolaos.api.dependencies import get_router_client
+from zolaos.core.settings import Settings, get_settings
 from zolaos.db.session import get_session
 from zolaos.imports.framework import (
     EntitySpec,
@@ -25,7 +27,10 @@ from zolaos.imports.framework import (
     parse_sheet,
     validate_row,
 )
+from zolaos.imports.mapping import MappingResult, apply_mapping, headers_of, propose_mapping
+from zolaos.imports.mapping_llm import suggest_mapping
 from zolaos.imports.registry import POLES, REGISTRY
+from zolaos.llm.base import LLMClient
 
 router = APIRouter(prefix="/v1/erp", tags=["import"])
 
@@ -62,6 +67,22 @@ def _validate_all(
         elif record is not None:
             valides.append(record)
     return valides, erreurs
+
+
+def _automap(
+    spec: EntitySpec, rows: list[dict[str, Any]]
+) -> tuple[list[dict[str, Any]], dict[str, Any] | None]:
+    """Rapproche les en-têtes du fichier des champs attendus puis renomme.
+
+    Ne renvoie une info de mapping que s'il y a eu au moins un renommage
+    (en-tête ≠ champ) ou un en-tête non résolu — sinon le fichier est déjà aligné.
+    """
+    res: MappingResult = propose_mapping(spec, headers_of(rows))
+    renommages = {h: f for h, f in res.mapping.items() if h != f}
+    rows = [apply_mapping(r, res.mapping) for r in rows]
+    if not renommages and not res.non_resolus:
+        return rows, None
+    return rows, {"renommages": renommages, "non_resolus": res.non_resolus}
 
 
 async def _apply(
@@ -103,6 +124,7 @@ def import_entities() -> dict[str, Any]:
                         "kind": c.kind,
                         "required": c.required,
                         "enum": list(c.enum) if c.enum else None,
+                        "aliases": list(c.aliases),
                     }
                     for c in s.columns
                 ],
@@ -132,6 +154,7 @@ async def import_entity(
     entity: str,
     request: Request,
     dry_run: bool = False,
+    auto_map: bool = True,
     tenant_id: str = "local",
     session: AsyncSession = Depends(get_session),
 ) -> dict[str, Any]:
@@ -143,9 +166,17 @@ async def import_entity(
         rows = parse_sheet(content, spec.label[:31])
     except Exception as exc:  # fichier illisible → 400 propre
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="invalid_xlsx") from exc
+    mapping_info = None
+    if auto_map:
+        rows, mapping_info = _automap(spec, rows)
     valides, erreurs = _validate_all(spec, rows)
     if dry_run:
-        return {"total": len(rows), "valides": len(valides), "erreurs": erreurs}
+        return {
+            "total": len(rows),
+            "valides": len(valides),
+            "erreurs": erreurs,
+            "mapping": mapping_info,
+        }
     importes, mis_a_jour = await _apply(session, spec, valides, tenant_id)
     await session.commit()
     return {
@@ -154,6 +185,44 @@ async def import_entity(
         "mis_a_jour": mis_a_jour,
         "rejetes": len(erreurs),
         "erreurs": erreurs,
+        "mapping": mapping_info,
+    }
+
+
+@router.post("/import/{entity}/inspect", summary="Proposer un mapping de colonnes (sans importer)")
+async def import_inspect(
+    entity: str,
+    request: Request,
+    use_llm: bool = False,
+    settings: Settings = Depends(get_settings),
+    client: LLMClient = Depends(get_router_client),
+) -> dict[str, Any]:
+    """Rapproche les en-têtes du fichier des champs attendus (déterministe), avec
+    augmentation LLM optionnelle pour les en-têtes non résolus. N'écrit rien."""
+    spec = _spec(entity)
+    content = await request.body()
+    if not content:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="empty_file")
+    try:
+        rows = parse_sheet(content, spec.label[:31])
+    except Exception as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="invalid_xlsx") from exc
+
+    headers = headers_of(rows)
+    res = propose_mapping(spec, headers)
+    suggestions: dict[str, str] = {}
+    if use_llm and res.non_resolus:
+        suggestions = await suggest_mapping(
+            client, settings.LLM_MODEL_ROUTER, spec, res.non_resolus, res.champs_manquants
+        )
+    return {
+        "entity": entity,
+        "headers": headers,
+        "mapping": res.mapping,
+        "scores": res.scores,
+        "non_resolus": res.non_resolus,
+        "champs_manquants": res.champs_manquants,
+        "suggestions_llm": suggestions,
     }
 
 
@@ -189,6 +258,7 @@ async def import_pole(
     pole: str,
     request: Request,
     dry_run: bool = False,
+    auto_map: bool = True,
     tenant_id: str = "local",
     session: AsyncSession = Depends(get_session),
 ) -> dict[str, Any]:
@@ -204,6 +274,9 @@ async def import_pole(
     rapport: dict[str, Any] = {}
     for spec in pole_spec.entities:
         rows = parsed.get(spec.entity, [])
+        mapping_info = None
+        if auto_map:
+            rows, mapping_info = _automap(spec, rows)
         valides, erreurs = _validate_all(spec, rows)
         if dry_run:
             rapport[spec.entity] = {
@@ -211,6 +284,7 @@ async def import_pole(
                 "total": len(rows),
                 "valides": len(valides),
                 "erreurs": erreurs,
+                "mapping": mapping_info,
             }
         else:
             importes, mis_a_jour = await _apply(session, spec, valides, tenant_id)
@@ -221,6 +295,7 @@ async def import_pole(
                 "mis_a_jour": mis_a_jour,
                 "rejetes": len(erreurs),
                 "erreurs": erreurs,
+                "mapping": mapping_info,
             }
     if not dry_run:
         await session.commit()
