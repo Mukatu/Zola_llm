@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from contextlib import asynccontextmanager
 from io import BytesIO
 from typing import Any
 
@@ -13,8 +14,14 @@ from zolaos.api.main import create_app
 from zolaos.core.settings import Settings
 from zolaos.db.session import get_session
 from zolaos.db.store_models import StoreBase
-from zolaos.imports.framework import build_template, parse_sheet, validate_row
-from zolaos.imports.registry import REGISTRY
+from zolaos.imports.framework import (
+    build_pole_template,
+    build_template,
+    parse_pole,
+    parse_sheet,
+    validate_row,
+)
+from zolaos.imports.registry import POLES, REGISTRY
 
 _EMP_COLS = [
     "matricule",
@@ -78,6 +85,7 @@ def _settings() -> Settings:
     )
 
 
+@asynccontextmanager
 async def _client(tmp_path):  # type: ignore[no-untyped-def]
     engine = create_async_engine(f"sqlite+aiosqlite:///{tmp_path}/imp.db")
     async with engine.begin() as conn:
@@ -90,11 +98,16 @@ async def _client(tmp_path):  # type: ignore[no-untyped-def]
 
     app = create_app(settings=_settings())
     app.dependency_overrides[get_session] = _override
-    return AsyncClient(transport=ASGITransport(app=app), base_url="http://test")
+    client = AsyncClient(transport=ASGITransport(app=app), base_url="http://test")
+    try:
+        yield client
+    finally:
+        await client.aclose()
+        await engine.dispose()
 
 
 async def test_import_dry_run_then_commit_idempotent(tmp_path) -> None:  # type: ignore[no-untyped-def]
-    async with await _client(tmp_path) as ac:
+    async with _client(tmp_path) as ac:
         # modèle téléchargeable
         r = await ac.get("/v1/erp/import/template/employees")
         assert r.status_code == 200
@@ -128,3 +141,71 @@ async def test_import_dry_run_then_commit_idempotent(tmp_path) -> None:  # type:
         r = await ac.post("/v1/erp/import/employees", content=xlsx)
         assert r.json()["mis_a_jour"] == 1
         assert len((await ac.get("/v1/erp/employees")).json()["employees"]) == 1
+
+
+def test_pole_template_has_one_sheet_per_entity() -> None:
+    pole = POLES["rh"]
+    wb = openpyxl.load_workbook(BytesIO(build_pole_template(pole)))
+    for spec in pole.entities:
+        assert spec.label[:31] in wb.sheetnames
+    assert "Dictionnaire" in wb.sheetnames
+
+
+def _fill_pole_sheet(wb: Any, label: str, cols: list[str], rows: list[dict[str, Any]]) -> None:
+    ws = wb[label[:31]]
+    # remplace tout sauf l'en-tête généré (déjà présent)
+    for r in rows:
+        ws.append([r.get(c, "") for c in cols])
+
+
+async def test_import_pole_rh_dispatches_per_sheet(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    pole = POLES["rh"]
+    async with _client(tmp_path) as ac:
+        # classeur généré par le backend → on le remplit feuille par feuille
+        r = await ac.get("/v1/erp/import/template/pole/rh")
+        assert r.status_code == 200
+        wb = openpyxl.load_workbook(BytesIO(r.content))
+
+        _fill_pole_sheet(
+            wb,
+            REGISTRY["employees"].label,
+            [c.name for c in REGISTRY["employees"].columns],
+            [{"matricule": "E1", "nom_complet": "Awa", "date_embauche": "2024-01-01"}],
+        )
+        _fill_pole_sheet(
+            wb,
+            REGISTRY["job_roles"].label,
+            [c.name for c in REGISTRY["job_roles"].columns],
+            [{"code_emploi": "DEV", "intitule": "Développeur", "activites": "coder;tester"}],
+        )
+        bio = BytesIO()
+        wb.save(bio)
+        classeur = bio.getvalue()
+
+        # dry-run : rapport par entité
+        r = await ac.post("/v1/erp/import/pole/rh?dry_run=true", content=classeur)
+        rapport = r.json()["rapport"]
+        assert rapport["employees"]["valides"] == 1
+        assert rapport["job_roles"]["valides"] == 1
+
+        # import réel
+        r = await ac.post("/v1/erp/import/pole/rh", content=classeur)
+        rapport = r.json()["rapport"]
+        assert rapport["employees"]["importes"] == 1
+        assert rapport["job_roles"]["importes"] == 1
+        assert len((await ac.get("/v1/erp/employees")).json()["employees"]) == 1
+
+    assert pole.pole == "rh"
+
+
+def test_parse_pole_ignores_unknown_sheets() -> None:
+    pole = POLES["compta"]
+    wb = openpyxl.load_workbook(BytesIO(build_pole_template(pole)))
+    parsed = parse_pole_bytes(wb, pole)
+    assert "invoices" in parsed
+
+
+def parse_pole_bytes(wb: Any, pole: Any) -> dict[str, Any]:
+    bio = BytesIO()
+    wb.save(bio)
+    return parse_pole(bio.getvalue(), pole)

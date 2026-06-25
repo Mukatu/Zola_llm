@@ -15,6 +15,12 @@ export interface ImportEntity {
   columns: { name: string; kind: string; required: boolean; enum: string[] | null }[];
 }
 
+export interface ImportPole {
+  pole: string;
+  label: string;
+  entities: string[];
+}
+
 export interface ImportReport {
   total: number;
   valides?: number;
@@ -24,7 +30,13 @@ export interface ImportReport {
   erreurs: { ligne: number; motifs: string[] }[];
 }
 
-export async function listImportEntities(): Promise<{ entities: ImportEntity[] }> {
+// Rapport par pôle : une entrée par feuille/entité (label + compteurs).
+export interface PoleReport {
+  pole: string;
+  rapport: Record<string, ImportReport & { label: string }>;
+}
+
+export async function listImportEntities(): Promise<{ entities: ImportEntity[]; poles: ImportPole[] }> {
   const r = await fetch(`${API_BASE}/v1/erp/import/entities`, { headers: authHeaders() });
   if (!r.ok) throw new Error(`HTTP ${r.status}`);
   return r.json();
@@ -50,6 +62,25 @@ export function exportEntity(entity: string): Promise<void> {
 
 export async function importFile(entity: string, file: File, dryRun: boolean): Promise<ImportReport> {
   const r = await fetch(`${API_BASE}/v1/erp/import/${entity}?dry_run=${dryRun}`, {
+    method: "POST",
+    headers: authHeaders(),
+    body: file,
+  });
+  if (!r.ok) throw new Error(`HTTP ${r.status}`);
+  return r.json();
+}
+
+// ------------------------------------------------------------------ par pôle
+
+export function downloadPoleTemplate(pole: string): Promise<void> {
+  return downloadBlob(`/v1/erp/import/template/pole/${pole}`, `modele_pole_${pole}.xlsx`);
+}
+export function exportPole(pole: string): Promise<void> {
+  return downloadBlob(`/v1/erp/export/pole/${pole}`, `export_pole_${pole}.xlsx`);
+}
+
+export async function importPoleFile(pole: string, file: File, dryRun: boolean): Promise<PoleReport> {
+  const r = await fetch(`${API_BASE}/v1/erp/import/pole/${pole}?dry_run=${dryRun}`, {
     method: "POST",
     headers: authHeaders(),
     body: file,

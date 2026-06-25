@@ -60,8 +60,16 @@ Employés=`matricule` · Emplois=`code_emploi` · Compétences=`code_competence`
 | Lot | Périmètre | Statut | Commit |
 |-----|-----------|--------|--------|
 | IMP-1 | Framework + Employés/Factures + écran | ✅ | `80caaf9` · `0c8e959` |
-| IMP-2 | Toutes entités + références + classeur pôle | ☐ | — |
+| IMP-2 | Toutes entités (11) + **classeurs par pôle** (RH, Compta) multi-feuilles + écran à 2 modes | ✅ | _(ce lot)_ |
 | IMP-3 | Assist LLM mapping + sync connecteurs | ☐ | — |
+
+### Détail IMP-2 (livré 2026-06-25)
+- **11 entités** câblées au registre : Employés, Contrats, Absences, Emplois (RME), Compétences (RMC), Profil requis, Matrice compétences, Vacances, Formations, Évaluations, Factures.
+- **Classeurs par pôle** (`PoleSpec`) : `rh` (10 feuilles) et `compta` (1 feuille) — un onglet par entité + un **Dictionnaire global** (colonne « Entité »).
+- Type de colonne **`list`** (valeurs séparées par `;`) pour activités/KPI/compétences visées.
+- Endpoints pôle : `GET …/import/template/pole/{pole}`, `POST …/import/pole/{pole}` (rapport **par feuille**), `GET …/export/pole/{pole}`. `GET …/import/entities` expose désormais `poles`.
+- **Écran à 2 modes** (Par pôle / Par type) : dry-run, rapport par feuille, confirmation, export.
+- Prochaine déclinaison : pôles supply/commercial/finance à mesure que la persistance s'étend (clés naturelles déjà prévues §6).
 
 ---
 
