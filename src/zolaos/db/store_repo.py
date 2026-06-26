@@ -16,14 +16,18 @@ from zolaos.db.store_models import (
     ApplicationRecord,
     CandidateRecord,
     ContractRecord,
+    CustomerRecord,
     DocumentRecord,
     EmployeeRecord,
     EmployeeSkillRecord,
     EvaluationRecord,
+    InteractionRecord,
     InterviewRecord,
     InvoiceRecord,
     JobRoleRecord,
     JournalEntryRecord,
+    OpportunityRecord,
+    QuoteRecord,
     RoleSkillRecord,
     SkillRecord,
     StockItemRecord,
@@ -358,6 +362,57 @@ class ApplicationRepository(_SimpleRepo):
                 setattr(rec, k, v)
         await self._s.flush()
         return rec
+
+
+class _CrudRepo(_SimpleRepo):
+    """CRUD complet (create/get/list/update/delete), filtré tenant."""
+
+    async def get(self, rec_id: str, *, tenant_id: str) -> Any:
+        rec = await self._s.get(self.model, rec_id)
+        if rec is None or rec.tenant_id != tenant_id:
+            return None
+        return rec
+
+    async def update(self, rec_id: str, *, tenant_id: str, fields: dict[str, Any]) -> Any:
+        rec = await self.get(rec_id, tenant_id=tenant_id)
+        if rec is None:
+            return None
+        for k, v in fields.items():
+            if hasattr(rec, k) and k not in {"id", "tenant_id", "created_at"}:
+                setattr(rec, k, v)
+        await self._s.flush()
+        return rec
+
+
+class CustomerRepository(_CrudRepo):
+    model = CustomerRecord
+
+
+class OpportunityRepository(_CrudRepo):
+    model = OpportunityRecord
+
+
+class QuoteRepository(_CrudRepo):
+    model = QuoteRecord
+
+
+class InteractionRepository(_CrudRepo):
+    model = InteractionRecord
+
+    async def list(  # type: ignore[override]
+        self,
+        *,
+        tenant_id: str,
+        customer_id: str | None = None,
+        opportunity_id: str | None = None,
+    ) -> list[Any]:
+        stmt = select(InteractionRecord).where(InteractionRecord.tenant_id == tenant_id)
+        if customer_id is not None:
+            stmt = stmt.where(InteractionRecord.customer_id == customer_id)
+        if opportunity_id is not None:
+            stmt = stmt.where(InteractionRecord.opportunity_id == opportunity_id)
+        stmt = stmt.order_by(InteractionRecord.date.desc())
+        return list(await self._s.scalars(stmt))
 
 
 class EmployeeSkillRepository(_SimpleRepo):

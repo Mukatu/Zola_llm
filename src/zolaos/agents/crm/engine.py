@@ -112,9 +112,16 @@ def _recency_score(derniere: date | None, as_of: date) -> Decimal:
 
 
 def score_lead(
-    opp: Opportunity, *, weights: LeadScoringWeights | None = None, as_of: date | None = None
+    opp: Opportunity,
+    *,
+    weights: LeadScoringWeights | None = None,
+    as_of: date | None = None,
+    source: str | None = None,
 ) -> LeadScore:
-    """Score déterministe 0-100 d'une opportunité (étape, récence, montant, source)."""
+    """Score déterministe 0-100 d'une opportunité (étape, récence, montant, source).
+
+    `source` (du Customer rattaché, P2b) affine le poids ; absente → neutre.
+    """
     w = weights or LeadScoringWeights()
     as_of = as_of or date.today()
 
@@ -125,8 +132,7 @@ def score_lead(
         if w.montant_reference_xaf > 0
         else _ZERO
     )
-    # source portée par l'opportunité non disponible ici → neutre (0.4) ; affiné via Customer en CRM-2
-    source_s = SOURCE_WEIGHT["autre"]
+    source_s = SOURCE_WEIGHT.get(source or "autre", SOURCE_WEIGHT["autre"])
 
     score01 = (
         w.stage * stage_s + w.recency * recency_s + w.montant * montant_s + w.source * source_s
@@ -137,6 +143,7 @@ def score_lead(
         f"étape={opp.etape} ({stage_s})",
         f"récence={recency_s}",
         f"montant={montant_s.quantize(Decimal('0.01'))}",
+        f"source={source or 'autre'} ({source_s})",
     ]
     return LeadScore(score=score, grade=grade, raisons=raisons)
 

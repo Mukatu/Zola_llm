@@ -35,7 +35,7 @@ Pour chaque métier, **7 livrables** :
 | P1 | Facturation/Registre (Factures) + **clôture continue** | ✅ |
 | P1b | Écran « Registre & clôture vivante » | ✅ |
 | P2 | Comptabilité (Écritures + **balance vivante**) + Supply (Stocks) + **auto-catégorisation** | ✅ |
-| **P2b** | **Commercial / CRM** (Customer, Opportunity, Quote) | ⏳ à faire |
+| **P2b** | **Commercial / CRM** (Customer, Opportunity, Quote, Interaction) — back-end ✅ (P2b-1), écran à faire (P2b-2) | 🔄 |
 | **P2c** | **Achats** (Supplier, PurchaseOrder) + **SIRH-1** Core HR & pilotage (registres + tableau de bord + organigramme) → débloque **Paie** historisée | ⏳ |
 | **P2c+** | **SIRH-2** Recrutement (pipeline + génération) · **SIRH-3** Développement/GPEC/Formation — voir `docs/SIRH_ROADMAP.md` | ⏳ |
 | **P2d** | **Opérations** : Facility (Asset/Echeance), HSE (Risque/Incident), Marketing (MarketingContact/Campaign) | ⏳ |
@@ -109,9 +109,9 @@ Entités `store_mandates` + `store_resolutions` (AG/PV). Endpoints `/v1/erp/corp
 
 ### B. Pôles Commercial / Marketing / BI
 
-**10. Commercial / CRM — ⏳ (P2b, PRIORITÉ)**
-Entités `store_customers` + `store_opportunities` + `store_quotes` (canoniques : `crm.models`). Endpoints `/v1/crm/customers|opportunities|quotes` (CRUD) + `/crm/analyze` (🔁 : pipeline/scoring/relances sur données **stockées**). Écran `CrmScreen` (🔁 : kanban sur **vrai pipeline** + drag-stage persisté + relances).
-**Plus-value** : pipeline réel suivi dans le temps, conversion mesurée, relances proactives sur l'encours.
+**10. Commercial / CRM — 🔄 (P2b : back-end ✅ P2b-1, écran ⏳ P2b-2)**
+Entités `store_customers` + `store_opportunities` + `store_quotes` + `store_interactions` (canoniques : `crm.models`). Endpoints `/v1/crm/customers|opportunities|quotes|interactions` (CRUD) + `PATCH /opportunities/{id}/stage` (kanban) + `GET /crm/analyze` (🔁 : pipeline/scoring/relances sur données **stockées**, score affiné par source client et dernière interaction) + `GET /crm/forecast` (prévision pondérée par mois de clôture) + `POST /quotes/{id}/convert` (matérialise une **facture** dans `store_invoices` → branche la clôture continue). Écran `CrmScreen` (P2b-2 : kanban sur **vrai pipeline** + drag-stage persisté + relances + mini-forecast + timeline d'interactions).
+**Plus-value** : pipeline réel suivi dans le temps, conversion mesurée jusqu'à la facture, relances proactives sur l'encours.
 
 **11. Marketing — ⏳ (P2d)**
 Entités `store_marketing_contacts` (canonique : `mkt.models.MarketingContact`) + `store_campaigns`. Endpoints `/v1/mkt/contacts` (CRUD) + `/mkt/audience` (🔁 sur contacts stockés) + `/campaigns`. Écran `MarketingScreen` (🔁 : base contacts + journal de consentement persistant).
@@ -174,7 +174,7 @@ Cyber : moteur + écran (hors persistance lourde initiale). Pôle K : dictionnai
 | Phase | Métier | DoD | Commit |
 |-------|--------|-----|--------|
 | P1/P1b/P2 | Factures, Écritures, Stocks | ✅ | `de476ea`,`22eccbd`,`16d3c1b`,`8edc431`,`6612f3a` |
-| P2b | Commercial | ☐ | — |
+| P2b | Commercial | 🔄 | back-end (registres + endpoints + moteur sur store + tests) ✅ P2b-1 ; écran ⏳ P2b-2 |
 | P2c | Achats, SIRH (RH pilotage), Paie | ☐ | — |
 | P2d | Facility, HSE, Marketing | ☐ | — |
 | P2e | Finance, Secrétariat, Projets ONG | ☐ | — |

@@ -626,6 +626,159 @@ class TrainingEvaluationRecord(StoreBase):
         }
 
 
+class CustomerRecord(StoreBase):
+    """Client / prospect persisté (CRM — P2b)."""
+
+    __tablename__ = "store_customers"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    tenant_id: Mapped[str] = mapped_column(String(64), index=True)
+    id_externe: Mapped[str] = mapped_column(String(64))
+    nom: Mapped[str] = mapped_column(String(200))
+    type: Mapped[str] = mapped_column(String(12), default="prospect")  # client | prospect
+    email: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    telephone: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    secteur: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    source: Mapped[str] = mapped_column(String(12), default="autre")
+    date_creation: Mapped[date | None] = mapped_column(Date, nullable=True)
+    derniere_interaction: Mapped[date | None] = mapped_column(Date, nullable=True)
+    country: Mapped[str] = mapped_column(String(2), default="cg")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_now, onupdate=_now
+    )
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "tenant_id": self.tenant_id,
+            "id_externe": self.id_externe,
+            "nom": self.nom,
+            "type": self.type,
+            "email": self.email,
+            "telephone": self.telephone,
+            "secteur": self.secteur,
+            "source": self.source,
+            "date_creation": self.date_creation.isoformat() if self.date_creation else None,
+            "derniere_interaction": (
+                self.derniere_interaction.isoformat() if self.derniere_interaction else None
+            ),
+            "country": self.country,
+        }
+
+
+class OpportunityRecord(StoreBase):
+    """Opportunité commerciale persistée (pipeline — P2b)."""
+
+    __tablename__ = "store_opportunities"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    tenant_id: Mapped[str] = mapped_column(String(64), index=True)
+    id_externe: Mapped[str] = mapped_column(String(64))
+    client: Mapped[str] = mapped_column(String(200))
+    libelle: Mapped[str] = mapped_column(String(200))
+    montant_xaf: Mapped[Decimal] = mapped_column(Numeric(18, 2), default=Decimal("0"))
+    etape: Mapped[str] = mapped_column(String(16), default="prospection")
+    probabilite: Mapped[Decimal | None] = mapped_column(Numeric(4, 3), nullable=True)
+    date_creation: Mapped[date | None] = mapped_column(Date, nullable=True)
+    date_cloture_prevue: Mapped[date | None] = mapped_column(Date, nullable=True)
+    derniere_interaction: Mapped[date | None] = mapped_column(Date, nullable=True)
+    country: Mapped[str] = mapped_column(String(2), default="cg")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_now, onupdate=_now
+    )
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "tenant_id": self.tenant_id,
+            "id_externe": self.id_externe,
+            "client": self.client,
+            "libelle": self.libelle,
+            "montant_xaf": str(self.montant_xaf),
+            "etape": self.etape,
+            "probabilite": str(self.probabilite) if self.probabilite is not None else None,
+            "date_creation": self.date_creation.isoformat() if self.date_creation else None,
+            "date_cloture_prevue": (
+                self.date_cloture_prevue.isoformat() if self.date_cloture_prevue else None
+            ),
+            "derniere_interaction": (
+                self.derniere_interaction.isoformat() if self.derniere_interaction else None
+            ),
+            "country": self.country,
+        }
+
+
+class QuoteRecord(StoreBase):
+    """Devis persisté (lignes en JSON) — convertible en facture (P2b)."""
+
+    __tablename__ = "store_quotes"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    tenant_id: Mapped[str] = mapped_column(String(64), index=True)
+    id_externe: Mapped[str] = mapped_column(String(64))
+    numero: Mapped[str] = mapped_column(String(64))
+    client: Mapped[str] = mapped_column(String(200))
+    date_emission: Mapped[date] = mapped_column(Date)
+    date_validite: Mapped[date | None] = mapped_column(Date, nullable=True)
+    statut: Mapped[str] = mapped_column(String(12), default="brouillon")
+    lignes: Mapped[list[dict[str, Any]]] = mapped_column(JSON, default=list)
+    montant_ht_xaf: Mapped[Decimal] = mapped_column(Numeric(18, 2), default=Decimal("0"))
+    montant_ttc_xaf: Mapped[Decimal] = mapped_column(Numeric(18, 2), default=Decimal("0"))
+    invoice_id: Mapped[str | None] = mapped_column(String(36), nullable=True)  # si converti
+    country: Mapped[str] = mapped_column(String(2), default="cg")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "tenant_id": self.tenant_id,
+            "id_externe": self.id_externe,
+            "numero": self.numero,
+            "client": self.client,
+            "date_emission": self.date_emission.isoformat() if self.date_emission else None,
+            "date_validite": self.date_validite.isoformat() if self.date_validite else None,
+            "statut": self.statut,
+            "lignes": self.lignes,
+            "montant_ht_xaf": str(self.montant_ht_xaf),
+            "montant_ttc_xaf": str(self.montant_ttc_xaf),
+            "invoice_id": self.invoice_id,
+            "country": self.country,
+        }
+
+
+class InteractionRecord(StoreBase):
+    """Interaction commerciale (journal des contacts — P2b enrichissement).
+
+    Rattachée à un client et/ou une opportunité ; rend « dernière interaction »
+    et les relances *réelles* dans le temps (au lieu d'un champ figé).
+    """
+
+    __tablename__ = "store_interactions"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    tenant_id: Mapped[str] = mapped_column(String(64), index=True)
+    customer_id: Mapped[str | None] = mapped_column(String(36), index=True, nullable=True)
+    opportunity_id: Mapped[str | None] = mapped_column(String(36), index=True, nullable=True)
+    type: Mapped[str] = mapped_column(String(12), default="note")  # appel|email|visite|relance|note
+    date: Mapped[date] = mapped_column(Date)
+    resume: Mapped[str] = mapped_column(Text, default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "tenant_id": self.tenant_id,
+            "customer_id": self.customer_id,
+            "opportunity_id": self.opportunity_id,
+            "type": self.type,
+            "date": self.date.isoformat() if self.date else None,
+            "resume": self.resume,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
+
+
 class EvaluationRecord(StoreBase):
     """Évaluation annuelle : performance × potentiel (SIRH-3b)."""
 
