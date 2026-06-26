@@ -71,10 +71,11 @@ const DEMO_ENGAGEMENTS = [
   { numero_eb: "0410/26", numero_da: "0345/26", numero_bc: "0181/26", date_eb: "2026-05-04", date_da: "2026-05-10", date_bc: "2026-05-18", direction: "DARH", service: "Moyens généraux", demandeur: "OKEMBA J.", acheteur: "Judith", fournisseur: "Beta Distrib", estimation_xaf: "600000", montant_xaf: "850000", statut_ebda: "OK / Traitée", statut_bc: "En cours F/sseur" },
 ];
 
-const EXERCICE = "2026";
+const EXERCICE_DEFAUT = String(new Date().getFullYear());
 
 export function AchatsScreen() {
   const [tab, setTab] = useState<"appro" | "engagements" | "pilotage">("appro");
+  const [exercice, setExercice] = useState<string>(EXERCICE_DEFAUT);
   const [suppliers, setSuppliers] = useState<SupplierRec[]>([]);
   const [scores, setScores] = useState<Record<string, SupplierScore>>({});
   const [pos, setPos] = useState<PurchaseOrderRec[]>([]);
@@ -113,29 +114,43 @@ export function AchatsScreen() {
   const loadPilotage = useCallback(async () => {
     try {
       const [p, b] = await Promise.all([
-        engagementPilotage(EXERCICE),
-        listPurchaseBudgets(EXERCICE),
+        engagementPilotage(exercice),
+        listPurchaseBudgets(exercice),
       ]);
       setPilotage(p.pilotage);
       setBudgets(b.budgets);
     } catch {
       /* le bandeau d'erreur global suffit */
     }
-  }, []);
+  }, [exercice]);
 
   useEffect(() => {
     refresh();
+  }, [refresh]);
+
+  useEffect(() => {
     loadPilotage();
-  }, [refresh, loadPilotage]);
+  }, [loadPilotage]);
 
   async function saveBudget(direction: string, montant: string) {
     try {
-      await setPurchaseBudget({ direction, exercice: EXERCICE, budget_xaf: montant });
+      await setPurchaseBudget({ direction, exercice, budget_xaf: montant });
       await loadPilotage();
     } catch {
       setErr("Enregistrement du budget impossible.");
     }
   }
+
+  // Exercices proposés : ceux présents dans les engagements + l'année courante.
+  const exercices = Array.from(
+    new Set([
+      EXERCICE_DEFAUT,
+      exercice,
+      ...engagements.flatMap((e) =>
+        [e.date_bc, e.date_da, e.date_eb].filter(Boolean).map((d) => (d as string).slice(0, 4)),
+      ),
+    ]),
+  ).sort((a, b) => b.localeCompare(a));
 
   async function addSupplier() {
     if (!supForm.nom) return;
@@ -255,7 +270,9 @@ export function AchatsScreen() {
 
       {tab === "pilotage" ? (
         <PilotagePanel
-          exercice={EXERCICE}
+          exercice={exercice}
+          exercices={exercices}
+          onExercice={setExercice}
           pilotage={pilotage}
           budgets={budgets}
           onSaveBudget={saveBudget}
@@ -590,11 +607,15 @@ const NIVEAU_LABEL: Record<string, string> = {
 
 function PilotagePanel({
   exercice,
+  exercices,
+  onExercice,
   pilotage,
   budgets,
   onSaveBudget,
 }: {
   exercice: string;
+  exercices: string[];
+  onExercice: (e: string) => void;
   pilotage: PilotageBudgetaire | null;
   budgets: PurchaseBudgetRec[];
   onSaveBudget: (direction: string, montant: string) => void;
@@ -602,13 +623,36 @@ function PilotagePanel({
   const [budForm, setBudForm] = useState({ direction: "", montant: "" });
   const budgetMap = Object.fromEntries(budgets.map((b) => [b.direction, b.budget_xaf]));
 
+  const selecteur = (
+    <div className="flex items-center gap-2">
+      <span className="text-xs text-muted">Exercice</span>
+      <select
+        value={exercice}
+        onChange={(e) => onExercice(e.target.value)}
+        className="rounded-lg border border-black/10 bg-white px-2 py-1 text-sm"
+      >
+        {exercices.map((ex) => (
+          <option key={ex} value={ex}>
+            {ex}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+
   if (!pilotage) {
-    return <Card><p className="text-sm text-muted">Chargement du pilotage…</p></Card>;
+    return (
+      <Card>
+        <div className="mb-2 flex justify-end">{selecteur}</div>
+        <p className="text-sm text-muted">Chargement du pilotage…</p>
+      </Card>
+    );
   }
   const maxSerie = Math.max(1, ...pilotage.serie_mensuelle.map((s) => s.engage_xaf));
 
   return (
     <div className="flex flex-col gap-4">
+      <div className="flex justify-end">{selecteur}</div>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <Kpi label={`Budget ${exercice}`} value={fmt(pilotage.budget_total_xaf) + " XAF"} />
         <Kpi label="Engagé" value={fmt(pilotage.engage_total_xaf) + " XAF"} />

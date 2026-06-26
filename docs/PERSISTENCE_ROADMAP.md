@@ -68,9 +68,14 @@ Entité **nouvelle** `store_bank_transactions` (canonique : `connectors.models.B
 `store_stock_items` (canonique : `supply.StockItem`). Endpoints `/v1/erp/stock` (CRUD) + `/stock/analyze`. Écran `SupplyScreen` (🔁 : stock persistant + analyse).
 *Reste* : `store_stock_moves` (entrées/sorties), lots/péremption, valorisation. **Plus-value** : stock réel, réappro auto.
 
-**5. Achats / Procurement — ✅ (P2c : back-end P2c-1, écran rebranché P2c-2)**
-Entités `store_suppliers` (canonique : `achats.Supplier`) + `store_purchase_orders` (lignes JSON). Endpoints `/v1/erp/suppliers` (CRUD + `GET /suppliers/scores` scoring/conformité sur le store) + `/purchase-orders` (CRUD + `GET /purchase-orders/compare` comparatif prix/délai) + **`POST /purchase-orders/{id}/receipt`** (réception → **facture d'achat** `sens="achat"` dans `store_invoices` ; 409 si déjà réceptionné, 422 si brouillon). Écran `AchatsScreen` (P2c-2 : registre fournisseurs noté/gradé, alertes conformité, comparatif sur vrais BC, réception→facture).
-**Plus-value** : registre fournisseurs, historique d'achats, anti-surfacturation tracée, **encours fournisseurs réel** (clôture continue côté achat).
+**5. Achats / Procurement — ✅ MODULE CLOS (3 strates)**
+Entités `store_suppliers` + `store_purchase_orders` + `store_engagements` + `store_purchase_budgets`. L'écran `AchatsScreen` a **3 onglets** :
+- **Approvisionnement** : fournisseurs notés/gradés + conformité OHADA, BC, comparatif prix/délai, **réception → facture d'achat** (`sens="achat"` dans `store_invoices` ; clôture continue côté achat).
+- **Engagements** (inspiré de l'outil métier réel) : chaîne **EB → DA → BC**, taux de transformation, funnel des statuts, délais de cycle, écart estimation/engagé, par direction/acheteur, alertes.
+- **Pilotage CDG** : **engagé vs budget par direction** (consommation, niveaux ok/vigilance/dépassement), tendance mensuelle, concentration fournisseurs, sélecteur d'exercice.
+
+Endpoints : `/v1/erp/{suppliers,purchase-orders,engagements,purchase-budgets}` (CRUD) + `suppliers/scores`, `purchase-orders/compare`, `purchase-orders/{id}/receipt`, `engagements/stats`, `engagements/pilotage?exercice=`. Import : pôle Achats à **4 feuilles** (alias alignés sur le fichier métier réel).
+**Plus-value** : registre fournisseurs, anti-surfacturation tracée, encours fournisseurs réel, **suivi des engagements et pilotage budgétaire** (contrôle de gestion).
 
 **6. RH — SIRH complet (3 piliers) — ⏳ (P2c → SIRH-1/2/3)** · **plan détaillé : `docs/SIRH_ROADMAP.md`**
 Objectif : un **SIRH de pilotage** couvrant **Recrutement**, **Administration du Personnel**, **Développement du Capital Humain (GPEC/Formation)** — registres persistés + **indicateurs déterministes** + **génération d'artefacts** (fiches de poste, contrats CDI/CDD en masse, grilles d'entretien, plans de formation, plan GPEC, matrice risques/opportunités, organigramme…) + échéanciers/alertes. LLM rédige (brouillons validés), l'humain valide ; le lourd (LMS, job boards, pointage, BPM) → interop.
