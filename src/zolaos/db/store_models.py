@@ -779,6 +779,82 @@ class InteractionRecord(StoreBase):
         }
 
 
+class SupplierRecord(StoreBase):
+    """Fournisseur persisté (Achats / Procurement — P2c)."""
+
+    __tablename__ = "store_suppliers"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    tenant_id: Mapped[str] = mapped_column(String(64), index=True)
+    id_externe: Mapped[str] = mapped_column(String(64))
+    nom: Mapped[str] = mapped_column(String(200))
+    secteur: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    note_qualite: Mapped[Decimal] = mapped_column(Numeric(2, 1), default=Decimal("0"))  # 0-5
+    delai_moyen_jours: Mapped[int] = mapped_column(Integer, default=0)
+    documents_conformite: Mapped[list[str]] = mapped_column(JSON, default=list)
+    actif: Mapped[bool] = mapped_column(Boolean, default=True)
+    country: Mapped[str] = mapped_column(String(2), default="cg")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_now, onupdate=_now
+    )
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "tenant_id": self.tenant_id,
+            "id_externe": self.id_externe,
+            "nom": self.nom,
+            "secteur": self.secteur,
+            "note_qualite": str(self.note_qualite),
+            "delai_moyen_jours": self.delai_moyen_jours,
+            "documents_conformite": self.documents_conformite,
+            "actif": self.actif,
+            "country": self.country,
+        }
+
+
+class PurchaseOrderRecord(StoreBase):
+    """Bon de commande persisté (lignes JSON) — réceptionnable en facture d'achat (P2c)."""
+
+    __tablename__ = "store_purchase_orders"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    tenant_id: Mapped[str] = mapped_column(String(64), index=True)
+    id_externe: Mapped[str] = mapped_column(String(64))
+    numero: Mapped[str] = mapped_column(String(64))
+    fournisseur: Mapped[str] = mapped_column(String(200))
+    objet: Mapped[str] = mapped_column(String(200), default="")
+    date_emission: Mapped[date] = mapped_column(Date)
+    # brouillon | envoye | confirme | receptionne
+    statut: Mapped[str] = mapped_column(String(12), default="brouillon")
+    lignes: Mapped[list[dict[str, Any]]] = mapped_column(JSON, default=list)
+    montant_ht_xaf: Mapped[Decimal] = mapped_column(Numeric(18, 2), default=Decimal("0"))
+    montant_ttc_xaf: Mapped[Decimal] = mapped_column(Numeric(18, 2), default=Decimal("0"))
+    delai_livraison_jours: Mapped[int] = mapped_column(Integer, default=0)
+    invoice_id: Mapped[str | None] = mapped_column(String(36), nullable=True)  # si réceptionné
+    country: Mapped[str] = mapped_column(String(2), default="cg")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "tenant_id": self.tenant_id,
+            "id_externe": self.id_externe,
+            "numero": self.numero,
+            "fournisseur": self.fournisseur,
+            "objet": self.objet,
+            "date_emission": self.date_emission.isoformat() if self.date_emission else None,
+            "statut": self.statut,
+            "lignes": self.lignes,
+            "montant_ht_xaf": str(self.montant_ht_xaf),
+            "montant_ttc_xaf": str(self.montant_ttc_xaf),
+            "delai_livraison_jours": self.delai_livraison_jours,
+            "invoice_id": self.invoice_id,
+            "country": self.country,
+        }
+
+
 class EvaluationRecord(StoreBase):
     """Évaluation annuelle : performance × potentiel (SIRH-3b)."""
 

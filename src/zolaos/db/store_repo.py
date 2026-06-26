@@ -27,10 +27,12 @@ from zolaos.db.store_models import (
     JobRoleRecord,
     JournalEntryRecord,
     OpportunityRecord,
+    PurchaseOrderRecord,
     QuoteRecord,
     RoleSkillRecord,
     SkillRecord,
     StockItemRecord,
+    SupplierRecord,
     TrainingEnrollmentRecord,
     TrainingEvaluationRecord,
     TrainingRecord,
@@ -394,6 +396,14 @@ class OpportunityRepository(_CrudRepo):
 
 class QuoteRepository(_CrudRepo):
     model = QuoteRecord
+
+
+class SupplierRepository(_CrudRepo):
+    model = SupplierRecord
+
+
+class PurchaseOrderRepository(_CrudRepo):
+    model = PurchaseOrderRecord
 
 
 class InteractionRepository(_CrudRepo):

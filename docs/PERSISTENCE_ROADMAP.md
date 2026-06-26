@@ -68,9 +68,9 @@ Entité **nouvelle** `store_bank_transactions` (canonique : `connectors.models.B
 `store_stock_items` (canonique : `supply.StockItem`). Endpoints `/v1/erp/stock` (CRUD) + `/stock/analyze`. Écran `SupplyScreen` (🔁 : stock persistant + analyse).
 *Reste* : `store_stock_moves` (entrées/sorties), lots/péremption, valorisation. **Plus-value** : stock réel, réappro auto.
 
-**5. Achats / Procurement — ⏳ (P2c)**
-Entités `store_suppliers` (canonique : `achats.Supplier`) + `store_purchase_orders` (lignes JSON ; devis comparés → BC). Endpoints `/v1/erp/suppliers` (CRUD + score/conformité) + `/purchase-orders` (CRUD + comparatif). Écran `AchatsScreen` (🔁 : registre fournisseurs + historique devis/BC).
-**Plus-value** : registre fournisseurs, historique d'achats, anti-surfacturation tracée.
+**5. Achats / Procurement — 🔄 (P2c : back-end ✅ P2c-1, écran ⏳ P2c-2)**
+Entités `store_suppliers` (canonique : `achats.Supplier`) + `store_purchase_orders` (lignes JSON). Endpoints `/v1/erp/suppliers` (CRUD + `GET /suppliers/scores` scoring/conformité sur le store) + `/purchase-orders` (CRUD + `GET /purchase-orders/compare` comparatif prix/délai) + **`POST /purchase-orders/{id}/receipt`** (réception → **facture d'achat** `sens="achat"` dans `store_invoices` ; 409 si déjà réceptionné, 422 si brouillon). Écran `AchatsScreen` (P2c-2 : registre fournisseurs noté/gradé, alertes conformité, comparatif sur vrais BC, réception→facture).
+**Plus-value** : registre fournisseurs, historique d'achats, anti-surfacturation tracée, **encours fournisseurs réel** (clôture continue côté achat).
 
 **6. RH — SIRH complet (3 piliers) — ⏳ (P2c → SIRH-1/2/3)** · **plan détaillé : `docs/SIRH_ROADMAP.md`**
 Objectif : un **SIRH de pilotage** couvrant **Recrutement**, **Administration du Personnel**, **Développement du Capital Humain (GPEC/Formation)** — registres persistés + **indicateurs déterministes** + **génération d'artefacts** (fiches de poste, contrats CDI/CDD en masse, grilles d'entretien, plans de formation, plan GPEC, matrice risques/opportunités, organigramme…) + échéanciers/alertes. LLM rédige (brouillons validés), l'humain valide ; le lourd (LMS, job boards, pointage, BPM) → interop.
@@ -175,7 +175,7 @@ Cyber : moteur + écran (hors persistance lourde initiale). Pôle K : dictionnai
 |-------|--------|-----|--------|
 | P1/P1b/P2 | Factures, Écritures, Stocks | ✅ | `de476ea`,`22eccbd`,`16d3c1b`,`8edc431`,`6612f3a` |
 | P2b | Commercial | ✅ | back-end P2b-1 (registres + endpoints + moteur sur store + tests) + front P2b-2 (kanban persisté, drag-stage, score, relances, forecast, timeline, devis→facture) |
-| P2c | Achats, SIRH (RH pilotage), Paie | ☐ | — |
+| P2c | Achats, SIRH (RH pilotage), Paie | 🔄 | Achats back-end ✅ P2c-1 (suppliers + purchase-orders + scoring/comparatif sur store + réception→facture achat) ; écran ⏳ P2c-2. SIRH livré séparément |
 | P2d | Facility, HSE, Marketing | ☐ | — |
 | P2e | Finance, Secrétariat, Projets ONG | ☐ | — |
 | P2f | Documents (Droit/Santé/Code) | ☐ | — |

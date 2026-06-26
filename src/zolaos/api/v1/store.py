@@ -16,12 +16,25 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from zolaos.agents.erp.achats import (
+    OffreFournisseur,
+    Supplier,
+    comparer_offres,
+    score_fournisseur,
+    verifier_conformite,
+)
 from zolaos.agents.erp.compta import ChartOfAccounts, JournalValidator
 from zolaos.agents.erp.reconciliation import reconcilier
 from zolaos.agents.erp.supply import StockItem, alertes_rupture, analyser_reappro
 from zolaos.connectors.models import BankTransaction, Invoice, JournalEntry, JournalLine
 from zolaos.db.session import get_session
-from zolaos.db.store_repo import InvoiceRepository, JournalRepository, StockRepository
+from zolaos.db.store_repo import (
+    InvoiceRepository,
+    JournalRepository,
+    PurchaseOrderRepository,
+    StockRepository,
+    SupplierRepository,
+)
 
 router = APIRouter(prefix="/v1/erp", tags=["store"])
 
@@ -380,3 +393,256 @@ async def analyze_stock(
         "suggestions": [asdict(s) for s in analyser_reappro(items)],
         "alertes": [asdict(a) for a in alertes_rupture(items, horizon_jours=30)],
     }
+
+
+# ---------------------------------------------------------------- Achats (P2c)
+
+
+class SupplierIn(BaseModel):
+    id_externe: str
+    nom: str
+    secteur: str | None = None
+    note_qualite: Decimal = Field(default=Decimal("0"), ge=0, le=5)
+    delai_moyen_jours: int = Field(default=0, ge=0)
+    documents_conformite: list[str] = Field(default_factory=list)
+    actif: bool = True
+    country: str = "cg"
+
+
+class SupplierPatch(BaseModel):
+    nom: str | None = None
+    secteur: str | None = None
+    note_qualite: Decimal | None = None
+    delai_moyen_jours: int | None = None
+    documents_conformite: list[str] | None = None
+    actif: bool | None = None
+
+
+class PurchaseOrderLineIn(BaseModel):
+    libelle: str
+    montant_ht_xaf: Decimal = Decimal("0")
+
+
+class PurchaseOrderIn(BaseModel):
+    id_externe: str
+    numero: str
+    fournisseur: str
+    objet: str = ""
+    date_emission: date
+    statut: str = "brouillon"
+    lignes: list[PurchaseOrderLineIn] = Field(default_factory=list)
+    montant_ht_xaf: Decimal = Decimal("0")
+    montant_ttc_xaf: Decimal = Decimal("0")
+    delai_livraison_jours: int = Field(default=0, ge=0)
+    country: str = "cg"
+
+
+class PurchaseOrderPatch(BaseModel):
+    objet: str | None = None
+    statut: str | None = None
+    montant_ht_xaf: Decimal | None = None
+    montant_ttc_xaf: Decimal | None = None
+    delai_livraison_jours: int | None = None
+
+
+def _supplier_of(rec: Any) -> Supplier:
+    return Supplier(
+        id_externe=rec.id_externe,
+        nom=rec.nom,
+        secteur=rec.secteur,
+        note_qualite=rec.note_qualite,
+        delai_moyen_jours=rec.delai_moyen_jours,
+        documents_conformite=list(rec.documents_conformite or []),
+        actif=rec.actif,
+        country=rec.country,
+    )
+
+
+# ----- CRUD fournisseurs -----
+
+
+@router.post("/suppliers", status_code=status.HTTP_201_CREATED, summary="Créer un fournisseur")
+async def create_supplier(
+    body: SupplierIn,
+    tenant_id: str = "local",
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    rec = await SupplierRepository(session).create({**body.model_dump(), "tenant_id": tenant_id})
+    await session.commit()
+    return rec.to_dict()
+
+
+@router.get("/suppliers", summary="Lister les fournisseurs")
+async def list_suppliers(
+    tenant_id: str = "local",
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    rows = await SupplierRepository(session).list(tenant_id=tenant_id)
+    return {"suppliers": [r.to_dict() for r in rows]}
+
+
+@router.get("/suppliers/scores", summary="Scoring + conformité des fournisseurs (sur le store)")
+async def suppliers_scores(
+    tenant_id: str = "local",
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    rows = await SupplierRepository(session).list(tenant_id=tenant_id)
+    scores = []
+    for r in rows:
+        sup = _supplier_of(r)
+        scores.append(
+            {
+                "id": r.id,
+                **asdict(score_fournisseur(sup)),
+                "conformite_manquante": verifier_conformite(sup),
+            }
+        )
+    scores.sort(key=lambda s: s["score"], reverse=True)
+    return {"scores": scores}
+
+
+@router.patch("/suppliers/{supplier_id}", summary="Mettre à jour un fournisseur")
+async def patch_supplier(
+    supplier_id: str,
+    body: SupplierPatch,
+    tenant_id: str = "local",
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    rec = await SupplierRepository(session).update(
+        supplier_id, tenant_id=tenant_id, fields=body.model_dump(exclude_none=True)
+    )
+    if rec is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="supplier_not_found")
+    await session.commit()
+    return rec.to_dict()
+
+
+@router.delete("/suppliers/{supplier_id}", summary="Supprimer un fournisseur")
+async def delete_supplier(
+    supplier_id: str,
+    tenant_id: str = "local",
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    ok = await SupplierRepository(session).delete(supplier_id, tenant_id=tenant_id)
+    if not ok:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="supplier_not_found")
+    await session.commit()
+    return {"deleted": supplier_id}
+
+
+# ----- CRUD bons de commande -----
+
+
+@router.post(
+    "/purchase-orders", status_code=status.HTTP_201_CREATED, summary="Créer un bon de commande"
+)
+async def create_po(
+    body: PurchaseOrderIn,
+    tenant_id: str = "local",
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    data = body.model_dump()
+    data["lignes"] = [
+        {"libelle": x["libelle"], "montant_ht_xaf": str(x["montant_ht_xaf"])}
+        for x in data["lignes"]
+    ]
+    rec = await PurchaseOrderRepository(session).create({**data, "tenant_id": tenant_id})
+    await session.commit()
+    return rec.to_dict()
+
+
+@router.get("/purchase-orders", summary="Lister les bons de commande")
+async def list_pos(
+    tenant_id: str = "local",
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    rows = await PurchaseOrderRepository(session).list(tenant_id=tenant_id)
+    return {"purchase_orders": [r.to_dict() for r in rows]}
+
+
+@router.get("/purchase-orders/compare", summary="Comparatif des BC (prix/délai, sur le store)")
+async def compare_pos(
+    tenant_id: str = "local",
+    objet: str | None = None,
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    rows = await PurchaseOrderRepository(session).list(tenant_id=tenant_id)
+    offres = [
+        OffreFournisseur(
+            id_externe=r.id_externe,
+            fournisseur=r.fournisseur,
+            objet=r.objet,
+            montant_ht_xaf=r.montant_ht_xaf,
+            montant_ttc_xaf=r.montant_ttc_xaf,
+            delai_livraison_jours=r.delai_livraison_jours,
+            country=r.country,
+        )
+        for r in rows
+        if objet is None or r.objet == objet
+    ]
+    return {"classement": [asdict(c) for c in comparer_offres(offres)]}
+
+
+@router.patch("/purchase-orders/{po_id}", summary="Mettre à jour un bon de commande")
+async def patch_po(
+    po_id: str,
+    body: PurchaseOrderPatch,
+    tenant_id: str = "local",
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    rec = await PurchaseOrderRepository(session).update(
+        po_id, tenant_id=tenant_id, fields=body.model_dump(exclude_none=True)
+    )
+    if rec is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="po_not_found")
+    await session.commit()
+    return rec.to_dict()
+
+
+@router.delete("/purchase-orders/{po_id}", summary="Supprimer un bon de commande")
+async def delete_po(
+    po_id: str,
+    tenant_id: str = "local",
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    ok = await PurchaseOrderRepository(session).delete(po_id, tenant_id=tenant_id)
+    if not ok:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="po_not_found")
+    await session.commit()
+    return {"deleted": po_id}
+
+
+@router.post(
+    "/purchase-orders/{po_id}/receipt", summary="Réceptionner un BC → facture d'achat (clôture)"
+)
+async def receipt_po(
+    po_id: str,
+    tenant_id: str = "local",
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    pos = PurchaseOrderRepository(session)
+    rec = await pos.get(po_id, tenant_id=tenant_id)
+    if rec is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="po_not_found")
+    if rec.invoice_id is not None:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="deja_receptionne")
+    if rec.statut == "brouillon":
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="bon_non_emis")
+    inv = await InvoiceRepository(session).create(
+        {
+            "tenant_id": tenant_id,
+            "numero": rec.numero,
+            "sens": "achat",
+            "tiers": rec.fournisseur,
+            "date_emission": rec.date_emission,
+            "montant_ht_xaf": rec.montant_ht_xaf,
+            "montant_ttc_xaf": rec.montant_ttc_xaf,
+            "payee": False,
+            "country": rec.country,
+        }
+    )
+    await pos.update(
+        po_id, tenant_id=tenant_id, fields={"invoice_id": inv.id, "statut": "receptionne"}
+    )
+    await session.commit()
+    return {"purchase_order": rec.to_dict(), "invoice": inv.to_dict()}
