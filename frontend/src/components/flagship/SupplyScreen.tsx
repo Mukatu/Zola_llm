@@ -11,6 +11,8 @@ import {
   Sliders,
   ClipboardCheck,
   AlertTriangle,
+  Gauge,
+  Download,
 } from "lucide-react";
 import { Card, Button } from "../ui";
 import { FlagshipHeader, Inp, Urg } from "./_shared";
@@ -27,11 +29,14 @@ import {
   deleteStockMove,
   stockInventory,
   stockPeremption,
+  stockPilotage,
+  downloadStockPilotage,
   type StockRec,
   type ReapproSugg,
   type StockMoveRec,
   type InventaireResultat,
   type PeremptionAlerte,
+  type PilotageStock,
 } from "@/lib/store";
 
 const EMPTY = { sku: "", libelle: "", quantite_actuelle: "0", conso_moyenne_jour: "0", delai_appro_jours: 7, stock_securite: "0" };
@@ -50,16 +55,23 @@ export function SupplyScreen() {
   const [mv, setMv] = useState({ type: "entree", sku: "", quantite: "", cout: "" });
   const [res, setRes] = useState<{ suggestions: ReapproSugg[]; alertes: ReapproSugg[] } | null>(null);
   const [peremption, setPeremption] = useState<PeremptionAlerte[]>([]);
+  const [pilotage, setPilotage] = useState<PilotageStock | null>(null);
   const [counts, setCounts] = useState<Record<string, string>>({});
   const [invRes, setInvRes] = useState<InventaireResultat[] | null>(null);
   const [err, setErr] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     try {
-      const [s, m, p] = await Promise.all([listStock(), listStockMoves(), stockPeremption(30)]);
+      const [s, m, p, pil] = await Promise.all([
+        listStock(),
+        listStockMoves(),
+        stockPeremption(30),
+        stockPilotage(),
+      ]);
       setItems(s.items);
       setMoves(m.moves);
       setPeremption(p.alertes);
+      setPilotage(pil.pilotage);
     } catch (e) {
       setErr(e instanceof ApiError ? "Backend indisponible (DB requise)." : "Service indisponible.");
     }
@@ -173,6 +185,59 @@ export function SupplyScreen() {
         <Kpi label="Mouvements" value={String(moves.length)} />
         <Kpi label="À valider" value={String(enBrouillon)} />
       </div>
+
+      {/* Pilotage stock (valorisation, rupture, ABC, rotation) */}
+      {pilotage && pilotage.nb_articles > 0 && (
+        <Card>
+          <div className="mb-2 flex items-center justify-between">
+            <h2 className="flex items-center gap-2 text-sm font-semibold">
+              <Gauge className="h-4 w-4 text-indigo-600" /> Pilotage stock
+            </h2>
+            <Button variant="ghost" onClick={() => downloadStockPilotage()}>
+              <Download className="h-4 w-4" /> Exporter
+            </Button>
+          </div>
+          <div className="mb-3 grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
+            <Mini label="Taux de rupture" value={pilotage.taux_rupture_pct + " %"} />
+            <Mini label="Sous stock sécu." value={String(pilotage.nb_sous_securite)} />
+            <Mini label="Couverture moy." value={pilotage.couverture_moyenne_jours != null ? pilotage.couverture_moyenne_jours + " j" : "—"} />
+            <Mini label="Dormant" value={`${pilotage.dormant_nb} · ${fmt(pilotage.dormant_valeur_xaf)} XAF`} />
+          </div>
+          <div className="mb-3 flex gap-2 text-xs">
+            {(["A", "B", "C"] as const).map((c) => (
+              <span key={c} className={"rounded-full px-2 py-0.5 font-semibold " + ABC_COLOR[c]}>
+                {c} : {pilotage.repartition_abc[c] ?? 0}
+              </span>
+            ))}
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-xs text-muted">
+                  <th className="py-1 pr-2">SKU</th>
+                  <th className="pr-2 text-right">Valeur</th>
+                  <th className="pr-2 text-right">Couv. (j)</th>
+                  <th className="pr-2 text-right">Rotation</th>
+                  <th className="pr-2">ABC</th>
+                </tr>
+              </thead>
+              <tbody>
+                {pilotage.par_article.slice(0, 8).map((a) => (
+                  <tr key={a.sku} className="border-t border-black/5">
+                    <td className="py-1 pr-2 font-medium">{a.sku}</td>
+                    <td className="pr-2 text-right">{fmt(a.valeur_stock_xaf)}</td>
+                    <td className="pr-2 text-right text-muted">{a.couverture_jours ?? "—"}</td>
+                    <td className="pr-2 text-right text-muted">{a.rotation_annuelle ?? "—"}</td>
+                    <td className="pr-2">
+                      <span className={"rounded px-1.5 py-0.5 text-[10px] font-bold " + ABC_COLOR[a.classe_abc]}>{a.classe_abc}</span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      )}
 
       <Card>
         <h2 className="mb-2 text-sm font-semibold">Ajouter un article</h2>
@@ -311,11 +376,26 @@ export function SupplyScreen() {
   );
 }
 
+const ABC_COLOR: Record<string, string> = {
+  A: "bg-emerald-100 text-emerald-700",
+  B: "bg-amber-100 text-amber-700",
+  C: "bg-gray-100 text-gray-600",
+};
+
 function Kpi({ label, value }: { label: string; value: string }) {
   return (
     <Card>
       <div className="text-xs text-muted">{label}</div>
       <div className="mt-1 text-lg font-semibold">{value}</div>
     </Card>
+  );
+}
+
+function Mini({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-xl bg-black/[0.03] p-2">
+      <div className="text-xs text-muted">{label}</div>
+      <div className="mt-0.5 font-semibold">{value}</div>
+    </div>
   );
 }

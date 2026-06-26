@@ -66,7 +66,11 @@ Entité **nouvelle** `store_bank_transactions` (canonique : `connectors.models.B
 
 **4. Supply Chain / Stocks — ✅ (P2)**
 `store_stock_items` (canonique : `supply.StockItem`). Endpoints `/v1/erp/stock` (CRUD) + `/stock/analyze`. Écran `SupplyScreen` (🔁 : stock persistant + analyse).
-*Reste* : `store_stock_moves` (entrées/sorties), lots/péremption, valorisation. **Plus-value** : stock réel, réappro auto.
+**✅ MODULE CLOS (3 strates)** — `store_stock_items` + `store_stock_moves` :
+- **Opérations** : grand-livre des mouvements (entrée/sortie/ajustement/transfert) **valorisé PMP** (SYSCOHADA classe 3) ; réappro/alertes rupture.
+- **Gouvernance** : validation à **seuil + 2 niveaux** (N1/N2), **inventaire physique** (comptage→écart→ajustement), **lots & péremption** (alertes), **boucle Achats→Stock** (réception BC → entrée).
+- **Pilotage** : valorisation totale, **taux de rotation**, **couverture en jours**, **taux de rupture**, **stock dormant**, **analyse ABC** + export Excel (`/stock/pilotage` & `/stock/pilotage/export`).
+Import : pôle Supply à 2 feuilles (articles + mouvements).
 
 **5. Achats / Procurement — ✅ MODULE CLOS (3 strates)**
 Entités `store_suppliers` + `store_purchase_orders` + `store_engagements` + `store_purchase_budgets`. L'écran `AchatsScreen` a **3 onglets** :

@@ -66,7 +66,7 @@ La persistance ne couvre **aujourd'hui que 3 entités** ; les autres métiers on
 | 1 | Compta — Écritures | ✅ | ✅ | ✅ `store_journal_entries` | Grand livre + **balance vivante** | lettrage analytique |
 | 2 | Finance / Trésorerie | ✅ | ✅ | ⚠️ factures oui, transactions bancaires non | Solde réel, **clôture continue** | persister relevés bancaires |
 | 3 | Facturation / Registre | ✅ | ✅ | ✅ `store_invoices` | Encours clients, relances | avoirs, échéancier |
-| 4 | Supply Chain / Stocks | ✅ | ✅ | ✅ `store_stock_items` | Stock réel, réappro auto | mouvements (entrées/sorties), lots |
+| 4 | Supply Chain / Stocks | ✅ | ✅ (grand-livre valorisé) | ✅ `store_stock_items`+`store_stock_moves` | **Stock valorisé PMP**, mouvements, gouvernance (2 niveaux), inventaire, péremption, **pilotage ABC/rotation** + export | per-lot balance (FEFO complet) |
 | 5 | Achats / Procurement | ✅ | ✅ persisté (onglets Appro / Engagements / **Pilotage**) | ✅ `store_suppliers`+`store_purchase_orders`+`store_engagements`+`store_purchase_budgets` (P2c) | Réception→facture d'achat, engagements EB→DA→BC, **pilotage CDG : engagé vs budget par direction**, tendance mensuelle, concentration fournisseurs | suivi réceptions partielles, lignes BC |
 | 6 | RH | ✅ | générique | ❌ | Registre des employés + contrats | `Employee` + `Contract` |
 | 7 | Paie | ✅ | ✅ | ❌ | Historique des bulletins | `Payslip` (après RH) |

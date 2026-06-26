@@ -35,9 +35,12 @@ from zolaos.agents.erp.engagements import (
 )
 from zolaos.agents.erp.inventory import (
     SEUIL_VALIDATION_DEFAUT_XAF,
+    ArticleStock,
+    PilotageStock,
     StockInsuffisant,
     appliquer_mouvement,
     estimer_valeur_mouvement,
+    pilotage_stock,
     requiert_double_validation,
 )
 from zolaos.agents.erp.reconciliation import reconcilier
@@ -618,6 +621,101 @@ async def stock_peremption(
             )
     alertes.sort(key=lambda a: a["jours_restants"])
     return {"horizon_jours": horizon_jours, "alertes": alertes}
+
+
+# ---------------------------------------------------------------- pilotage stock (STOCK-4)
+
+
+async def _articles_stock(session: AsyncSession, tenant_id: str) -> list[ArticleStock]:
+    rows = await StockRepository(session).list(tenant_id=tenant_id)
+    return [
+        ArticleStock(
+            sku=r.sku,
+            libelle=r.libelle,
+            quantite_actuelle=r.quantite_actuelle,
+            conso_moyenne_jour=r.conso_moyenne_jour,
+            stock_securite=r.stock_securite,
+            pmp_xaf=r.pmp_xaf,
+        )
+        for r in rows
+    ]
+
+
+def build_pilotage_stock_xlsx(p: PilotageStock) -> bytes:
+    """Classeur de pilotage stock : synthèse + détail par article (ABC, couverture)."""
+    wb = openpyxl.Workbook()
+    syn = wb.active
+    syn.title = "Synthèse"
+    syn.append(["Pilotage des stocks"])
+    syn.append(["Articles", p.nb_articles])
+    syn.append(["Valorisation totale (XAF)", float(p.valorisation_totale_xaf)])
+    syn.append(["Ruptures", p.nb_rupture])
+    syn.append(["Sous stock de sécurité", p.nb_sous_securite])
+    syn.append(["Taux de rupture (%)", float(p.taux_rupture_pct)])
+    syn.append(
+        [
+            "Couverture moyenne (j)",
+            float(p.couverture_moyenne_jours) if p.couverture_moyenne_jours is not None else "",
+        ]
+    )
+    syn.append(["Articles dormants", p.dormant_nb])
+    syn.append(["Valeur dormante (XAF)", float(p.dormant_valeur_xaf)])
+    syn.append(
+        [
+            "ABC (A/B/C)",
+            f"{p.repartition_abc['A']}/{p.repartition_abc['B']}/{p.repartition_abc['C']}",
+        ]
+    )
+
+    det = wb.create_sheet("Par article")
+    det.append(
+        [
+            "SKU",
+            "Libellé",
+            "Quantité",
+            "Valeur stock XAF",
+            "Couverture j",
+            "Rotation/an",
+            "Classe ABC",
+        ]
+    )
+    for a in p.par_article:
+        det.append(
+            [
+                a.sku,
+                a.libelle,
+                float(a.quantite),
+                float(a.valeur_stock_xaf),
+                float(a.couverture_jours) if a.couverture_jours is not None else "",
+                float(a.rotation_annuelle) if a.rotation_annuelle is not None else "",
+                a.classe_abc,
+            ]
+        )
+    bio = BytesIO()
+    wb.save(bio)
+    return bio.getvalue()
+
+
+@router.get("/stock/pilotage", summary="Pilotage stock : valorisation, rotation, rupture, ABC")
+async def stock_pilotage(
+    tenant_id: str = "local",
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    p = pilotage_stock(await _articles_stock(session, tenant_id))
+    return {"pilotage": asdict(p)}
+
+
+@router.get("/stock/pilotage/export", summary="Exporter le pilotage stock (.xlsx)")
+async def export_stock_pilotage(
+    tenant_id: str = "local",
+    session: AsyncSession = Depends(get_session),
+) -> Response:
+    p = pilotage_stock(await _articles_stock(session, tenant_id))
+    return Response(
+        content=build_pilotage_stock_xlsx(p),
+        media_type=_XLSX_MEDIA,
+        headers={"Content-Disposition": 'attachment; filename="pilotage_stock.xlsx"'},
+    )
 
 
 # ---------------------------------------------------------------- Achats (P2c)

@@ -1,5 +1,6 @@
 // Client typé — système de référence léger (Factures) + clôture continue.
 import { api } from "./api";
+import { getToken } from "./auth";
 
 export interface InvoiceRec {
   id: string;
@@ -219,4 +220,45 @@ export function stockPeremption(
   horizonJours = 30,
 ): Promise<{ horizon_jours: number; alertes: PeremptionAlerte[] }> {
   return api(`/v1/erp/stock/peremption?horizon_jours=${horizonJours}`);
+}
+
+// ----- Pilotage stock (STOCK-4) -----
+export interface ArticlePilotage {
+  sku: string;
+  libelle: string;
+  quantite: string;
+  valeur_stock_xaf: number;
+  valeur_conso_annuelle_xaf: number;
+  couverture_jours: number | null;
+  rotation_annuelle: number | null;
+  classe_abc: string;
+}
+export interface PilotageStock {
+  nb_articles: number;
+  valorisation_totale_xaf: number;
+  nb_rupture: number;
+  nb_sous_securite: number;
+  taux_rupture_pct: number;
+  couverture_moyenne_jours: number | null;
+  dormant_nb: number;
+  dormant_valeur_xaf: number;
+  repartition_abc: Record<string, number>;
+  par_article: ArticlePilotage[];
+}
+export function stockPilotage(): Promise<{ pilotage: PilotageStock }> {
+  return api("/v1/erp/stock/pilotage");
+}
+export async function downloadStockPilotage(): Promise<void> {
+  const base = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000";
+  const token = getToken();
+  const r = await fetch(`${base}/v1/erp/stock/pilotage/export`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  if (!r.ok) throw new Error(`HTTP ${r.status}`);
+  const url = URL.createObjectURL(await r.blob());
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "pilotage_stock.xlsx";
+  a.click();
+  URL.revokeObjectURL(url);
 }

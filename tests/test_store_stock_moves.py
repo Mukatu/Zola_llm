@@ -5,11 +5,18 @@ from __future__ import annotations
 from contextlib import asynccontextmanager
 from datetime import date, timedelta
 from decimal import Decimal
+from io import BytesIO
 
+import openpyxl
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
-from zolaos.agents.erp.inventory import StockInsuffisant, appliquer_mouvement
+from zolaos.agents.erp.inventory import (
+    ArticleStock,
+    StockInsuffisant,
+    appliquer_mouvement,
+    pilotage_stock,
+)
 from zolaos.api.main import create_app
 from zolaos.core.settings import Settings
 from zolaos.db.session import get_session
@@ -275,3 +282,84 @@ async def test_reception_bc_genere_entree_stock(tmp_path) -> None:  # type: igno
         # le mouvement est bien dans le grand-livre
         moves = (await ac.get("/v1/erp/stock-moves?sku=SKU6")).json()["moves"]
         assert len(moves) == 1
+
+
+# ----------------------------------------------------------------- pilotage (STOCK-4)
+
+
+def test_pilotage_stock_abc_rupture_dormant() -> None:
+    arts = [
+        ArticleStock(
+            sku="A",
+            quantite_actuelle=Decimal("10"),
+            conso_moyenne_jour=Decimal("2"),
+            pmp_xaf=Decimal("1000"),
+            stock_securite=Decimal("5"),
+        ),
+        ArticleStock(  # rupture
+            sku="B",
+            quantite_actuelle=Decimal("0"),
+            conso_moyenne_jour=Decimal("1"),
+            pmp_xaf=Decimal("100"),
+            stock_securite=Decimal("2"),
+        ),
+        ArticleStock(  # dormant (conso 0, stock > 0)
+            sku="C",
+            quantite_actuelle=Decimal("5"),
+            conso_moyenne_jour=Decimal("0"),
+            pmp_xaf=Decimal("50"),
+            stock_securite=Decimal("0"),
+        ),
+    ]
+    p = pilotage_stock(arts)
+    assert p.nb_articles == 3
+    assert p.nb_rupture == 1
+    assert p.dormant_nb == 1
+    assert p.valorisation_totale_xaf == Decimal("10250.00")  # 10000 + 0 + 250
+    a = next(x for x in p.par_article if x.sku == "A")
+    assert a.classe_abc == "A"
+    assert a.couverture_jours == Decimal("5.0")  # 10 / 2
+    assert a.rotation_annuelle == Decimal("73.00")  # 2 * 365 / 10
+
+
+async def test_stock_pilotage_endpoint_and_export(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    async with _client(tmp_path) as ac:
+        await ac.post(
+            "/v1/erp/stock",
+            json={
+                "sku": "P1",
+                "libelle": "Pièce A",
+                "quantite_actuelle": "10",
+                "conso_moyenne_jour": "2",
+            },
+        )
+        # PMP via une entrée validée
+        mv = (
+            await ac.post(
+                "/v1/erp/stock-moves",
+                json={
+                    "reference": "MV-P1",
+                    "type": "entree",
+                    "sku": "P1",
+                    "quantite": "0",
+                    "cout_unitaire_xaf": "1000",
+                    "date_mouvement": "2026-06-01",
+                },
+            )
+        ).json()
+        await ac.post(f"/v1/erp/stock-moves/{mv['id']}/validate")
+
+        body = (await ac.get("/v1/erp/stock/pilotage")).json()["pilotage"]
+        assert body["nb_articles"] == 1
+        assert (
+            body["repartition_abc"]["A"]
+            + body["repartition_abc"]["B"]
+            + body["repartition_abc"]["C"]
+            == 1
+        )
+
+        r = await ac.get("/v1/erp/stock/pilotage/export")
+        assert r.status_code == 200
+        assert "spreadsheetml" in r.headers["content-type"]
+        wb = openpyxl.load_workbook(BytesIO(r.content))
+        assert {"Synthèse", "Par article"} <= set(wb.sheetnames)
