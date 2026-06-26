@@ -64,8 +64,15 @@ Employés=`matricule` · Emplois=`code_emploi` · Compétences=`code_competence`
 |-----|-----------|--------|--------|
 | IMP-1 | Framework + Employés/Factures + écran | ✅ | `80caaf9` · `0c8e959` |
 | IMP-2 | Toutes entités (11) + **classeurs par pôle** (RH, Compta) multi-feuilles + écran à 2 modes | ✅ | `5fbabf0` |
-| IMP-3 | **Mapping de colonnes assisté** (déterministe + LLM optionnel) + `/inspect` + écran | ✅ | _(ce lot)_ |
+| IMP-3 | **Mapping de colonnes assisté** (déterministe + LLM optionnel) + `/inspect` + écran | ✅ | `6d5fef4` |
+| IMP-4 | **Déclinaison aux pôles persistés** : Commercial/CRM (3), Achats (2), Supply (1) + script d'échantillons | ✅ | _(ce lot)_ |
 | — | _(réassigné interop)_ sync connecteurs → store | ➡️ | roadmap interop |
+
+### Détail IMP-4 (livré 2026-06-26)
+- **17 entités** au registre (+6 vs IMP-2) : ajout de `customers`, `opportunities`, `quotes` (Commercial), `suppliers`, `purchase_orders` (Achats), `stock_items` (Supply) — avec alias et listes déroulantes (enums).
+- **5 classeurs par pôle** : `rh` (10 feuilles), `compta` (1), **`commercial` (3)**, **`achats` (2)**, **`supply` (1)** — chacun avec son Dictionnaire.
+- **Limite assumée** : les données **multi-lignes** (lignes de devis/BC, écritures comptables) ne se prêtent pas à l'import « 1 ligne = 1 enregistrement ». Devis/BC sont importés **au niveau en-tête** (lignes ajoutées ensuite) ; les **écritures** restent hors import Excel (saisie via `/journal`). Un import d'écritures ligne-à-ligne (groupé par pièce) reste un lot dédié si besoin.
+- **`scripts/generate_import_samples.py`** : génère tous les modèles `.xlsx` (par pôle et par entité) dans `samples/imports/` pour inspection hors API. Artefacts **non versionnés** (regénérables ; openpyxl horodate les classeurs).
 
 ### Détail IMP-3 (livré 2026-06-25)
 - **Moteur déterministe** `imports/mapping.py` : `normalize` (accents/casse/ponctuation), similarité (ratio de séquence ∪ Jaccard de jetons), **alias** déclarés par colonne, affectation gloutonne 1↔1, seuil 0.80.

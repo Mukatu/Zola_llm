@@ -229,6 +229,54 @@ def test_parse_pole_ignores_unknown_sheets() -> None:
     assert "invoices" in parsed
 
 
+def test_every_pole_template_is_well_formed() -> None:
+    """Chaque pôle (RH, Compta, Commercial, Achats, Supply) a un classeur valide :
+    une feuille par entité + Dictionnaire, et des en-têtes reparsables."""
+    assert {"rh", "compta", "commercial", "achats", "supply"} <= set(POLES)
+    for pole in POLES.values():
+        wb = openpyxl.load_workbook(BytesIO(build_pole_template(pole)))
+        assert "Dictionnaire" in wb.sheetnames
+        for spec in pole.entities:
+            assert spec.label[:31] in wb.sheetnames
+        # round-trip : les feuilles vides se parsent sans erreur
+        assert isinstance(parse_pole_bytes(wb, pole), dict)
+
+
+async def test_import_pole_commercial_persists(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    async with _client(tmp_path) as ac:
+        r = await ac.get("/v1/erp/import/template/pole/commercial")
+        assert r.status_code == 200
+        wb = openpyxl.load_workbook(BytesIO(r.content))
+        _fill_pole_sheet(
+            wb,
+            REGISTRY["customers"].label,
+            [c.name for c in REGISTRY["customers"].columns],
+            [{"id_externe": "C1", "nom": "ACME", "type": "client", "source": "referral"}],
+        )
+        _fill_pole_sheet(
+            wb,
+            REGISTRY["opportunities"].label,
+            [c.name for c in REGISTRY["opportunities"].columns],
+            [
+                {
+                    "id_externe": "O1",
+                    "client": "ACME",
+                    "libelle": "Projet X",
+                    "montant_xaf": "5000000",
+                    "etape": "qualification",
+                }
+            ],
+        )
+        bio = BytesIO()
+        wb.save(bio)
+        r = await ac.post("/v1/erp/import/pole/commercial", content=bio.getvalue())
+        rapport = r.json()["rapport"]
+        assert rapport["customers"]["importes"] == 1
+        assert rapport["opportunities"]["importes"] == 1
+        # persisté et relisible via l'API CRM
+        assert len((await ac.get("/v1/crm/customers")).json()["customers"]) == 1
+
+
 def parse_pole_bytes(wb: Any, pole: Any) -> dict[str, Any]:
     bio = BytesIO()
     wb.save(bio)

@@ -119,3 +119,6 @@ polaris-git.sh
 # Artefacts d'expérimentation Ollama non câblés (modèle reste Llama-3)
 Modelfile
 Modelefile.txt
+
+# Échantillons Import générés (regénérables via scripts/generate_import_samples.py)
+samples/imports/*.xlsx

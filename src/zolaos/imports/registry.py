@@ -5,13 +5,19 @@ from __future__ import annotations
 from zolaos.db.store_models import (
     AbsenceRecord,
     ContractRecord,
+    CustomerRecord,
     EmployeeRecord,
     EmployeeSkillRecord,
     EvaluationRecord,
     InvoiceRecord,
     JobRoleRecord,
+    OpportunityRecord,
+    PurchaseOrderRecord,
+    QuoteRecord,
     RoleSkillRecord,
     SkillRecord,
+    StockItemRecord,
+    SupplierRecord,
     TrainingRecord,
     VacancyRecord,
 )
@@ -248,6 +254,218 @@ _INVOICES = EntitySpec(
     ),
 )
 
+# ----------------------------------------------------------------- Commercial / CRM (P2b)
+
+_CUSTOMERS = EntitySpec(
+    entity="customers",
+    label="Clients",
+    model=CustomerRecord,
+    natural_key=("id_externe",),
+    columns=(
+        Column(
+            "id_externe",
+            "str",
+            required=True,
+            help="Identifiant unique du client",
+            aliases=("id client", "code client", "reference client", "n client"),
+        ),
+        Column(
+            "nom",
+            "str",
+            required=True,
+            aliases=("nom client", "raison sociale", "intitule"),
+        ),
+        Column("type", "str", enum=("client", "prospect"), aliases=("categorie", "statut client")),
+        Column("email", "str", aliases=("courriel", "mail", "adresse email")),
+        Column("telephone", "str", aliases=("tel", "tel.", "numero", "contact")),
+        Column("secteur", "str", aliases=("activite", "domaine", "branche")),
+        Column(
+            "source",
+            "str",
+            enum=("referral", "salon", "web", "appel", "autre"),
+            help="Canal d'acquisition",
+            aliases=("origine", "provenance", "canal"),
+        ),
+        Column("date_creation", "date", help="AAAA-MM-JJ", aliases=("date entree", "creation")),
+        Column(
+            "derniere_interaction",
+            "date",
+            help="AAAA-MM-JJ",
+            aliases=("dernier contact", "derniere relance"),
+        ),
+    ),
+)
+
+_OPPORTUNITIES = EntitySpec(
+    entity="opportunities",
+    label="Opportunités",
+    model=OpportunityRecord,
+    natural_key=("id_externe",),
+    columns=(
+        Column(
+            "id_externe",
+            "str",
+            required=True,
+            help="Identifiant unique de l'opportunité",
+            aliases=("id opportunite", "code affaire", "reference"),
+        ),
+        Column("client", "str", required=True, aliases=("nom client", "compte", "tiers")),
+        Column("libelle", "str", required=True, aliases=("intitule", "objet", "affaire")),
+        Column("montant_xaf", "decimal", aliases=("montant", "valeur", "ca potentiel")),
+        Column(
+            "etape",
+            "str",
+            enum=("prospection", "qualification", "proposition", "negociation", "gagnee", "perdue"),
+            aliases=("stade", "phase", "statut", "pipeline"),
+        ),
+        Column("probabilite", "decimal", help="0 à 1 (sinon déduite de l'étape)"),
+        Column(
+            "date_cloture_prevue",
+            "date",
+            help="AAAA-MM-JJ",
+            aliases=("cloture prevue", "date signature", "echeance"),
+        ),
+    ),
+)
+
+_QUOTES = EntitySpec(
+    entity="quotes",
+    label="Devis",
+    model=QuoteRecord,
+    natural_key=("numero",),
+    columns=(
+        Column("id_externe", "str", required=True, aliases=("id devis", "reference")),
+        Column(
+            "numero",
+            "str",
+            required=True,
+            help="Numéro unique du devis",
+            aliases=("n devis", "numero devis", "ref devis"),
+        ),
+        Column("client", "str", required=True, aliases=("nom client", "tiers")),
+        Column("date_emission", "date", required=True, help="AAAA-MM-JJ", aliases=("date devis",)),
+        Column("date_validite", "date", help="AAAA-MM-JJ", aliases=("validite", "echeance")),
+        Column(
+            "statut",
+            "str",
+            enum=("brouillon", "envoye", "accepte", "refuse"),
+            aliases=("etat", "situation"),
+        ),
+        Column("montant_ht_xaf", "decimal", aliases=("ht", "montant ht", "total ht")),
+        Column(
+            "montant_ttc_xaf", "decimal", aliases=("ttc", "montant ttc", "total ttc", "montant")
+        ),
+    ),
+)
+
+# ----------------------------------------------------------------- Achats (P2c)
+
+_SUPPLIERS = EntitySpec(
+    entity="suppliers",
+    label="Fournisseurs",
+    model=SupplierRecord,
+    natural_key=("id_externe",),
+    columns=(
+        Column(
+            "id_externe",
+            "str",
+            required=True,
+            help="Identifiant unique du fournisseur",
+            aliases=("id fournisseur", "code fournisseur", "n fournisseur"),
+        ),
+        Column("nom", "str", required=True, aliases=("nom fournisseur", "raison sociale")),
+        Column("secteur", "str", aliases=("activite", "domaine")),
+        Column("note_qualite", "decimal", help="Historique 0 à 5", aliases=("note", "qualite")),
+        Column(
+            "delai_moyen_jours",
+            "int",
+            help="Délai de livraison moyen (jours)",
+            aliases=("delai", "delai moyen", "delai livraison"),
+        ),
+        Column(
+            "documents_conformite",
+            "list",
+            help="Pièces fournies, séparées par ; (rccm, niu, attestation_fiscale)",
+            aliases=("conformite", "documents", "pieces"),
+        ),
+        Column("actif", "bool", help="oui/non", aliases=("statut", "actif?")),
+    ),
+)
+
+_PURCHASE_ORDERS = EntitySpec(
+    entity="purchase_orders",
+    label="Bons de commande",
+    model=PurchaseOrderRecord,
+    natural_key=("numero",),
+    columns=(
+        Column("id_externe", "str", required=True, aliases=("id bc", "reference")),
+        Column(
+            "numero",
+            "str",
+            required=True,
+            help="Numéro unique du bon de commande",
+            aliases=("n bc", "numero bc", "ref bc", "numero commande"),
+        ),
+        Column("fournisseur", "str", required=True, aliases=("nom fournisseur", "tiers")),
+        Column("objet", "str", aliases=("intitule", "designation")),
+        Column("date_emission", "date", required=True, help="AAAA-MM-JJ", aliases=("date bc",)),
+        Column(
+            "statut",
+            "str",
+            enum=("brouillon", "envoye", "confirme", "receptionne"),
+            aliases=("etat", "situation"),
+        ),
+        Column("montant_ht_xaf", "decimal", aliases=("ht", "montant ht", "total ht")),
+        Column(
+            "montant_ttc_xaf", "decimal", aliases=("ttc", "montant ttc", "total ttc", "montant")
+        ),
+        Column(
+            "delai_livraison_jours",
+            "int",
+            help="Délai de livraison (jours)",
+            aliases=("delai", "delai livraison"),
+        ),
+    ),
+)
+
+# ----------------------------------------------------------------- Supply / Stocks (P2)
+
+_STOCK_ITEMS = EntitySpec(
+    entity="stock_items",
+    label="Articles de stock",
+    model=StockItemRecord,
+    natural_key=("sku",),
+    columns=(
+        Column(
+            "sku",
+            "str",
+            required=True,
+            help="Référence article (SKU)",
+            aliases=("reference", "ref", "code article", "code"),
+        ),
+        Column("libelle", "str", required=True, aliases=("designation", "intitule", "produit")),
+        Column(
+            "quantite_actuelle",
+            "decimal",
+            aliases=("quantite", "stock", "qte", "stock actuel"),
+        ),
+        Column("unite", "str", aliases=("unite mesure", "u")),
+        Column(
+            "conso_moyenne_jour",
+            "decimal",
+            help="Consommation moyenne par jour",
+            aliases=("conso", "conso jour", "consommation"),
+        ),
+        Column(
+            "delai_appro_jours",
+            "int",
+            help="Délai de réapprovisionnement (jours)",
+            aliases=("delai appro", "delai", "lead time"),
+        ),
+        Column("stock_securite", "decimal", aliases=("securite", "stock min", "seuil")),
+    ),
+)
+
 # Toutes les entités (endpoints par entité).
 REGISTRY: dict[str, EntitySpec] = {
     s.entity: s
@@ -263,6 +481,12 @@ REGISTRY: dict[str, EntitySpec] = {
         _TRAININGS,
         _EVALUATIONS,
         _INVOICES,
+        _CUSTOMERS,
+        _OPPORTUNITIES,
+        _QUOTES,
+        _SUPPLIERS,
+        _PURCHASE_ORDERS,
+        _STOCK_ITEMS,
     )
 }
 
@@ -285,4 +509,19 @@ POLES: dict[str, PoleSpec] = {
         ),
     ),
     "compta": PoleSpec(pole="compta", label="Comptabilité", entities=(_INVOICES,)),
+    "commercial": PoleSpec(
+        pole="commercial",
+        label="Commercial / CRM",
+        entities=(_CUSTOMERS, _OPPORTUNITIES, _QUOTES),
+    ),
+    "achats": PoleSpec(
+        pole="achats",
+        label="Achats",
+        entities=(_SUPPLIERS, _PURCHASE_ORDERS),
+    ),
+    "supply": PoleSpec(
+        pole="supply",
+        label="Supply Chain",
+        entities=(_STOCK_ITEMS,),
+    ),
 }
