@@ -19,6 +19,7 @@ from zolaos.db.store_models import (
     RoleSkillRecord,
     SkillRecord,
     StockItemRecord,
+    StockMoveRecord,
     SupplierRecord,
     TrainingRecord,
     VacancyRecord,
@@ -541,6 +542,44 @@ _STOCK_ITEMS = EntitySpec(
     ),
 )
 
+_STOCK_MOVES = EntitySpec(
+    entity="stock_moves",
+    label="Mouvements de stock",
+    model=StockMoveRecord,
+    natural_key=("reference",),
+    columns=(
+        Column(
+            "reference",
+            "str",
+            required=True,
+            help="Référence unique du mouvement",
+            aliases=("ref", "n mouvement", "numero mouvement"),
+        ),
+        Column(
+            "type",
+            "str",
+            enum=("entree", "sortie", "ajustement", "transfert"),
+            aliases=("sens", "nature"),
+        ),
+        Column(
+            "sku", "str", required=True, aliases=("reference article", "code article", "article")
+        ),
+        Column("quantite", "decimal", aliases=("qte", "quantite mouvement")),
+        Column(
+            "cout_unitaire_xaf",
+            "decimal",
+            help="Coût unitaire (entrée)",
+            aliases=("cout", "pu", "prix unitaire"),
+        ),
+        Column("emplacement", "str", aliases=("entrepot", "magasin", "depot")),
+        Column("emplacement_dest", "str", aliases=("destination",)),
+        Column("lot", "str", aliases=("numero lot", "batch")),
+        Column("date_peremption", "date", help="AAAA-MM-JJ", aliases=("peremption", "dlc", "dluo")),
+        Column("motif", "str", aliases=("commentaire", "note")),
+        Column("date_mouvement", "date", required=True, help="AAAA-MM-JJ", aliases=("date",)),
+    ),
+)
+
 # Toutes les entités (endpoints par entité).
 REGISTRY: dict[str, EntitySpec] = {
     s.entity: s
@@ -564,6 +603,7 @@ REGISTRY: dict[str, EntitySpec] = {
         _ENGAGEMENTS,
         _PURCHASE_BUDGETS,
         _STOCK_ITEMS,
+        _STOCK_MOVES,
     )
 }
 
@@ -599,6 +639,6 @@ POLES: dict[str, PoleSpec] = {
     "supply": PoleSpec(
         pole="supply",
         label="Supply Chain",
-        entities=(_STOCK_ITEMS,),
+        entities=(_STOCK_ITEMS, _STOCK_MOVES),
     ),
 }

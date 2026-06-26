@@ -116,9 +116,29 @@ export interface StockRec {
   sku: string;
   libelle: string;
   quantite_actuelle: string;
+  unite?: string;
   conso_moyenne_jour: string;
   delai_appro_jours: number;
   stock_securite: string;
+  pmp_xaf?: string;
+  valeur_stock_xaf?: string;
+}
+
+export interface StockMoveRec {
+  id: string;
+  reference: string;
+  type: string;
+  sku: string;
+  quantite: string;
+  cout_unitaire_xaf: string | null;
+  valeur_xaf: string;
+  emplacement: string | null;
+  emplacement_dest: string | null;
+  lot: string | null;
+  date_peremption: string | null;
+  statut: string;
+  motif: string;
+  date_mouvement: string | null;
 }
 export interface ReapproSugg {
   sku: string;
@@ -145,4 +165,27 @@ export function deleteStock(id: string): Promise<{ deleted: string }> {
 }
 export function analyzeStock(): Promise<{ suggestions: ReapproSugg[]; alertes: ReapproSugg[] }> {
   return api("/v1/erp/stock/analyze", { method: "POST", body: {} });
+}
+
+// ----- Mouvements de stock (grand-livre valorisé) -----
+export function listStockMoves(sku?: string): Promise<{ moves: StockMoveRec[] }> {
+  const qs = sku ? `?sku=${encodeURIComponent(sku)}` : "";
+  return api(`/v1/erp/stock-moves${qs}`);
+}
+export function createStockMove(b: {
+  reference: string;
+  type: string;
+  sku: string;
+  quantite: string;
+  cout_unitaire_xaf?: string | null;
+  motif?: string;
+  date_mouvement: string;
+}): Promise<StockMoveRec> {
+  return api("/v1/erp/stock-moves", { body: b });
+}
+export function validateStockMove(id: string): Promise<{ move: StockMoveRec; article: StockRec }> {
+  return api(`/v1/erp/stock-moves/${id}/validate`, { method: "POST", body: {} });
+}
+export function deleteStockMove(id: string): Promise<{ deleted: string }> {
+  return api(`/v1/erp/stock-moves/${id}`, { method: "DELETE" });
 }
