@@ -33,7 +33,13 @@ from zolaos.agents.erp.engagements import (
     engagement_stats,
     pilotage_budgetaire,
 )
-from zolaos.agents.erp.inventory import StockInsuffisant, appliquer_mouvement
+from zolaos.agents.erp.inventory import (
+    SEUIL_VALIDATION_DEFAUT_XAF,
+    StockInsuffisant,
+    appliquer_mouvement,
+    estimer_valeur_mouvement,
+    requiert_double_validation,
+)
 from zolaos.agents.erp.reconciliation import reconcilier
 from zolaos.agents.erp.supply import StockItem, alertes_rupture, analyser_reappro
 from zolaos.connectors.models import BankTransaction, Invoice, JournalEntry, JournalLine
@@ -450,11 +456,13 @@ async def list_stock_moves(
 
 
 @router.post(
-    "/stock-moves/{move_id}/validate", summary="Valider un mouvement → applique au stock (PMP)"
+    "/stock-moves/{move_id}/validate",
+    summary="Valider un mouvement (workflow à seuil : N1 puis N2 au-delà du seuil)",
 )
 async def validate_stock_move(
     move_id: str,
     tenant_id: str = "local",
+    seuil_xaf: Decimal = SEUIL_VALIDATION_DEFAUT_XAF,
     autoriser_negatif: bool = False,
     session: AsyncSession = Depends(get_session),
 ) -> dict[str, Any]:
@@ -470,6 +478,21 @@ async def validate_stock_move(
     if item is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="article_inconnu")
 
+    estimee = estimer_valeur_mouvement(
+        type=move.type,
+        quantite=move.quantite,
+        pmp_actuel=item.pmp_xaf,
+        cout_unitaire=move.cout_unitaire_xaf,
+    )
+    # Gouvernance : 1er palier (N1) si au-dessus du seuil et encore en brouillon.
+    if move.statut == "brouillon" and requiert_double_validation(estimee, seuil_xaf):
+        move.statut = "valide_n1"
+        move.valeur_xaf = estimee  # aperçu (non appliqué)
+        await session.flush()
+        await session.commit()
+        return {"move": move.to_dict(), "applique": False, "requiert_n2": True}
+
+    # Application réelle : brouillon sous le seuil, ou N1 → N2 (2e validation).
     try:
         res = appliquer_mouvement(
             type=move.type,
@@ -490,7 +513,7 @@ async def validate_stock_move(
     move.statut = "valide"
     await session.flush()
     await session.commit()
-    return {"move": move.to_dict(), "article": item.to_dict()}
+    return {"move": move.to_dict(), "article": item.to_dict(), "applique": True}
 
 
 @router.delete("/stock-moves/{move_id}", summary="Supprimer un mouvement (brouillon uniquement)")
@@ -508,6 +531,93 @@ async def delete_stock_move(
     await moves.delete(move_id, tenant_id=tenant_id)
     await session.commit()
     return {"deleted": move_id}
+
+
+# ---------------------------------------------------------------- inventaire physique (STOCK-3)
+
+
+class InventaireLigne(BaseModel):
+    sku: str
+    quantite_comptee: Decimal
+
+
+class InventaireIn(BaseModel):
+    comptages: list[InventaireLigne] = Field(default_factory=list)
+    date_inventaire: date | None = None
+
+
+@router.post("/stock/inventory", summary="Inventaire physique : écarts → ajustements (brouillon)")
+async def stock_inventory(
+    body: InventaireIn,
+    tenant_id: str = "local",
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    """Compare le compté au théorique ; crée un **ajustement brouillon** par écart
+    (à valider ensuite via le workflow). Ne modifie pas directement le stock."""
+    items = StockRepository(session)
+    moves = StockMoveRepository(session)
+    jour = body.date_inventaire or date.today()
+    resultats: list[dict[str, Any]] = []
+    for c in body.comptages:
+        item = await items.get_by_sku(c.sku, tenant_id=tenant_id)
+        if item is None:
+            resultats.append({"sku": c.sku, "erreur": "article_inconnu"})
+            continue
+        ecart = c.quantite_comptee - item.quantite_actuelle
+        move_id = None
+        if ecart != 0:
+            rec = await moves.create(
+                {
+                    "tenant_id": tenant_id,
+                    "reference": f"INV-{jour.isoformat()}-{c.sku}",
+                    "type": "ajustement",
+                    "sku": c.sku,
+                    "quantite": ecart,
+                    "motif": "Inventaire physique",
+                    "date_mouvement": jour,
+                }
+            )
+            move_id = rec.id
+        resultats.append(
+            {
+                "sku": c.sku,
+                "theorique": str(item.quantite_actuelle),
+                "comptee": str(c.quantite_comptee),
+                "ecart": str(ecart),
+                "ajustement_id": move_id,
+            }
+        )
+    await session.commit()
+    nb_ecarts = sum(1 for r in resultats if r.get("ajustement_id"))
+    return {"date_inventaire": jour.isoformat(), "nb_ecarts": nb_ecarts, "resultats": resultats}
+
+
+@router.get("/stock/peremption", summary="Alertes de péremption (lots proches/expirés)")
+async def stock_peremption(
+    tenant_id: str = "local",
+    horizon_jours: int = 30,
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    rows = await StockMoveRepository(session).list(tenant_id=tenant_id)
+    jour = date.today()
+    alertes: list[dict[str, Any]] = []
+    for m in rows:
+        if m.type != "entree" or m.statut != "valide" or m.date_peremption is None:
+            continue
+        jours = (m.date_peremption - jour).days
+        if jours <= horizon_jours:
+            alertes.append(
+                {
+                    "sku": m.sku,
+                    "lot": m.lot,
+                    "quantite": str(m.quantite),
+                    "date_peremption": m.date_peremption.isoformat(),
+                    "jours_restants": jours,
+                    "niveau": "expire" if jours < 0 else "proche",
+                }
+            )
+    alertes.sort(key=lambda a: a["jours_restants"])
+    return {"horizon_jours": horizon_jours, "alertes": alertes}
 
 
 # ---------------------------------------------------------------- Achats (P2c)
@@ -727,11 +837,24 @@ async def delete_po(
     return {"deleted": po_id}
 
 
+class ReceiptLigneStock(BaseModel):
+    sku: str
+    quantite: Decimal = Decimal("0")
+    cout_unitaire_xaf: Decimal | None = None
+
+
+class ReceiptIn(BaseModel):
+    # Lignes optionnelles : génèrent des entrées de stock (brouillon) à la réception.
+    entrees: list[ReceiptLigneStock] = Field(default_factory=list)
+
+
 @router.post(
-    "/purchase-orders/{po_id}/receipt", summary="Réceptionner un BC → facture d'achat (clôture)"
+    "/purchase-orders/{po_id}/receipt",
+    summary="Réceptionner un BC → facture d'achat (+ entrées de stock optionnelles)",
 )
 async def receipt_po(
     po_id: str,
+    body: ReceiptIn | None = None,
     tenant_id: str = "local",
     session: AsyncSession = Depends(get_session),
 ) -> dict[str, Any]:
@@ -759,8 +882,30 @@ async def receipt_po(
     await pos.update(
         po_id, tenant_id=tenant_id, fields={"invoice_id": inv.id, "statut": "receptionne"}
     )
+    # Boucle Achats → Stock : entrées de stock (brouillon) à valider ensuite.
+    entrees_stock: list[dict[str, Any]] = []
+    if body is not None and body.entrees:
+        moves = StockMoveRepository(session)
+        for i, e in enumerate(body.entrees, start=1):
+            mv = await moves.create(
+                {
+                    "tenant_id": tenant_id,
+                    "reference": f"BC-{rec.numero}-{i}",
+                    "type": "entree",
+                    "sku": e.sku,
+                    "quantite": e.quantite,
+                    "cout_unitaire_xaf": e.cout_unitaire_xaf,
+                    "motif": f"Réception BC {rec.numero}",
+                    "date_mouvement": rec.date_emission,
+                }
+            )
+            entrees_stock.append(mv.to_dict())
     await session.commit()
-    return {"purchase_order": rec.to_dict(), "invoice": inv.to_dict()}
+    return {
+        "purchase_order": rec.to_dict(),
+        "invoice": inv.to_dict(),
+        "entrees_stock": entrees_stock,
+    }
 
 
 # ---------------------------------------------------------------- Engagements (Achats v2)

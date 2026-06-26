@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
+from datetime import date, timedelta
 from decimal import Decimal
 
 from httpx import ASGITransport, AsyncClient
@@ -163,3 +164,114 @@ async def test_sortie_insuffisante_rejetee(tmp_path) -> None:  # type: ignore[no
             )
         ).json()
         assert (await ac.post(f"/v1/erp/stock-moves/{mv['id']}/validate")).status_code == 422
+
+
+async def test_double_validation_au_dela_du_seuil(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    async with _client(tmp_path) as ac:
+        await ac.post(
+            "/v1/erp/stock", json={"sku": "SKU3", "libelle": "Moteur", "quantite_actuelle": "0"}
+        )
+        mv = (
+            await ac.post(
+                "/v1/erp/stock-moves",
+                json={
+                    "reference": "MV-100",
+                    "type": "entree",
+                    "sku": "SKU3",
+                    "quantite": "10",
+                    "cout_unitaire_xaf": "100",  # valeur 1000 > seuil forcé 100
+                    "date_mouvement": "2026-06-01",
+                },
+            )
+        ).json()
+        # N1 : au-dessus du seuil → non appliqué, requiert N2
+        r1 = await ac.post(f"/v1/erp/stock-moves/{mv['id']}/validate?seuil_xaf=100")
+        assert r1.status_code == 200
+        assert r1.json()["applique"] is False
+        assert r1.json()["requiert_n2"] is True
+        assert r1.json()["move"]["statut"] == "valide_n1"
+        # stock encore à 0
+        items = (await ac.get("/v1/erp/stock")).json()["items"]
+        assert items[0]["quantite_actuelle"] == "0.000"
+        # N2 : deuxième validation → appliqué
+        r2 = await ac.post(f"/v1/erp/stock-moves/{mv['id']}/validate?seuil_xaf=100")
+        assert r2.json()["applique"] is True
+        assert r2.json()["article"]["quantite_actuelle"] == "10.000"
+
+
+async def test_inventaire_physique_genere_ajustements(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    async with _client(tmp_path) as ac:
+        await ac.post(
+            "/v1/erp/stock", json={"sku": "SKU4", "libelle": "Câble", "quantite_actuelle": "5"}
+        )
+        body = (
+            await ac.post(
+                "/v1/erp/stock/inventory",
+                json={"comptages": [{"sku": "SKU4", "quantite_comptee": "3"}]},
+            )
+        ).json()
+        assert body["nb_ecarts"] == 1
+        ligne = body["resultats"][0]
+        assert Decimal(ligne["ecart"]) == Decimal("-2")
+        # l'ajustement (brouillon) appliqué aligne le stock théorique sur le compté
+        art = (await ac.post(f"/v1/erp/stock-moves/{ligne['ajustement_id']}/validate")).json()[
+            "article"
+        ]
+        assert art["quantite_actuelle"] == "3.000"
+
+
+async def test_alertes_peremption(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    async with _client(tmp_path) as ac:
+        await ac.post(
+            "/v1/erp/stock", json={"sku": "SKU5", "libelle": "Vaccin", "quantite_actuelle": "0"}
+        )
+        proche = (date.today() + timedelta(days=10)).isoformat()
+        mv = (
+            await ac.post(
+                "/v1/erp/stock-moves",
+                json={
+                    "reference": "MV-200",
+                    "type": "entree",
+                    "sku": "SKU5",
+                    "quantite": "50",
+                    "cout_unitaire_xaf": "100",
+                    "lot": "L-2026-A",
+                    "date_peremption": proche,
+                    "date_mouvement": date.today().isoformat(),
+                },
+            )
+        ).json()
+        await ac.post(f"/v1/erp/stock-moves/{mv['id']}/validate")
+        alertes = (await ac.get("/v1/erp/stock/peremption?horizon_jours=30")).json()["alertes"]
+        assert len(alertes) == 1
+        assert alertes[0]["sku"] == "SKU5" and alertes[0]["lot"] == "L-2026-A"
+        assert alertes[0]["niveau"] == "proche"
+
+
+async def test_reception_bc_genere_entree_stock(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    async with _client(tmp_path) as ac:
+        po_id = (
+            await ac.post(
+                "/v1/erp/purchase-orders",
+                json={
+                    "id_externe": "BC9",
+                    "numero": "BC-009",
+                    "fournisseur": "Alpha",
+                    "date_emission": "2026-06-01",
+                    "statut": "confirme",
+                    "montant_ht_xaf": "1000",
+                    "montant_ttc_xaf": "1180",
+                },
+            )
+        ).json()["id"]
+        r = await ac.post(
+            f"/v1/erp/purchase-orders/{po_id}/receipt",
+            json={"entrees": [{"sku": "SKU6", "quantite": "10", "cout_unitaire_xaf": "100"}]},
+        )
+        assert r.status_code == 200, r.text
+        entrees = r.json()["entrees_stock"]
+        assert len(entrees) == 1
+        assert entrees[0]["type"] == "entree" and entrees[0]["statut"] == "brouillon"
+        # le mouvement est bien dans le grand-livre
+        moves = (await ac.get("/v1/erp/stock-moves?sku=SKU6")).json()["moves"]
+        assert len(moves) == 1

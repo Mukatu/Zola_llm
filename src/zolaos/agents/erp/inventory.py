@@ -16,6 +16,9 @@ from decimal import ROUND_HALF_UP, Decimal
 _ZERO = Decimal("0")
 TYPES_MOUVEMENT = ("entree", "sortie", "ajustement", "transfert")
 
+# Au-delà de ce montant, un mouvement requiert une double validation (N1 puis N2).
+SEUIL_VALIDATION_DEFAUT_XAF = Decimal("1000000")
+
 _Q_QTE = Decimal("0.001")
 _Q_XAF = Decimal("0.01")
 
@@ -79,3 +82,20 @@ def appliquer_mouvement(
         return ResultatMouvement(_qte(quantite_actuelle), _xaf(pmp_actuel), _ZERO)
 
     raise ValueError(f"Type de mouvement inconnu : {type!r}")
+
+
+def estimer_valeur_mouvement(
+    *, type: str, quantite: Decimal, pmp_actuel: Decimal, cout_unitaire: Decimal | None = None
+) -> Decimal:
+    """Valeur estimée d'un mouvement **avant** application (pour le seuil de validation)."""
+    if type == "entree":
+        cu = cout_unitaire if cout_unitaire is not None else pmp_actuel
+        return _xaf(quantite * cu)
+    if type in ("sortie", "ajustement"):
+        return _xaf(abs(quantite) * pmp_actuel)
+    return _ZERO
+
+
+def requiert_double_validation(valeur_estimee: Decimal, seuil_xaf: Decimal) -> bool:
+    """Vrai si le mouvement dépasse le seuil → validation N1 puis N2."""
+    return valeur_estimee > seuil_xaf
