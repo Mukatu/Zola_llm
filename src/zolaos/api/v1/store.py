@@ -10,9 +10,11 @@ from __future__ import annotations
 from dataclasses import asdict
 from datetime import date
 from decimal import Decimal
+from io import BytesIO
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, status
+import openpyxl
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -26,6 +28,7 @@ from zolaos.agents.erp.achats import (
 from zolaos.agents.erp.compta import ChartOfAccounts, JournalValidator
 from zolaos.agents.erp.engagements import (
     Engagement,
+    PilotageBudgetaire,
     detect_alertes,
     engagement_stats,
     pilotage_budgetaire,
@@ -832,14 +835,63 @@ async def delete_purchase_budget(
     return {"deleted": budget_id}
 
 
-@router.get("/engagements/pilotage", summary="Pilotage CDG : engagé vs budget par direction")
-async def engagements_pilotage(
-    tenant_id: str = "local",
-    exercice: str | None = None,
-    date_debut: date | None = None,
-    date_fin: date | None = None,
-    session: AsyncSession = Depends(get_session),
-) -> dict[str, Any]:
+_XLSX_MEDIA = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+
+
+def build_pilotage_xlsx(pilotage: PilotageBudgetaire, exercice: str | None) -> bytes:
+    """Classeur CDG : synthèse + engagé/budget par direction + mensuel + fournisseurs."""
+    wb = openpyxl.Workbook()
+
+    syn = wb.active
+    syn.title = "Synthèse"
+    syn.append(["Pilotage des achats (engagé vs budget)"])
+    syn.append(["Exercice", exercice or "tous"])
+    syn.append([])
+    syn.append(["Budget total (XAF)", float(pilotage.budget_total_xaf)])
+    syn.append(["Engagé total (XAF)", float(pilotage.engage_total_xaf)])
+    syn.append(["Reste (XAF)", float(pilotage.reste_total_xaf)])
+    syn.append(["Consommation (%)", float(pilotage.consommation_pct)])
+
+    dirs = wb.create_sheet("Par direction")
+    dirs.append(
+        ["Direction", "Budget XAF", "Engagé XAF", "Reste XAF", "Consommation %", "Niveau", "Nb"]
+    )
+    for d in pilotage.par_direction:
+        dirs.append(
+            [
+                d.direction,
+                float(d.budget_xaf),
+                float(d.engage_xaf),
+                float(d.reste_xaf),
+                float(d.consommation_pct),
+                d.niveau,
+                d.nb,
+            ]
+        )
+
+    mois = wb.create_sheet("Par mois")
+    mois.append(["Mois", "Engagé XAF"])
+    for s in pilotage.serie_mensuelle:
+        mois.append([s.mois, float(s.engage_xaf)])
+
+    four = wb.create_sheet("Top fournisseurs")
+    four.append(["Fournisseur", "Engagé XAF", "Nb"])
+    for f in pilotage.top_fournisseurs:
+        four.append([f.fournisseur, float(f.engage_xaf), f.nb])
+
+    bio = BytesIO()
+    wb.save(bio)
+    return bio.getvalue()
+
+
+async def _compute_pilotage(
+    session: AsyncSession,
+    *,
+    tenant_id: str,
+    exercice: str | None,
+    date_debut: date | None,
+    date_fin: date | None,
+) -> PilotageBudgetaire:
     eng_rows = await EngagementRepository(session).list(tenant_id=tenant_id)
     budget_rows = await PurchaseBudgetRepository(session).list(tenant_id=tenant_id)
 
@@ -863,6 +915,38 @@ async def engagements_pilotage(
             budget_par_direction[b.direction] = (
                 budget_par_direction.get(b.direction, Decimal("0")) + b.budget_xaf
             )
+    return pilotage_budgetaire(engagements, budget_par_direction)
 
-    pilotage = pilotage_budgetaire(engagements, budget_par_direction)
+
+@router.get("/engagements/pilotage", summary="Pilotage CDG : engagé vs budget par direction")
+async def engagements_pilotage(
+    tenant_id: str = "local",
+    exercice: str | None = None,
+    date_debut: date | None = None,
+    date_fin: date | None = None,
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    pilotage = await _compute_pilotage(
+        session, tenant_id=tenant_id, exercice=exercice, date_debut=date_debut, date_fin=date_fin
+    )
     return {"exercice": exercice, "pilotage": asdict(pilotage)}
+
+
+@router.get("/engagements/pilotage/export", summary="Exporter le pilotage CDG (.xlsx)")
+async def export_pilotage(
+    tenant_id: str = "local",
+    exercice: str | None = None,
+    date_debut: date | None = None,
+    date_fin: date | None = None,
+    session: AsyncSession = Depends(get_session),
+) -> Response:
+    pilotage = await _compute_pilotage(
+        session, tenant_id=tenant_id, exercice=exercice, date_debut=date_debut, date_fin=date_fin
+    )
+    content = build_pilotage_xlsx(pilotage, exercice)
+    nom = f"pilotage_achats_{exercice or 'tous'}"
+    return Response(
+        content=content,
+        media_type=_XLSX_MEDIA,
+        headers={"Content-Disposition": f'attachment; filename="{nom}.xlsx"'},
+    )

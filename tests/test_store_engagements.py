@@ -5,7 +5,9 @@ from __future__ import annotations
 from contextlib import asynccontextmanager
 from datetime import date
 from decimal import Decimal
+from io import BytesIO
 
+import openpyxl
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
@@ -242,3 +244,12 @@ async def test_pilotage_endpoint_with_budget(tmp_path) -> None:  # type: ignore[
         # exercice sans engagement → engagé nul
         body25 = (await ac.get("/v1/erp/engagements/pilotage?exercice=2025")).json()
         assert body25["pilotage"]["engage_total_xaf"] in (0, "0")
+
+        # export Excel du pilotage CDG
+        r = await ac.get("/v1/erp/engagements/pilotage/export?exercice=2026")
+        assert r.status_code == 200
+        assert "spreadsheetml" in r.headers["content-type"]
+        wb = openpyxl.load_workbook(BytesIO(r.content))
+        assert {"Synthèse", "Par direction", "Par mois", "Top fournisseurs"} <= set(wb.sheetnames)
+        directions = [row[0] for row in wb["Par direction"].iter_rows(min_row=2, values_only=True)]
+        assert "DIP" in directions

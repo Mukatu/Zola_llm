@@ -13,6 +13,7 @@ import {
   AlertTriangle,
   Wallet,
   BarChart3,
+  Download,
 } from "lucide-react";
 import { Card, Button } from "../ui";
 import { FlagshipHeader, Inp } from "./_shared";
@@ -34,6 +35,7 @@ import {
   listPurchaseBudgets,
   setPurchaseBudget,
   engagementPilotage,
+  downloadPilotage,
   type SupplierRec,
   type SupplierScore,
   type PurchaseOrderRec,
@@ -637,6 +639,9 @@ function PilotagePanel({
           </option>
         ))}
       </select>
+      <Button variant="ghost" onClick={() => downloadPilotage(exercice)}>
+        <Download className="h-4 w-4" /> Exporter
+      </Button>
     </div>
   );
 

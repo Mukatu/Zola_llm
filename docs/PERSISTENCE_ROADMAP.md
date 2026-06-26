@@ -74,7 +74,7 @@ Entités `store_suppliers` + `store_purchase_orders` + `store_engagements` + `st
 - **Engagements** (inspiré de l'outil métier réel) : chaîne **EB → DA → BC**, taux de transformation, funnel des statuts, délais de cycle, écart estimation/engagé, par direction/acheteur, alertes.
 - **Pilotage CDG** : **engagé vs budget par direction** (consommation, niveaux ok/vigilance/dépassement), tendance mensuelle, concentration fournisseurs, sélecteur d'exercice.
 
-Endpoints : `/v1/erp/{suppliers,purchase-orders,engagements,purchase-budgets}` (CRUD) + `suppliers/scores`, `purchase-orders/compare`, `purchase-orders/{id}/receipt`, `engagements/stats`, `engagements/pilotage?exercice=`. Import : pôle Achats à **4 feuilles** (alias alignés sur le fichier métier réel).
+Endpoints : `/v1/erp/{suppliers,purchase-orders,engagements,purchase-budgets}` (CRUD) + `suppliers/scores`, `purchase-orders/compare`, `purchase-orders/{id}/receipt`, `engagements/stats`, `engagements/pilotage?exercice=` et **`engagements/pilotage/export`** (classeur CDG calculé : synthèse + engagé/budget par direction + mensuel + fournisseurs). Import : pôle Achats à **4 feuilles** (alias alignés sur le fichier métier réel).
 **Plus-value** : registre fournisseurs, anti-surfacturation tracée, encours fournisseurs réel, **suivi des engagements et pilotage budgétaire** (contrôle de gestion).
 
 **6. RH — SIRH complet (3 piliers) — ⏳ (P2c → SIRH-1/2/3)** · **plan détaillé : `docs/SIRH_ROADMAP.md`**

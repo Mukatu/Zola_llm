@@ -1,5 +1,6 @@
 // Client typé — Achats persisté (registre vivant) sur /v1/erp/suppliers|purchase-orders.
 import { api } from "./api";
+import { getToken } from "./auth";
 
 export interface SupplierRec {
   id: string;
@@ -232,4 +233,21 @@ export function engagementPilotage(
 ): Promise<{ exercice: string | null; pilotage: PilotageBudgetaire }> {
   const qs = exercice ? `?exercice=${encodeURIComponent(exercice)}` : "";
   return api(`/v1/erp/engagements/pilotage${qs}`);
+}
+
+// Télécharge le classeur CDG (engagé vs budget) en portant le token d'auth.
+export async function downloadPilotage(exercice?: string): Promise<void> {
+  const base = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000";
+  const token = getToken();
+  const qs = exercice ? `?exercice=${encodeURIComponent(exercice)}` : "";
+  const r = await fetch(`${base}/v1/erp/engagements/pilotage/export${qs}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  if (!r.ok) throw new Error(`HTTP ${r.status}`);
+  const url = URL.createObjectURL(await r.blob());
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `pilotage_achats_${exercice ?? "tous"}.xlsx`;
+  a.click();
+  URL.revokeObjectURL(url);
 }
