@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from zolaos.db.store_models import (
     AbsenceRecord,
+    BankAccountRecord,
+    CashFlowRecord,
     ContractRecord,
     CustomerRecord,
     EmployeeRecord,
@@ -580,6 +582,74 @@ _STOCK_MOVES = EntitySpec(
     ),
 )
 
+# ----------------------------------------------------------------- Trésorerie (TRESO-1)
+
+_BANK_ACCOUNTS = EntitySpec(
+    entity="bank_accounts",
+    label="Comptes de trésorerie",
+    model=BankAccountRecord,
+    natural_key=("code",),
+    columns=(
+        Column(
+            "code",
+            "str",
+            required=True,
+            help="Code unique du compte",
+            aliases=("code compte", "n compte"),
+        ),
+        Column("libelle", "str", required=True, aliases=("intitule", "nom compte")),
+        Column("banque", "str", aliases=("etablissement",)),
+        Column("type", "str", enum=("banque", "caisse", "mobile_money"), aliases=("nature",)),
+        Column("devise", "str", aliases=("monnaie", "currency")),
+        Column("iban", "str", aliases=("rib",)),
+        Column(
+            "solde_initial_xaf",
+            "decimal",
+            help="Solde d'ouverture",
+            aliases=("solde initial", "solde ouverture", "solde"),
+        ),
+    ),
+)
+
+_CASH_FLOWS = EntitySpec(
+    entity="cash_flows",
+    label="Flux de trésorerie",
+    model=CashFlowRecord,
+    natural_key=("reference",),
+    columns=(
+        Column(
+            "reference",
+            "str",
+            required=True,
+            help="Référence unique du flux",
+            aliases=("ref", "piece"),
+        ),
+        Column("compte_code", "str", required=True, aliases=("compte", "code compte")),
+        Column("sens", "str", enum=("encaissement", "decaissement"), aliases=("type", "nature")),
+        Column("montant_xaf", "decimal", aliases=("montant", "valeur")),
+        Column(
+            "date_operation",
+            "date",
+            required=True,
+            help="AAAA-MM-JJ",
+            aliases=("date", "date operation"),
+        ),
+        Column(
+            "date_prevue", "date", help="AAAA-MM-JJ (si prévu)", aliases=("echeance", "date prevue")
+        ),
+        Column("statut", "str", enum=("prevu", "realise"), aliases=("etat",)),
+        Column("categorie", "str", aliases=("rubrique", "poste")),
+        Column("tiers", "str", aliases=("beneficiaire", "client", "fournisseur")),
+        Column("libelle", "str", aliases=("intitule", "motif", "objet")),
+        Column(
+            "mode",
+            "str",
+            help="virement, cheque, especes, mobile_money",
+            aliases=("moyen", "mode reglement"),
+        ),
+    ),
+)
+
 # Toutes les entités (endpoints par entité).
 REGISTRY: dict[str, EntitySpec] = {
     s.entity: s
@@ -604,6 +674,8 @@ REGISTRY: dict[str, EntitySpec] = {
         _PURCHASE_BUDGETS,
         _STOCK_ITEMS,
         _STOCK_MOVES,
+        _BANK_ACCOUNTS,
+        _CASH_FLOWS,
     )
 }
 
@@ -640,5 +712,10 @@ POLES: dict[str, PoleSpec] = {
         pole="supply",
         label="Supply Chain",
         entities=(_STOCK_ITEMS, _STOCK_MOVES),
+    ),
+    "tresorerie": PoleSpec(
+        pole="tresorerie",
+        label="Trésorerie",
+        entities=(_BANK_ACCOUNTS, _CASH_FLOWS),
     ),
 }

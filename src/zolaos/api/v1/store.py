@@ -45,9 +45,12 @@ from zolaos.agents.erp.inventory import (
 )
 from zolaos.agents.erp.reconciliation import reconcilier
 from zolaos.agents.erp.supply import StockItem, alertes_rupture, analyser_reappro
+from zolaos.agents.erp.treasury import CompteTresorerie, FluxTresorerie, position_tresorerie
 from zolaos.connectors.models import BankTransaction, Invoice, JournalEntry, JournalLine
 from zolaos.db.session import get_session
 from zolaos.db.store_repo import (
+    BankAccountRepository,
+    CashFlowRepository,
     EngagementRepository,
     InvoiceRepository,
     JournalRepository,
@@ -1297,3 +1300,159 @@ async def export_pilotage(
         media_type=_XLSX_MEDIA,
         headers={"Content-Disposition": f'attachment; filename="{nom}.xlsx"'},
     )
+
+
+# ---------------------------------------------------------------- Trésorerie (TRESO-1)
+
+
+class BankAccountIn(BaseModel):
+    code: str
+    libelle: str
+    banque: str = ""
+    type: str = "banque"  # banque | caisse | mobile_money
+    devise: str = "XAF"
+    iban: str | None = None
+    solde_initial_xaf: Decimal = Decimal("0")
+    country: str = "cg"
+
+
+class BankAccountPatch(BaseModel):
+    libelle: str | None = None
+    banque: str | None = None
+    type: str | None = None
+    iban: str | None = None
+    solde_initial_xaf: Decimal | None = None
+
+
+class CashFlowIn(BaseModel):
+    reference: str
+    compte_code: str
+    sens: str = "encaissement"  # encaissement | decaissement
+    montant_xaf: Decimal = Decimal("0")
+    date_operation: date
+    date_prevue: date | None = None
+    statut: str = "realise"  # prevu | realise
+    categorie: str = ""
+    tiers: str = ""
+    libelle: str = ""
+    mode: str = "virement"
+    invoice_id: str | None = None
+    country: str = "cg"
+
+
+# ----- comptes -----
+
+
+@router.post("/bank-accounts", status_code=status.HTTP_201_CREATED, summary="Créer un compte")
+async def create_bank_account(
+    body: BankAccountIn,
+    tenant_id: str = "local",
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    rec = await BankAccountRepository(session).create({**body.model_dump(), "tenant_id": tenant_id})
+    await session.commit()
+    return rec.to_dict()
+
+
+@router.get("/bank-accounts", summary="Lister les comptes de trésorerie")
+async def list_bank_accounts(
+    tenant_id: str = "local",
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    rows = await BankAccountRepository(session).list(tenant_id=tenant_id)
+    return {"accounts": [r.to_dict() for r in rows]}
+
+
+@router.patch("/bank-accounts/{account_id}", summary="Mettre à jour un compte")
+async def patch_bank_account(
+    account_id: str,
+    body: BankAccountPatch,
+    tenant_id: str = "local",
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    rec = await BankAccountRepository(session).update(
+        account_id, tenant_id=tenant_id, fields=body.model_dump(exclude_none=True)
+    )
+    if rec is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="account_not_found")
+    await session.commit()
+    return rec.to_dict()
+
+
+@router.delete("/bank-accounts/{account_id}", summary="Supprimer un compte")
+async def delete_bank_account(
+    account_id: str,
+    tenant_id: str = "local",
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    ok = await BankAccountRepository(session).delete(account_id, tenant_id=tenant_id)
+    if not ok:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="account_not_found")
+    await session.commit()
+    return {"deleted": account_id}
+
+
+# ----- flux -----
+
+
+@router.post("/cash-flows", status_code=status.HTTP_201_CREATED, summary="Créer un flux")
+async def create_cash_flow(
+    body: CashFlowIn,
+    tenant_id: str = "local",
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    rec = await CashFlowRepository(session).create({**body.model_dump(), "tenant_id": tenant_id})
+    await session.commit()
+    return rec.to_dict()
+
+
+@router.get("/cash-flows", summary="Lister les flux de trésorerie")
+async def list_cash_flows(
+    tenant_id: str = "local",
+    compte_code: str | None = None,
+    statut: str | None = None,
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    rows = await CashFlowRepository(session).list(
+        tenant_id=tenant_id, compte_code=compte_code, statut=statut
+    )
+    return {"flows": [r.to_dict() for r in rows]}
+
+
+@router.delete("/cash-flows/{flow_id}", summary="Supprimer un flux")
+async def delete_cash_flow(
+    flow_id: str,
+    tenant_id: str = "local",
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    ok = await CashFlowRepository(session).delete(flow_id, tenant_id=tenant_id)
+    if not ok:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="flow_not_found")
+    await session.commit()
+    return {"deleted": flow_id}
+
+
+@router.get("/treasury/position", summary="Position de trésorerie (réalisée et projetée)")
+async def treasury_position(
+    tenant_id: str = "local",
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    accounts = await BankAccountRepository(session).list(tenant_id=tenant_id)
+    flows = await CashFlowRepository(session).list(tenant_id=tenant_id)
+    comptes = [
+        CompteTresorerie(
+            code=a.code,
+            libelle=a.libelle,
+            type=a.type,
+            devise=a.devise,
+            solde_initial_xaf=a.solde_initial_xaf,
+        )
+        for a in accounts
+    ]
+    flux = [
+        FluxTresorerie(
+            compte_code=f.compte_code, sens=f.sens, montant_xaf=f.montant_xaf, statut=f.statut
+        )
+        for f in flows
+    ]
+    return {"position": asdict(position_tresorerie(comptes, flux))}

@@ -913,6 +913,85 @@ class PurchaseOrderRecord(StoreBase):
         }
 
 
+class BankAccountRecord(StoreBase):
+    """Compte de trésorerie (banque / caisse / mobile money) — TRESO-1."""
+
+    __tablename__ = "store_bank_accounts"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    tenant_id: Mapped[str] = mapped_column(String(64), index=True)
+    code: Mapped[str] = mapped_column(String(32))
+    libelle: Mapped[str] = mapped_column(String(120))
+    banque: Mapped[str] = mapped_column(String(120), default="")
+    type: Mapped[str] = mapped_column(String(16), default="banque")  # banque|caisse|mobile_money
+    devise: Mapped[str] = mapped_column(String(3), default="XAF")
+    iban: Mapped[str | None] = mapped_column(String(34), nullable=True)
+    solde_initial_xaf: Mapped[Decimal] = mapped_column(Numeric(18, 2), default=Decimal("0"))
+    country: Mapped[str] = mapped_column(String(2), default="cg")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_now, onupdate=_now
+    )
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "tenant_id": self.tenant_id,
+            "code": self.code,
+            "libelle": self.libelle,
+            "banque": self.banque,
+            "type": self.type,
+            "devise": self.devise,
+            "iban": self.iban,
+            "solde_initial_xaf": str(self.solde_initial_xaf),
+            "country": self.country,
+        }
+
+
+class CashFlowRecord(StoreBase):
+    """Flux de trésorerie (encaissement/décaissement, réalisé ou prévu) — TRESO-1."""
+
+    __tablename__ = "store_cash_flows"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    tenant_id: Mapped[str] = mapped_column(String(64), index=True)
+    reference: Mapped[str] = mapped_column(String(64))
+    compte_code: Mapped[str] = mapped_column(String(32), index=True)
+    sens: Mapped[str] = mapped_column(
+        String(13), default="encaissement"
+    )  # encaissement|decaissement
+    montant_xaf: Mapped[Decimal] = mapped_column(Numeric(18, 2), default=Decimal("0"))
+    date_operation: Mapped[date] = mapped_column(Date)
+    date_prevue: Mapped[date | None] = mapped_column(Date, nullable=True)
+    statut: Mapped[str] = mapped_column(String(8), default="realise")  # prevu|realise
+    categorie: Mapped[str] = mapped_column(String(60), default="")
+    tiers: Mapped[str] = mapped_column(String(200), default="")
+    libelle: Mapped[str] = mapped_column(String(200), default="")
+    mode: Mapped[str] = mapped_column(String(16), default="virement")
+    invoice_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    country: Mapped[str] = mapped_column(String(2), default="cg")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "tenant_id": self.tenant_id,
+            "reference": self.reference,
+            "compte_code": self.compte_code,
+            "sens": self.sens,
+            "montant_xaf": str(self.montant_xaf),
+            "date_operation": self.date_operation.isoformat() if self.date_operation else None,
+            "date_prevue": self.date_prevue.isoformat() if self.date_prevue else None,
+            "statut": self.statut,
+            "categorie": self.categorie,
+            "tiers": self.tiers,
+            "libelle": self.libelle,
+            "mode": self.mode,
+            "invoice_id": self.invoice_id,
+            "country": self.country,
+        }
+
+
 class EngagementRecord(StoreBase):
     """Engagement d'achat suivi sur la chaîne **EB → DA → BC** (Achats v2).
 

@@ -15,7 +15,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from zolaos.db.store_models import (
     AbsenceRecord,
     ApplicationRecord,
+    BankAccountRecord,
     CandidateRecord,
+    CashFlowRecord,
     ContractRecord,
     CustomerRecord,
     DocumentRecord,
@@ -426,6 +428,29 @@ class StockMoveRepository(_CrudRepo):
         if sku is not None:
             stmt = stmt.where(StockMoveRecord.sku == sku)
         stmt = stmt.order_by(StockMoveRecord.date_mouvement.desc())
+        return list(await self._s.scalars(stmt))
+
+
+class BankAccountRepository(_CrudRepo):
+    model = BankAccountRecord
+
+
+class CashFlowRepository(_CrudRepo):
+    model = CashFlowRecord
+
+    async def list(  # type: ignore[override]
+        self,
+        *,
+        tenant_id: str,
+        compte_code: str | None = None,
+        statut: str | None = None,
+    ) -> list[CashFlowRecord]:
+        stmt = select(CashFlowRecord).where(CashFlowRecord.tenant_id == tenant_id)
+        if compte_code is not None:
+            stmt = stmt.where(CashFlowRecord.compte_code == compte_code)
+        if statut is not None:
+            stmt = stmt.where(CashFlowRecord.statut == statut)
+        stmt = stmt.order_by(CashFlowRecord.date_operation.desc())
         return list(await self._s.scalars(stmt))
 
 
