@@ -20,6 +20,7 @@ from zolaos.db.store_models import (
     DocumentRecord,
     EmployeeRecord,
     EmployeeSkillRecord,
+    EngagementRecord,
     EvaluationRecord,
     InteractionRecord,
     InterviewRecord,
@@ -404,6 +405,10 @@ class SupplierRepository(_CrudRepo):
 
 class PurchaseOrderRepository(_CrudRepo):
     model = PurchaseOrderRecord
+
+
+class EngagementRepository(_CrudRepo):
+    model = EngagementRecord
 
 
 class InteractionRepository(_CrudRepo):

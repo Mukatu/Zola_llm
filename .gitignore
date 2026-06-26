@@ -122,3 +122,7 @@ Modelefile.txt
 
 # Échantillons Import générés (regénérables via scripts/generate_import_samples.py)
 samples/imports/*.xlsx
+
+# Fichiers métier réels de l'utilisateur (données, ne pas versionner)
+Engagements_achats.xlsm
+*.xlsm

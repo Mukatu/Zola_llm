@@ -855,6 +855,69 @@ class PurchaseOrderRecord(StoreBase):
         }
 
 
+class EngagementRecord(StoreBase):
+    """Engagement d'achat suivi sur la chaîne **EB → DA → BC** (Achats v2).
+
+    Un enregistrement = un besoin suivi de bout en bout (Expression de Besoin →
+    Demande d'Achat → Bon de Commande), avec dimension organisationnelle
+    (direction/service/demandeur/acheteur) et suivi budgétaire (estimation vs
+    montant engagé). Calqué sur l'outil métier réel des achats.
+    """
+
+    __tablename__ = "store_engagements"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    tenant_id: Mapped[str] = mapped_column(String(64), index=True)
+    numero_eb: Mapped[str] = mapped_column(String(32))
+    numero_da: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    numero_bc: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    date_eb: Mapped[date | None] = mapped_column(Date, nullable=True)
+    date_da: Mapped[date | None] = mapped_column(Date, nullable=True)
+    date_bc: Mapped[date | None] = mapped_column(Date, nullable=True)
+    direction: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    service: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    demandeur: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    acheteur: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    fournisseur: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    description_besoin: Mapped[str] = mapped_column(Text, default="")
+    description_da: Mapped[str] = mapped_column(Text, default="")
+    description_bc: Mapped[str] = mapped_column(Text, default="")
+    estimation_xaf: Mapped[Decimal] = mapped_column(Numeric(18, 2), default=Decimal("0"))
+    montant_xaf: Mapped[Decimal] = mapped_column(Numeric(18, 2), default=Decimal("0"))
+    statut_ebda: Mapped[str] = mapped_column(String(40), default="")
+    statut_bc: Mapped[str] = mapped_column(String(40), default="")
+    country: Mapped[str] = mapped_column(String(2), default="cg")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_now, onupdate=_now
+    )
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "tenant_id": self.tenant_id,
+            "numero_eb": self.numero_eb,
+            "numero_da": self.numero_da,
+            "numero_bc": self.numero_bc,
+            "date_eb": self.date_eb.isoformat() if self.date_eb else None,
+            "date_da": self.date_da.isoformat() if self.date_da else None,
+            "date_bc": self.date_bc.isoformat() if self.date_bc else None,
+            "direction": self.direction,
+            "service": self.service,
+            "demandeur": self.demandeur,
+            "acheteur": self.acheteur,
+            "fournisseur": self.fournisseur,
+            "description_besoin": self.description_besoin,
+            "description_da": self.description_da,
+            "description_bc": self.description_bc,
+            "estimation_xaf": str(self.estimation_xaf),
+            "montant_xaf": str(self.montant_xaf),
+            "statut_ebda": self.statut_ebda,
+            "statut_bc": self.statut_bc,
+            "country": self.country,
+        }
+
+
 class EvaluationRecord(StoreBase):
     """Évaluation annuelle : performance × potentiel (SIRH-3b)."""
 

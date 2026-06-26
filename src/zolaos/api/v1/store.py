@@ -24,11 +24,17 @@ from zolaos.agents.erp.achats import (
     verifier_conformite,
 )
 from zolaos.agents.erp.compta import ChartOfAccounts, JournalValidator
+from zolaos.agents.erp.engagements import (
+    Engagement,
+    detect_alertes,
+    engagement_stats,
+)
 from zolaos.agents.erp.reconciliation import reconcilier
 from zolaos.agents.erp.supply import StockItem, alertes_rupture, analyser_reappro
 from zolaos.connectors.models import BankTransaction, Invoice, JournalEntry, JournalLine
 from zolaos.db.session import get_session
 from zolaos.db.store_repo import (
+    EngagementRepository,
     InvoiceRepository,
     JournalRepository,
     PurchaseOrderRepository,
@@ -646,3 +652,126 @@ async def receipt_po(
     )
     await session.commit()
     return {"purchase_order": rec.to_dict(), "invoice": inv.to_dict()}
+
+
+# ---------------------------------------------------------------- Engagements (Achats v2)
+
+
+class EngagementIn(BaseModel):
+    numero_eb: str
+    numero_da: str | None = None
+    numero_bc: str | None = None
+    date_eb: date | None = None
+    date_da: date | None = None
+    date_bc: date | None = None
+    direction: str | None = None
+    service: str | None = None
+    demandeur: str | None = None
+    acheteur: str | None = None
+    fournisseur: str | None = None
+    description_besoin: str = ""
+    description_da: str = ""
+    description_bc: str = ""
+    estimation_xaf: Decimal = Decimal("0")
+    montant_xaf: Decimal = Decimal("0")
+    statut_ebda: str = ""
+    statut_bc: str = ""
+    country: str = "cg"
+
+
+class EngagementPatch(BaseModel):
+    numero_da: str | None = None
+    numero_bc: str | None = None
+    date_da: date | None = None
+    date_bc: date | None = None
+    acheteur: str | None = None
+    fournisseur: str | None = None
+    description_da: str | None = None
+    description_bc: str | None = None
+    estimation_xaf: Decimal | None = None
+    montant_xaf: Decimal | None = None
+    statut_ebda: str | None = None
+    statut_bc: str | None = None
+
+
+def _engagement_of(rec: Any) -> Engagement:
+    return Engagement(
+        numero_eb=rec.numero_eb,
+        numero_da=rec.numero_da,
+        numero_bc=rec.numero_bc,
+        date_eb=rec.date_eb,
+        date_da=rec.date_da,
+        date_bc=rec.date_bc,
+        direction=rec.direction,
+        service=rec.service,
+        demandeur=rec.demandeur,
+        acheteur=rec.acheteur,
+        fournisseur=rec.fournisseur,
+        estimation_xaf=rec.estimation_xaf,
+        montant_xaf=rec.montant_xaf,
+        statut_ebda=rec.statut_ebda,
+        statut_bc=rec.statut_bc,
+    )
+
+
+@router.post("/engagements", status_code=status.HTTP_201_CREATED, summary="Créer un engagement")
+async def create_engagement(
+    body: EngagementIn,
+    tenant_id: str = "local",
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    rec = await EngagementRepository(session).create({**body.model_dump(), "tenant_id": tenant_id})
+    await session.commit()
+    return rec.to_dict()
+
+
+@router.get("/engagements", summary="Lister les engagements (chaîne EB→DA→BC)")
+async def list_engagements(
+    tenant_id: str = "local",
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    rows = await EngagementRepository(session).list(tenant_id=tenant_id)
+    return {"engagements": [r.to_dict() for r in rows]}
+
+
+@router.get(
+    "/engagements/stats", summary="Indicateurs d'engagement (transformation, écarts, funnel)"
+)
+async def engagements_stats(
+    tenant_id: str = "local",
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    rows = await EngagementRepository(session).list(tenant_id=tenant_id)
+    engagements = [_engagement_of(r) for r in rows]
+    stats = engagement_stats(engagements)
+    alertes = detect_alertes(engagements)
+    return {"stats": asdict(stats), "alertes": [asdict(a) for a in alertes]}
+
+
+@router.patch("/engagements/{engagement_id}", summary="Mettre à jour un engagement")
+async def patch_engagement(
+    engagement_id: str,
+    body: EngagementPatch,
+    tenant_id: str = "local",
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    rec = await EngagementRepository(session).update(
+        engagement_id, tenant_id=tenant_id, fields=body.model_dump(exclude_none=True)
+    )
+    if rec is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="engagement_not_found")
+    await session.commit()
+    return rec.to_dict()
+
+
+@router.delete("/engagements/{engagement_id}", summary="Supprimer un engagement")
+async def delete_engagement(
+    engagement_id: str,
+    tenant_id: str = "local",
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    ok = await EngagementRepository(session).delete(engagement_id, tenant_id=tenant_id)
+    if not ok:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="engagement_not_found")
+    await session.commit()
+    return {"deleted": engagement_id}

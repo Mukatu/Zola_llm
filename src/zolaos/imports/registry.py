@@ -8,6 +8,7 @@ from zolaos.db.store_models import (
     CustomerRecord,
     EmployeeRecord,
     EmployeeSkillRecord,
+    EngagementRecord,
     EvaluationRecord,
     InvoiceRecord,
     JobRoleRecord,
@@ -428,6 +429,60 @@ _PURCHASE_ORDERS = EntitySpec(
     ),
 )
 
+# ----------------------------------------------------------------- Engagements (Achats v2)
+
+# Colonnes alignées sur l'outil métier réel (feuille « BD ») → import direct.
+_ENGAGEMENTS = EntitySpec(
+    entity="engagements",
+    label="Engagements",
+    model=EngagementRecord,
+    natural_key=("numero_eb",),
+    columns=(
+        Column(
+            "numero_eb",
+            "str",
+            required=True,
+            help="N° Expression de Besoin",
+            aliases=("n eb", "n° eb", "numero eb", "n  eb"),
+        ),
+        Column(
+            "numero_da", "str", help="N° Demande d'Achat", aliases=("n da", "n° da", "numero da")
+        ),
+        Column(
+            "numero_bc", "str", help="N° Bon de Commande", aliases=("n bc", "n° bc", "numero bc")
+        ),
+        Column("date_eb", "date", help="AAAA-MM-JJ", aliases=("date eb",)),
+        Column("date_da", "date", help="AAAA-MM-JJ", aliases=("date da",)),
+        Column("date_bc", "date", help="AAAA-MM-JJ", aliases=("date bc",)),
+        Column("direction", "str", aliases=("direction", "dir")),
+        Column("service", "str", aliases=("service",)),
+        Column("demandeur", "str", aliases=("demandeur", "requerant")),
+        Column(
+            "description_besoin",
+            "str",
+            aliases=("description du besoin", "description besoin", "besoin"),
+        ),
+        Column("description_da", "str", aliases=("description da",)),
+        Column("acheteur", "str", aliases=("acheteur",)),
+        Column("fournisseur", "str", aliases=("fournisseur", "prestataire")),
+        Column("description_bc", "str", aliases=("description bc",)),
+        Column(
+            "estimation_xaf",
+            "decimal",
+            help="Montant estimé du besoin",
+            aliases=("estimation", "estime", "budget"),
+        ),
+        Column(
+            "montant_xaf",
+            "decimal",
+            help="Montant engagé (BC)",
+            aliases=("montant", "montant engage", "engage"),
+        ),
+        Column("statut_ebda", "str", aliases=("statut eb/da", "statut ebda", "statut eb da")),
+        Column("statut_bc", "str", aliases=("statut bc",)),
+    ),
+)
+
 # ----------------------------------------------------------------- Supply / Stocks (P2)
 
 _STOCK_ITEMS = EntitySpec(
@@ -486,6 +541,7 @@ REGISTRY: dict[str, EntitySpec] = {
         _QUOTES,
         _SUPPLIERS,
         _PURCHASE_ORDERS,
+        _ENGAGEMENTS,
         _STOCK_ITEMS,
     )
 }
@@ -517,7 +573,7 @@ POLES: dict[str, PoleSpec] = {
     "achats": PoleSpec(
         pole="achats",
         label="Achats",
-        entities=(_SUPPLIERS, _PURCHASE_ORDERS),
+        entities=(_SUPPLIERS, _PURCHASE_ORDERS, _ENGAGEMENTS),
     ),
     "supply": PoleSpec(
         pole="supply",

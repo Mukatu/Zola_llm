@@ -1,7 +1,17 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { ShoppingCart, Plus, Trash2, Trophy, ShieldAlert, FileCheck2, Star } from "lucide-react";
+import {
+  ShoppingCart,
+  Plus,
+  Trash2,
+  Trophy,
+  ShieldAlert,
+  FileCheck2,
+  Star,
+  GitBranch,
+  AlertTriangle,
+} from "lucide-react";
 import { Card, Button } from "../ui";
 import { FlagshipHeader, Inp } from "./_shared";
 import { fmt } from "@/lib/data";
@@ -16,10 +26,16 @@ import {
   comparePurchaseOrders,
   receiptPurchaseOrder,
   deletePurchaseOrder,
+  listEngagements,
+  createEngagement,
+  engagementStats,
   type SupplierRec,
   type SupplierScore,
   type PurchaseOrderRec,
   type ComparatifLigne,
+  type EngagementRec,
+  type EngagementStats,
+  type EngagementAlerte,
 } from "@/lib/achats";
 
 const GRADE: Record<string, string> = {
@@ -41,12 +57,22 @@ const DEMO_POS = [
   { id_externe: "BC2", numero: "BC-002", fournisseur: "Beta Distrib", objet: "Consommables", date_emission: TODAY, statut: "envoye", montant_ht_xaf: "800000", montant_ttc_xaf: "944000", delai_livraison_jours: 15 },
   { id_externe: "BC3", numero: "BC-003", fournisseur: "Gamma", objet: "Consommables", date_emission: TODAY, statut: "envoye", montant_ht_xaf: "900000", montant_ttc_xaf: "1062000", delai_livraison_jours: 7 },
 ];
+const DEMO_ENGAGEMENTS = [
+  { numero_eb: "0319/26", numero_da: "0313/26", numero_bc: "0172/26", date_eb: "2026-04-13", date_da: "2026-04-28", date_bc: "2026-04-30", direction: "DIP", service: "SIPT", demandeur: "BELO D.", acheteur: "Ferlez", fournisseur: "HBM Services", estimation_xaf: "200000", montant_xaf: "225910", statut_ebda: "OK / Traitée", statut_bc: "Traité" },
+  { numero_eb: "0368/26", numero_da: "0332/26", date_eb: "2026-04-20", date_da: "2026-04-30", direction: "DFC", service: "Logistique", demandeur: "MAVOUNGOU R.", acheteur: "Ferlez", estimation_xaf: "1400000", statut_ebda: "OK / En cours CDG", statut_bc: "En Cours CDG" },
+  { numero_eb: "0401/26", date_eb: "2026-05-02", direction: "DOM", service: "Production", demandeur: "NGOMA P.", acheteur: "Leroy", estimation_xaf: "750000", statut_ebda: "OK / En cours ACH", statut_bc: "N/C" },
+  { numero_eb: "0410/26", numero_da: "0345/26", numero_bc: "0181/26", date_eb: "2026-05-04", date_da: "2026-05-10", date_bc: "2026-05-18", direction: "DARH", service: "Moyens généraux", demandeur: "OKEMBA J.", acheteur: "Judith", fournisseur: "Beta Distrib", estimation_xaf: "600000", montant_xaf: "850000", statut_ebda: "OK / Traitée", statut_bc: "En cours F/sseur" },
+];
 
 export function AchatsScreen() {
+  const [tab, setTab] = useState<"appro" | "engagements">("appro");
   const [suppliers, setSuppliers] = useState<SupplierRec[]>([]);
   const [scores, setScores] = useState<Record<string, SupplierScore>>({});
   const [pos, setPos] = useState<PurchaseOrderRec[]>([]);
   const [classement, setClassement] = useState<ComparatifLigne[] | null>(null);
+  const [engagements, setEngagements] = useState<EngagementRec[]>([]);
+  const [engStats, setEngStats] = useState<EngagementStats | null>(null);
+  const [engAlertes, setEngAlertes] = useState<EngagementAlerte[]>([]);
   const [err, setErr] = useState<string | null>(null);
 
   const [supForm, setSupForm] = useState({ nom: "", note_qualite: "3.0" });
@@ -54,10 +80,19 @@ export function AchatsScreen() {
 
   const refresh = useCallback(async () => {
     try {
-      const [s, sc, p] = await Promise.all([listSuppliers(), supplierScores(), listPurchaseOrders()]);
+      const [s, sc, p, eng, est] = await Promise.all([
+        listSuppliers(),
+        supplierScores(),
+        listPurchaseOrders(),
+        listEngagements(),
+        engagementStats(),
+      ]);
       setSuppliers(s.suppliers);
       setScores(Object.fromEntries(sc.scores.map((x) => [x.id, x])));
       setPos(p.purchase_orders);
+      setEngagements(eng.engagements);
+      setEngStats(est.stats);
+      setEngAlertes(est.alertes);
       setErr(null);
     } catch (e) {
       setErr(e instanceof ApiError ? "Backend indisponible (DB requise)." : "Service indisponible.");
@@ -138,6 +173,15 @@ export function AchatsScreen() {
     }
   }
 
+  async function seedEngagements() {
+    try {
+      for (const e of DEMO_ENGAGEMENTS) await createEngagement(e);
+      await refresh();
+    } catch {
+      setErr("Initialisation des engagements de démo impossible (backend/DB).");
+    }
+  }
+
   const isEmpty = suppliers.length === 0 && pos.length === 0;
   const objets = Array.from(new Set(pos.map((p) => p.objet).filter(Boolean)));
 
@@ -146,8 +190,27 @@ export function AchatsScreen() {
       <FlagshipHeader
         icon={ShoppingCart}
         title="Achats / Procurement"
-        subtitle="Registre fournisseurs noté, comparatif des BC et réception → facture d'achat (anti-surfacturation tracée)."
+        subtitle="Approvisionnement (fournisseurs, BC, réception→facture) et pilotage des engagements EB→DA→BC."
       />
+
+      {/* Onglets */}
+      <div className="flex gap-1 rounded-xl bg-black/[0.04] p-1 text-sm">
+        {([
+          ["appro", "Approvisionnement"],
+          ["engagements", "Engagements"],
+        ] as const).map(([k, label]) => (
+          <button
+            key={k}
+            onClick={() => setTab(k)}
+            className={
+              "rounded-lg px-3 py-1.5 font-medium transition " +
+              (tab === k ? "bg-surface shadow-sm" : "text-muted hover:text-ink")
+            }
+          >
+            {label}
+          </button>
+        ))}
+      </div>
 
       {err && (
         <Card className="ring-amber-200">
@@ -155,21 +218,30 @@ export function AchatsScreen() {
         </Card>
       )}
 
-      {isEmpty && (
-        <Card>
-          <div className="flex flex-col items-start gap-2">
-            <p className="text-sm text-muted">
-              Aucune donnée achat. Le registre est <b>persistant</b> : chargez un jeu de démo ou
-              créez un fournisseur.
-            </p>
-            <Button onClick={seedDemo}>
-              <Plus className="h-4 w-4" /> Charger un jeu de démo
-            </Button>
-          </div>
-        </Card>
-      )}
+      {tab === "engagements" ? (
+        <EngagementsPanel
+          engagements={engagements}
+          stats={engStats}
+          alertes={engAlertes}
+          onSeed={seedEngagements}
+        />
+      ) : (
+        <>
+          {isEmpty && (
+            <Card>
+              <div className="flex flex-col items-start gap-2">
+                <p className="text-sm text-muted">
+                  Aucune donnée achat. Le registre est <b>persistant</b> : chargez un jeu de démo
+                  ou créez un fournisseur.
+                </p>
+                <Button onClick={seedDemo}>
+                  <Plus className="h-4 w-4" /> Charger un jeu de démo
+                </Button>
+              </div>
+            </Card>
+          )}
 
-      <div className="grid gap-4 lg:grid-cols-2">
+          <div className="grid gap-4 lg:grid-cols-2">
         {/* Registre fournisseurs noté/gradé */}
         <Card>
           <h2 className="mb-2 text-sm font-semibold">Fournisseurs (notés &amp; gradés)</h2>
@@ -268,7 +340,218 @@ export function AchatsScreen() {
             </div>
           ))}
         </Card>
+          )}
+        </>
       )}
+    </div>
+  );
+}
+
+const PHASE_LABEL: Record<string, string> = {
+  besoin: "Besoin (EB)",
+  demande: "Demande (DA)",
+  commande: "Commande (BC)",
+  traite: "Traité",
+  annulee: "Annulé",
+};
+const PHASE_COLOR: Record<string, string> = {
+  besoin: "bg-gray-100 text-gray-600",
+  demande: "bg-blue-100 text-blue-700",
+  commande: "bg-indigo-100 text-indigo-700",
+  traite: "bg-emerald-100 text-emerald-700",
+  annulee: "bg-red-100 text-red-600",
+};
+
+function EngagementsPanel({
+  engagements,
+  stats,
+  alertes,
+  onSeed,
+}: {
+  engagements: EngagementRec[];
+  stats: EngagementStats | null;
+  alertes: EngagementAlerte[];
+  onSeed: () => void;
+}) {
+  if (engagements.length === 0) {
+    return (
+      <Card>
+        <div className="flex flex-col items-start gap-2">
+          <p className="text-sm text-muted">
+            Aucun engagement. Le suivi <b>EB → DA → BC</b> (estimation vs engagé, par direction et
+            acheteur) s&apos;alimente par import Excel ou par le jeu de démo.
+          </p>
+          <Button onClick={onSeed}>
+            <Plus className="h-4 w-4" /> Charger des engagements de démo
+          </Button>
+        </div>
+      </Card>
+    );
+  }
+  return (
+    <div className="flex flex-col gap-4">
+      {stats && (
+        <>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <Kpi label="Engagements" value={String(stats.nb_total)} />
+            <Kpi label="Estimé" value={fmt(stats.estimation_totale_xaf) + " XAF"} />
+            <Kpi label="Engagé" value={fmt(stats.engage_total_xaf) + " XAF"} />
+            <Kpi
+              label="Écart (engagé − estimé)"
+              value={(stats.ecart_xaf >= 0 ? "+" : "") + fmt(stats.ecart_xaf) + " XAF"}
+            />
+          </div>
+
+          <div className="grid gap-4 lg:grid-cols-2">
+            {/* Transformation EB→DA→BC */}
+            <Card>
+              <div className="mb-2 flex items-center gap-2 text-sm font-semibold">
+                <GitBranch className="h-4 w-4 text-indigo-600" /> Transformation
+              </div>
+              <Funnel label="EB" value={stats.nb_eb} pct={100} />
+              <Funnel label="DA" value={stats.nb_da} pct={Number(stats.taux_eb_vers_da_pct)} />
+              <Funnel label="BC" value={stats.nb_bc} pct={Number(stats.taux_eb_vers_bc_pct)} />
+              <div className="mt-2 flex justify-between text-xs text-muted">
+                <span>Taux EB→BC : {stats.taux_eb_vers_bc_pct}%</span>
+                <span>
+                  Cycle moy. : {stats.delai_moyen_eb_da_jours ?? "—"} j (EB→DA) ·{" "}
+                  {stats.delai_moyen_da_bc_jours ?? "—"} j (DA→BC)
+                </span>
+              </div>
+            </Card>
+
+            {/* Funnel des statuts BC */}
+            <Card>
+              <div className="mb-2 text-sm font-semibold">En-cours par statut BC</div>
+              {Object.keys(stats.funnel_statut_bc).length === 0 && (
+                <p className="text-sm text-muted">Aucun BC émis.</p>
+              )}
+              {Object.entries(stats.funnel_statut_bc).map(([s, n]) => (
+                <div key={s} className="flex items-center justify-between border-b border-black/5 py-1 text-sm last:border-0">
+                  <span>{s}</span>
+                  <span className="font-semibold">{n}</span>
+                </div>
+              ))}
+            </Card>
+
+            {/* Par direction */}
+            <Card>
+              <div className="mb-2 text-sm font-semibold">Engagé par direction</div>
+              {stats.par_direction.map((d) => (
+                <div key={d.cle} className="flex items-center justify-between border-b border-black/5 py-1 text-sm last:border-0">
+                  <span>{d.cle} <span className="text-xs text-muted">({d.nb})</span></span>
+                  <span className="text-muted">{fmt(d.engage_xaf)} XAF</span>
+                </div>
+              ))}
+            </Card>
+
+            {/* Par acheteur */}
+            <Card>
+              <div className="mb-2 text-sm font-semibold">Charge par acheteur</div>
+              {stats.par_acheteur.map((a) => (
+                <div key={a.cle} className="flex items-center justify-between border-b border-black/5 py-1 text-sm last:border-0">
+                  <span>{a.cle} <span className="text-xs text-muted">({a.nb})</span></span>
+                  <span className="text-muted">{fmt(a.engage_xaf)} XAF</span>
+                </div>
+              ))}
+            </Card>
+          </div>
+
+          {alertes.length > 0 && (
+            <Card className="ring-amber-200">
+              <div className="mb-2 flex items-center gap-2 text-sm font-semibold">
+                <AlertTriangle className="h-4 w-4 text-amber-600" /> Alertes ({alertes.length})
+                {stats.nb_depassements > 0 && (
+                  <span className="text-xs font-normal text-muted">
+                    · {stats.nb_depassements} dépassement(s) d&apos;estimation
+                  </span>
+                )}
+              </div>
+              {alertes.map((a, i) => (
+                <div key={i} className="flex items-start justify-between gap-2 border-b border-black/5 py-1 text-sm last:border-0">
+                  <span>{a.libelle}</span>
+                  <span className={"shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold " + (a.priorite === "high" ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-700")}>
+                    {a.type}
+                  </span>
+                </div>
+              ))}
+            </Card>
+          )}
+        </>
+      )}
+
+      {/* Registre des engagements */}
+      <Card>
+        <div className="mb-2 text-sm font-semibold">Registre des engagements (EB → DA → BC)</div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-left text-xs text-muted">
+                <th className="py-1 pr-2">N° EB</th>
+                <th className="pr-2">Direction</th>
+                <th className="pr-2">Acheteur</th>
+                <th className="pr-2">Fournisseur</th>
+                <th className="pr-2 text-right">Estimé</th>
+                <th className="pr-2 text-right">Engagé</th>
+                <th className="pr-2">Phase</th>
+              </tr>
+            </thead>
+            <tbody>
+              {engagements.map((e) => {
+                const ph = computePhase(e);
+                return (
+                  <tr key={e.id} className="border-t border-black/5">
+                    <td className="py-1 pr-2 font-medium">{e.numero_eb}</td>
+                    <td className="pr-2">{e.direction ?? "—"}</td>
+                    <td className="pr-2">{e.acheteur ?? "—"}</td>
+                    <td className="pr-2">{e.fournisseur ?? "—"}</td>
+                    <td className="pr-2 text-right text-muted">{fmt(e.estimation_xaf)}</td>
+                    <td className="pr-2 text-right">{fmt(e.montant_xaf)}</td>
+                    <td className="pr-2">
+                      <span className={"rounded px-1.5 py-0.5 text-[10px] font-semibold " + (PHASE_COLOR[ph] ?? "")}>
+                        {PHASE_LABEL[ph] ?? ph}
+                      </span>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+// Reflet déterministe de la phase calculée côté moteur (pour l'affichage du registre).
+function computePhase(e: EngagementRec): string {
+  const s = (e.statut_ebda + " " + e.statut_bc).toLowerCase();
+  if (s.includes("annul")) return "annulee";
+  if (e.statut_bc.trim().toLowerCase().startsWith("trait")) return "traite";
+  if (e.numero_bc) return "commande";
+  if (e.numero_da) return "demande";
+  return "besoin";
+}
+
+function Kpi({ label, value }: { label: string; value: string }) {
+  return (
+    <Card>
+      <div className="text-xs text-muted">{label}</div>
+      <div className="mt-1 text-lg font-semibold">{value}</div>
+    </Card>
+  );
+}
+
+function Funnel({ label, value, pct }: { label: string; value: number; pct: number }) {
+  return (
+    <div className="mb-1.5">
+      <div className="flex justify-between text-xs">
+        <span className="font-medium">{label}</span>
+        <span className="text-muted">{value}</span>
+      </div>
+      <div className="h-2 w-full overflow-hidden rounded-full bg-black/10">
+        <div className="h-full rounded-full bg-indigo-500 transition-all" style={{ width: `${Math.max(2, Math.min(100, pct))}%` }} />
+      </div>
     </div>
   );
 }

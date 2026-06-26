@@ -229,6 +229,40 @@ def test_parse_pole_ignores_unknown_sheets() -> None:
     assert "invoices" in parsed
 
 
+def test_engagements_maps_real_world_headers() -> None:
+    """Les en-têtes exacts de l'outil métier réel (Engagements_achats) se mappent
+    intégralement sur l'entité `engagements` (alias alignés)."""
+    spec = REGISTRY["engagements"]
+    headers = [
+        "N° EB",
+        "N° DA",
+        "N° BC",
+        "Date EB",
+        "Date DA",
+        "Date BC",
+        "Estimation",
+        "Direction",
+        "Service",
+        "Demandeur",
+        "Description du besoin",
+        "Description DA",
+        "Acheteur",
+        "Fournisseur",
+        "Description BC",
+        "Montant",
+        "Statut EB/DA",
+        "Statut BC",
+    ]
+    res = propose_mapping(spec, headers)
+    assert res.non_resolus == []
+    assert res.mapping["N° EB"] == "numero_eb"
+    assert res.mapping["Statut EB/DA"] == "statut_ebda"
+    assert res.mapping["Estimation"] == "estimation_xaf"
+    assert res.mapping["Montant"] == "montant_xaf"
+    # le pôle Achats embarque désormais l'onglet Engagements
+    assert "Engagements" in [e.label for e in POLES["achats"].entities]
+
+
 def test_every_pole_template_is_well_formed() -> None:
     """Chaque pôle (RH, Compta, Commercial, Achats, Supply) a un classeur valide :
     une feuille par entité + Dictionnaire, et des en-têtes reparsables."""

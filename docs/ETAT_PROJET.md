@@ -67,7 +67,7 @@ La persistance ne couvre **aujourd'hui que 3 entités** ; les autres métiers on
 | 2 | Finance / Trésorerie | ✅ | ✅ | ⚠️ factures oui, transactions bancaires non | Solde réel, **clôture continue** | persister relevés bancaires |
 | 3 | Facturation / Registre | ✅ | ✅ | ✅ `store_invoices` | Encours clients, relances | avoirs, échéancier |
 | 4 | Supply Chain / Stocks | ✅ | ✅ | ✅ `store_stock_items` | Stock réel, réappro auto | mouvements (entrées/sorties), lots |
-| 5 | Achats / Procurement | ✅ | ✅ persisté | ✅ `store_suppliers`+`store_purchase_orders` (P2c) | Registre fournisseurs noté, historique BC, **réception→facture d'achat** | suivi réceptions partielles, lignes BC |
+| 5 | Achats / Procurement | ✅ | ✅ persisté (+ onglet Engagements) | ✅ `store_suppliers`+`store_purchase_orders`+`store_engagements` (P2c) | Registre fournisseurs noté, **réception→facture d'achat**, **pilotage engagements EB→DA→BC** (transformation, écarts, par direction/acheteur) | suivi réceptions partielles, lignes BC |
 | 6 | RH | ✅ | générique | ❌ | Registre des employés + contrats | `Employee` + `Contract` |
 | 7 | Paie | ✅ | ✅ | ❌ | Historique des bulletins | `Payslip` (après RH) |
 | 8 | CRM / Commercial | ✅ | ✅ kanban persisté | ✅ `store_customers`+`store_opportunities`+`store_quotes`+`store_interactions` (P2b) | **Pipeline réel** suivi dans le temps, forecast pondéré, devis→facture | mouvements de devis, multi-devis/opportunité |

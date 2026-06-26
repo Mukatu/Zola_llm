@@ -102,3 +102,81 @@ export function receiptPurchaseOrder(
 export function deletePurchaseOrder(id: string): Promise<{ deleted: string }> {
   return api(`/v1/erp/purchase-orders/${id}`, { method: "DELETE" });
 }
+
+// ----- Engagements (chaîne EB → DA → BC) -----
+export interface EngagementRec {
+  id: string;
+  numero_eb: string;
+  numero_da: string | null;
+  numero_bc: string | null;
+  date_eb: string | null;
+  date_da: string | null;
+  date_bc: string | null;
+  direction: string | null;
+  service: string | null;
+  demandeur: string | null;
+  acheteur: string | null;
+  fournisseur: string | null;
+  estimation_xaf: string;
+  montant_xaf: string;
+  statut_ebda: string;
+  statut_bc: string;
+}
+
+export interface DimensionLigne {
+  cle: string;
+  nb: number;
+  engage_xaf: number;
+  estimation_xaf: number;
+}
+export interface EngagementStats {
+  nb_total: number;
+  par_phase: Record<string, number>;
+  nb_eb: number;
+  nb_da: number;
+  nb_bc: number;
+  taux_eb_vers_da_pct: number;
+  taux_da_vers_bc_pct: number;
+  taux_eb_vers_bc_pct: number;
+  estimation_totale_xaf: number;
+  engage_total_xaf: number;
+  ecart_xaf: number;
+  nb_depassements: number;
+  par_direction: DimensionLigne[];
+  par_acheteur: DimensionLigne[];
+  funnel_statut_bc: Record<string, number>;
+  delai_moyen_eb_da_jours: number | null;
+  delai_moyen_da_bc_jours: number | null;
+}
+export interface EngagementAlerte {
+  type: string;
+  reference: string;
+  libelle: string;
+  priorite: string;
+}
+
+export function listEngagements(): Promise<{ engagements: EngagementRec[] }> {
+  return api("/v1/erp/engagements");
+}
+export function createEngagement(b: {
+  numero_eb: string;
+  numero_da?: string;
+  numero_bc?: string;
+  date_eb?: string;
+  date_da?: string;
+  date_bc?: string;
+  direction?: string;
+  service?: string;
+  demandeur?: string;
+  acheteur?: string;
+  fournisseur?: string;
+  estimation_xaf?: string;
+  montant_xaf?: string;
+  statut_ebda?: string;
+  statut_bc?: string;
+}): Promise<EngagementRec> {
+  return api("/v1/erp/engagements", { body: b });
+}
+export function engagementStats(): Promise<{ stats: EngagementStats; alertes: EngagementAlerte[] }> {
+  return api("/v1/erp/engagements/stats");
+}
