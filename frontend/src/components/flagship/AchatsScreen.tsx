@@ -78,6 +78,7 @@ const EXERCICE_DEFAUT = String(new Date().getFullYear());
 export function AchatsScreen() {
   const [tab, setTab] = useState<"appro" | "engagements" | "pilotage">("appro");
   const [exercice, setExercice] = useState<string>(EXERCICE_DEFAUT);
+  const [periode, setPeriode] = useState<{ debut: string; fin: string }>({ debut: "", fin: "" });
   const [suppliers, setSuppliers] = useState<SupplierRec[]>([]);
   const [scores, setScores] = useState<Record<string, SupplierScore>>({});
   const [pos, setPos] = useState<PurchaseOrderRec[]>([]);
@@ -116,7 +117,11 @@ export function AchatsScreen() {
   const loadPilotage = useCallback(async () => {
     try {
       const [p, b] = await Promise.all([
-        engagementPilotage(exercice),
+        engagementPilotage({
+          exercice,
+          dateDebut: periode.debut || undefined,
+          dateFin: periode.fin || undefined,
+        }),
         listPurchaseBudgets(exercice),
       ]);
       setPilotage(p.pilotage);
@@ -124,7 +129,7 @@ export function AchatsScreen() {
     } catch {
       /* le bandeau d'erreur global suffit */
     }
-  }, [exercice]);
+  }, [exercice, periode.debut, periode.fin]);
 
   useEffect(() => {
     refresh();
@@ -275,6 +280,8 @@ export function AchatsScreen() {
           exercice={exercice}
           exercices={exercices}
           onExercice={setExercice}
+          periode={periode}
+          onPeriode={setPeriode}
           pilotage={pilotage}
           budgets={budgets}
           onSaveBudget={saveBudget}
@@ -611,6 +618,8 @@ function PilotagePanel({
   exercice,
   exercices,
   onExercice,
+  periode,
+  onPeriode,
   pilotage,
   budgets,
   onSaveBudget,
@@ -618,15 +627,18 @@ function PilotagePanel({
   exercice: string;
   exercices: string[];
   onExercice: (e: string) => void;
+  periode: { debut: string; fin: string };
+  onPeriode: (p: { debut: string; fin: string }) => void;
   pilotage: PilotageBudgetaire | null;
   budgets: PurchaseBudgetRec[];
   onSaveBudget: (direction: string, montant: string) => void;
 }) {
   const [budForm, setBudForm] = useState({ direction: "", montant: "" });
   const budgetMap = Object.fromEntries(budgets.map((b) => [b.direction, b.budget_xaf]));
+  const filtreActif = Boolean(periode.debut || periode.fin);
 
   const selecteur = (
-    <div className="flex items-center gap-2">
+    <div className="flex flex-wrap items-center gap-2">
       <span className="text-xs text-muted">Exercice</span>
       <select
         value={exercice}
@@ -639,7 +651,28 @@ function PilotagePanel({
           </option>
         ))}
       </select>
-      <Button variant="ghost" onClick={() => downloadPilotage(exercice)}>
+      <span className="ml-1 text-xs text-muted">Période</span>
+      <Inp value={periode.debut} type="date" onChange={(v) => onPeriode({ ...periode, debut: v })} />
+      <span className="text-xs text-muted">→</span>
+      <Inp value={periode.fin} type="date" onChange={(v) => onPeriode({ ...periode, fin: v })} />
+      {filtreActif && (
+        <button
+          onClick={() => onPeriode({ debut: "", fin: "" })}
+          className="text-xs text-muted underline hover:text-ink"
+        >
+          réinitialiser
+        </button>
+      )}
+      <Button
+        variant="ghost"
+        onClick={() =>
+          downloadPilotage({
+            exercice,
+            dateDebut: periode.debut || undefined,
+            dateFin: periode.fin || undefined,
+          })
+        }
+      >
         <Download className="h-4 w-4" /> Exporter
       </Button>
     </div>
@@ -658,6 +691,11 @@ function PilotagePanel({
   return (
     <div className="flex flex-col gap-4">
       <div className="flex justify-end">{selecteur}</div>
+      {filtreActif && (
+        <p className="-mt-2 text-right text-xs text-muted">
+          Engagé filtré sur la période ; budget = dotation annuelle {exercice}.
+        </p>
+      )}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <Kpi label={`Budget ${exercice}`} value={fmt(pilotage.budget_total_xaf) + " XAF"} />
         <Kpi label="Engagé" value={fmt(pilotage.engage_total_xaf) + " XAF"} />

@@ -228,26 +228,40 @@ export function setPurchaseBudget(b: {
 }): Promise<PurchaseBudgetRec> {
   return api("/v1/erp/purchase-budgets", { body: b });
 }
+export interface PilotageFiltre {
+  exercice?: string;
+  dateDebut?: string;
+  dateFin?: string;
+}
+
+function pilotageQuery(f: PilotageFiltre): string {
+  const q = new URLSearchParams();
+  if (f.exercice) q.set("exercice", f.exercice);
+  if (f.dateDebut) q.set("date_debut", f.dateDebut);
+  if (f.dateFin) q.set("date_fin", f.dateFin);
+  const s = q.toString();
+  return s ? `?${s}` : "";
+}
+
 export function engagementPilotage(
-  exercice?: string,
+  f: PilotageFiltre = {},
 ): Promise<{ exercice: string | null; pilotage: PilotageBudgetaire }> {
-  const qs = exercice ? `?exercice=${encodeURIComponent(exercice)}` : "";
-  return api(`/v1/erp/engagements/pilotage${qs}`);
+  return api(`/v1/erp/engagements/pilotage${pilotageQuery(f)}`);
 }
 
 // Télécharge le classeur CDG (engagé vs budget) en portant le token d'auth.
-export async function downloadPilotage(exercice?: string): Promise<void> {
+export async function downloadPilotage(f: PilotageFiltre = {}): Promise<void> {
   const base = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000";
   const token = getToken();
-  const qs = exercice ? `?exercice=${encodeURIComponent(exercice)}` : "";
-  const r = await fetch(`${base}/v1/erp/engagements/pilotage/export${qs}`, {
+  const r = await fetch(`${base}/v1/erp/engagements/pilotage/export${pilotageQuery(f)}`, {
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   });
   if (!r.ok) throw new Error(`HTTP ${r.status}`);
   const url = URL.createObjectURL(await r.blob());
   const a = document.createElement("a");
   a.href = url;
-  a.download = `pilotage_achats_${exercice ?? "tous"}.xlsx`;
+  const suffixe = f.dateDebut || f.dateFin ? `${f.dateDebut ?? ""}_${f.dateFin ?? ""}` : (f.exercice ?? "tous");
+  a.download = `pilotage_achats_${suffixe}.xlsx`;
   a.click();
   URL.revokeObjectURL(url);
 }
