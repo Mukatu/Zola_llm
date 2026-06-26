@@ -1,7 +1,17 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Boxes, Plus, Trash2, CheckCircle2, ArrowDownToLine, ArrowUpFromLine, Sliders } from "lucide-react";
+import {
+  Boxes,
+  Plus,
+  Trash2,
+  CheckCircle2,
+  ArrowDownToLine,
+  ArrowUpFromLine,
+  Sliders,
+  ClipboardCheck,
+  AlertTriangle,
+} from "lucide-react";
 import { Card, Button } from "../ui";
 import { FlagshipHeader, Inp, Urg } from "./_shared";
 import { fmt } from "@/lib/data";
@@ -15,9 +25,13 @@ import {
   createStockMove,
   validateStockMove,
   deleteStockMove,
+  stockInventory,
+  stockPeremption,
   type StockRec,
   type ReapproSugg,
   type StockMoveRec,
+  type InventaireResultat,
+  type PeremptionAlerte,
 } from "@/lib/store";
 
 const EMPTY = { sku: "", libelle: "", quantite_actuelle: "0", conso_moyenne_jour: "0", delai_appro_jours: 7, stock_securite: "0" };
@@ -35,13 +49,17 @@ export function SupplyScreen() {
   const [form, setForm] = useState({ ...EMPTY });
   const [mv, setMv] = useState({ type: "entree", sku: "", quantite: "", cout: "" });
   const [res, setRes] = useState<{ suggestions: ReapproSugg[]; alertes: ReapproSugg[] } | null>(null);
+  const [peremption, setPeremption] = useState<PeremptionAlerte[]>([]);
+  const [counts, setCounts] = useState<Record<string, string>>({});
+  const [invRes, setInvRes] = useState<InventaireResultat[] | null>(null);
   const [err, setErr] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     try {
-      const [s, m] = await Promise.all([listStock(), listStockMoves()]);
+      const [s, m, p] = await Promise.all([listStock(), listStockMoves(), stockPeremption(30)]);
       setItems(s.items);
       setMoves(m.moves);
+      setPeremption(p.alertes);
     } catch (e) {
       setErr(e instanceof ApiError ? "Backend indisponible (DB requise)." : "Service indisponible.");
     }
@@ -121,6 +139,21 @@ export function SupplyScreen() {
     }
   }
 
+  async function runInventory() {
+    const comptages = Object.entries(counts)
+      .filter(([, v]) => v !== "")
+      .map(([sku, v]) => ({ sku, quantite_comptee: v }));
+    if (comptages.length === 0) return;
+    try {
+      const { resultats } = await stockInventory(comptages);
+      setInvRes(resultats);
+      setCounts({});
+      await refresh();
+    } catch {
+      setErr("Inventaire impossible (backend/DB).");
+    }
+  }
+
   const valeurTotale = items.reduce((s, it) => s + Number(it.valeur_stock_xaf ?? 0), 0);
   const enBrouillon = moves.filter((m) => m.statut === "brouillon").length;
 
@@ -196,9 +229,16 @@ export function SupplyScreen() {
                 {m.statut === "valide" && <span className="text-xs text-muted">({fmt(m.valeur_xaf)} XAF)</span>}
               </span>
               <span className="flex items-center gap-2">
-                {m.statut === "valide" ? (
+                {m.statut === "valide" && (
                   <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs text-emerald-700">validé</span>
-                ) : (
+                )}
+                {m.statut === "valide_n1" && (
+                  <>
+                    <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-700">N1 ✓ · attend N2</span>
+                    <button onClick={() => validate(m.id)} title="Valider (N2)" className="text-amber-600 hover:text-amber-800"><CheckCircle2 className="h-4 w-4" /></button>
+                  </>
+                )}
+                {m.statut === "brouillon" && (
                   <>
                     <button onClick={() => validate(m.id)} title="Valider → applique au stock" className="text-emerald-600 hover:text-emerald-800"><CheckCircle2 className="h-4 w-4" /></button>
                     <button onClick={() => delMove(m.id)} className="text-muted hover:text-red-600"><Trash2 className="h-4 w-4" /></button>
@@ -208,6 +248,51 @@ export function SupplyScreen() {
             </div>
           );
         })}
+      </Card>
+
+      {/* Alertes de péremption */}
+      {peremption.length > 0 && (
+        <Card className="ring-amber-200">
+          <div className="mb-2 flex items-center gap-2 text-sm font-semibold">
+            <AlertTriangle className="h-4 w-4 text-amber-600" /> Péremption ({peremption.length})
+          </div>
+          {peremption.map((p, i) => (
+            <div key={i} className="flex items-center justify-between border-b border-black/5 py-1 text-sm last:border-0">
+              <span><b>{p.sku}</b>{p.lot ? ` · lot ${p.lot}` : ""} · {p.quantite}</span>
+              <span className={p.niveau === "expire" ? "text-red-600" : "text-amber-700"}>
+                {p.date_peremption} · {p.jours_restants < 0 ? `expiré (${-p.jours_restants} j)` : `J-${p.jours_restants}`}
+              </span>
+            </div>
+          ))}
+        </Card>
+      )}
+
+      {/* Inventaire physique */}
+      <Card>
+        <div className="mb-2 flex items-center justify-between">
+          <h2 className="flex items-center gap-2 text-sm font-semibold">
+            <ClipboardCheck className="h-4 w-4 text-primary" /> Inventaire physique
+          </h2>
+          <Button onClick={runInventory} disabled={items.length === 0}>Lancer l&apos;inventaire</Button>
+        </div>
+        {items.length === 0 && <p className="text-sm text-muted">Aucun article à compter.</p>}
+        {items.map((it) => (
+          <div key={it.id} className="flex items-center justify-between border-b border-black/5 py-1 text-sm last:border-0">
+            <span><b>{it.sku}</b> · {it.libelle} <span className="text-xs text-muted">(théorique {it.quantite_actuelle})</span></span>
+            <Inp value={counts[it.sku] ?? ""} type="number" onChange={(v) => setCounts({ ...counts, [it.sku]: v })} placeholder="compté" className="w-24" />
+          </div>
+        ))}
+        {invRes && (
+          <div className="mt-2">
+            <div className="text-xs font-semibold text-muted">Écarts (ajustements créés, à valider)</div>
+            {invRes.filter((r) => r.ajustement_id).length === 0 && <p className="text-sm text-muted">Aucun écart.</p>}
+            {invRes.filter((r) => r.ajustement_id).map((r) => (
+              <div key={r.sku} className="text-sm">
+                {r.sku} : théorique {r.theorique} → compté {r.comptee} (<b>écart {r.ecart}</b>)
+              </div>
+            ))}
+          </div>
+        )}
       </Card>
 
       {res && (

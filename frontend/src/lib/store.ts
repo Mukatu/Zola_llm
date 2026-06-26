@@ -183,9 +183,40 @@ export function createStockMove(b: {
 }): Promise<StockMoveRec> {
   return api("/v1/erp/stock-moves", { body: b });
 }
-export function validateStockMove(id: string): Promise<{ move: StockMoveRec; article: StockRec }> {
+export function validateStockMove(
+  id: string,
+): Promise<{ move: StockMoveRec; article?: StockRec; applique?: boolean; requiert_n2?: boolean }> {
   return api(`/v1/erp/stock-moves/${id}/validate`, { method: "POST", body: {} });
 }
 export function deleteStockMove(id: string): Promise<{ deleted: string }> {
   return api(`/v1/erp/stock-moves/${id}`, { method: "DELETE" });
+}
+
+// ----- Inventaire physique & péremption (STOCK-3) -----
+export interface InventaireResultat {
+  sku: string;
+  theorique?: string;
+  comptee?: string;
+  ecart?: string;
+  ajustement_id?: string | null;
+  erreur?: string;
+}
+export function stockInventory(
+  comptages: { sku: string; quantite_comptee: string }[],
+): Promise<{ date_inventaire: string; nb_ecarts: number; resultats: InventaireResultat[] }> {
+  return api("/v1/erp/stock/inventory", { body: { comptages } });
+}
+
+export interface PeremptionAlerte {
+  sku: string;
+  lot: string | null;
+  quantite: string;
+  date_peremption: string;
+  jours_restants: number;
+  niveau: string;
+}
+export function stockPeremption(
+  horizonJours = 30,
+): Promise<{ horizon_jours: number; alertes: PeremptionAlerte[] }> {
+  return api(`/v1/erp/stock/peremption?horizon_jours=${horizonJours}`);
 }
