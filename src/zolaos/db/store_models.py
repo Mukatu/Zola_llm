@@ -125,10 +125,14 @@ class StockItemRecord(StoreBase):
     conso_moyenne_jour: Mapped[Decimal] = mapped_column(Numeric(18, 3), default=Decimal("0"))
     delai_appro_jours: Mapped[int] = mapped_column(Integer, default=0)
     stock_securite: Mapped[Decimal] = mapped_column(Numeric(18, 3), default=Decimal("0"))
+    pmp_xaf: Mapped[Decimal] = mapped_column(
+        Numeric(18, 2), default=Decimal("0")
+    )  # coût moyen pondéré
     country: Mapped[str] = mapped_column(String(2), default="cg")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
     def to_dict(self) -> dict[str, Any]:
+        valeur = self.quantite_actuelle * self.pmp_xaf
         return {
             "id": self.id,
             "tenant_id": self.tenant_id,
@@ -139,8 +143,62 @@ class StockItemRecord(StoreBase):
             "conso_moyenne_jour": str(self.conso_moyenne_jour),
             "delai_appro_jours": self.delai_appro_jours,
             "stock_securite": str(self.stock_securite),
+            "pmp_xaf": str(self.pmp_xaf),
+            "valeur_stock_xaf": str(valeur.quantize(Decimal("0.01"))),
             "country": self.country,
             "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
+
+
+class StockMoveRecord(StoreBase):
+    """Mouvement de stock (grand-livre des stocks) — entrée/sortie/ajustement/transfert.
+
+    Le registre des mouvements transforme le stock d'une *photo* en *grand-livre*
+    valorisé (PMP). La validation d'un mouvement met à jour l'article rattaché.
+    """
+
+    __tablename__ = "store_stock_moves"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    tenant_id: Mapped[str] = mapped_column(String(64), index=True)
+    reference: Mapped[str] = mapped_column(String(64))
+    type: Mapped[str] = mapped_column(
+        String(12), default="entree"
+    )  # entree|sortie|ajustement|transfert
+    sku: Mapped[str] = mapped_column(String(64), index=True)
+    quantite: Mapped[Decimal] = mapped_column(Numeric(18, 3), default=Decimal("0"))
+    cout_unitaire_xaf: Mapped[Decimal | None] = mapped_column(Numeric(18, 2), nullable=True)
+    valeur_xaf: Mapped[Decimal] = mapped_column(Numeric(18, 2), default=Decimal("0"))
+    emplacement: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    emplacement_dest: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    lot: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    date_peremption: Mapped[date | None] = mapped_column(Date, nullable=True)
+    statut: Mapped[str] = mapped_column(String(12), default="brouillon")  # brouillon|valide
+    motif: Mapped[str] = mapped_column(String(200), default="")
+    date_mouvement: Mapped[date] = mapped_column(Date)
+    country: Mapped[str] = mapped_column(String(2), default="cg")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "tenant_id": self.tenant_id,
+            "reference": self.reference,
+            "type": self.type,
+            "sku": self.sku,
+            "quantite": str(self.quantite),
+            "cout_unitaire_xaf": (
+                str(self.cout_unitaire_xaf) if self.cout_unitaire_xaf is not None else None
+            ),
+            "valeur_xaf": str(self.valeur_xaf),
+            "emplacement": self.emplacement,
+            "emplacement_dest": self.emplacement_dest,
+            "lot": self.lot,
+            "date_peremption": self.date_peremption.isoformat() if self.date_peremption else None,
+            "statut": self.statut,
+            "motif": self.motif,
+            "date_mouvement": self.date_mouvement.isoformat() if self.date_mouvement else None,
+            "country": self.country,
         }
 
 

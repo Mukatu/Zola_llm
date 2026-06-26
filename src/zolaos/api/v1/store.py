@@ -33,6 +33,7 @@ from zolaos.agents.erp.engagements import (
     engagement_stats,
     pilotage_budgetaire,
 )
+from zolaos.agents.erp.inventory import StockInsuffisant, appliquer_mouvement
 from zolaos.agents.erp.reconciliation import reconcilier
 from zolaos.agents.erp.supply import StockItem, alertes_rupture, analyser_reappro
 from zolaos.connectors.models import BankTransaction, Invoice, JournalEntry, JournalLine
@@ -43,6 +44,7 @@ from zolaos.db.store_repo import (
     JournalRepository,
     PurchaseBudgetRepository,
     PurchaseOrderRepository,
+    StockMoveRepository,
     StockRepository,
     SupplierRepository,
 )
@@ -404,6 +406,108 @@ async def analyze_stock(
         "suggestions": [asdict(s) for s in analyser_reappro(items)],
         "alertes": [asdict(a) for a in alertes_rupture(items, horizon_jours=30)],
     }
+
+
+# ---------------------------------------------------------------- mouvements de stock (STOCK-1)
+
+
+class StockMoveIn(BaseModel):
+    reference: str
+    type: str = "entree"  # entree | sortie | ajustement | transfert
+    sku: str
+    quantite: Decimal = Decimal("0")
+    cout_unitaire_xaf: Decimal | None = None
+    emplacement: str | None = None
+    emplacement_dest: str | None = None
+    lot: str | None = None
+    date_peremption: date | None = None
+    motif: str = ""
+    date_mouvement: date
+    country: str = "cg"
+
+
+@router.post(
+    "/stock-moves", status_code=status.HTTP_201_CREATED, summary="Créer un mouvement (brouillon)"
+)
+async def create_stock_move(
+    body: StockMoveIn,
+    tenant_id: str = "local",
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    rec = await StockMoveRepository(session).create({**body.model_dump(), "tenant_id": tenant_id})
+    await session.commit()
+    return rec.to_dict()
+
+
+@router.get("/stock-moves", summary="Lister les mouvements de stock")
+async def list_stock_moves(
+    tenant_id: str = "local",
+    sku: str | None = None,
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    rows = await StockMoveRepository(session).list(tenant_id=tenant_id, sku=sku)
+    return {"moves": [r.to_dict() for r in rows]}
+
+
+@router.post(
+    "/stock-moves/{move_id}/validate", summary="Valider un mouvement → applique au stock (PMP)"
+)
+async def validate_stock_move(
+    move_id: str,
+    tenant_id: str = "local",
+    autoriser_negatif: bool = False,
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    moves = StockMoveRepository(session)
+    move = await moves.get(move_id, tenant_id=tenant_id)
+    if move is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="move_not_found")
+    if move.statut == "valide":
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="deja_valide")
+
+    items = StockRepository(session)
+    item = await items.get_by_sku(move.sku, tenant_id=tenant_id)
+    if item is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="article_inconnu")
+
+    try:
+        res = appliquer_mouvement(
+            type=move.type,
+            quantite=move.quantite,
+            quantite_actuelle=item.quantite_actuelle,
+            pmp_actuel=item.pmp_xaf,
+            cout_unitaire=move.cout_unitaire_xaf,
+            autoriser_negatif=autoriser_negatif,
+        )
+    except StockInsuffisant as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="stock_insuffisant"
+        ) from exc
+
+    item.quantite_actuelle = res.nouvelle_quantite
+    item.pmp_xaf = res.nouveau_pmp_xaf
+    move.valeur_xaf = res.valeur_mouvement_xaf
+    move.statut = "valide"
+    await session.flush()
+    await session.commit()
+    return {"move": move.to_dict(), "article": item.to_dict()}
+
+
+@router.delete("/stock-moves/{move_id}", summary="Supprimer un mouvement (brouillon uniquement)")
+async def delete_stock_move(
+    move_id: str,
+    tenant_id: str = "local",
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    moves = StockMoveRepository(session)
+    move = await moves.get(move_id, tenant_id=tenant_id)
+    if move is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="move_not_found")
+    if move.statut == "valide":
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="mouvement_valide")
+    await moves.delete(move_id, tenant_id=tenant_id)
+    await session.commit()
+    return {"deleted": move_id}
 
 
 # ---------------------------------------------------------------- Achats (P2c)

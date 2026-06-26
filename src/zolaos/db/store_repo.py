@@ -35,6 +35,7 @@ from zolaos.db.store_models import (
     RoleSkillRecord,
     SkillRecord,
     StockItemRecord,
+    StockMoveRecord,
     SupplierRecord,
     TrainingEnrollmentRecord,
     TrainingEvaluationRecord,
@@ -139,6 +140,12 @@ class StockRepository:
         if rec is None or rec.tenant_id != tenant_id:
             return None
         return rec
+
+    async def get_by_sku(self, sku: str, *, tenant_id: str) -> StockItemRecord | None:
+        stmt = select(StockItemRecord).where(
+            StockItemRecord.tenant_id == tenant_id, StockItemRecord.sku == sku
+        )
+        return (await self._s.scalars(stmt)).first()
 
     async def list(self, *, tenant_id: str) -> list[StockItemRecord]:
         stmt = (
@@ -407,6 +414,19 @@ class SupplierRepository(_CrudRepo):
 
 class PurchaseOrderRepository(_CrudRepo):
     model = PurchaseOrderRecord
+
+
+class StockMoveRepository(_CrudRepo):
+    model = StockMoveRecord
+
+    async def list(  # type: ignore[override]
+        self, *, tenant_id: str, sku: str | None = None
+    ) -> list[StockMoveRecord]:
+        stmt = select(StockMoveRecord).where(StockMoveRecord.tenant_id == tenant_id)
+        if sku is not None:
+            stmt = stmt.where(StockMoveRecord.sku == sku)
+        stmt = stmt.order_by(StockMoveRecord.date_mouvement.desc())
+        return list(await self._s.scalars(stmt))
 
 
 class EngagementRepository(_CrudRepo):
