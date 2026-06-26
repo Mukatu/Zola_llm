@@ -918,6 +918,33 @@ class EngagementRecord(StoreBase):
         }
 
 
+class PurchaseBudgetRecord(StoreBase):
+    """Budget d'achats par direction et exercice (contrôle de gestion — pilotage)."""
+
+    __tablename__ = "store_purchase_budgets"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    tenant_id: Mapped[str] = mapped_column(String(64), index=True)
+    direction: Mapped[str] = mapped_column(String(40))
+    exercice: Mapped[str] = mapped_column(String(8))  # ex. "2026"
+    budget_xaf: Mapped[Decimal] = mapped_column(Numeric(18, 2), default=Decimal("0"))
+    country: Mapped[str] = mapped_column(String(2), default="cg")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_now, onupdate=_now
+    )
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "tenant_id": self.tenant_id,
+            "direction": self.direction,
+            "exercice": self.exercice,
+            "budget_xaf": str(self.budget_xaf),
+            "country": self.country,
+        }
+
+
 class EvaluationRecord(StoreBase):
     """Évaluation annuelle : performance × potentiel (SIRH-3b)."""
 

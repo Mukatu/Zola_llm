@@ -4,11 +4,18 @@ from __future__ import annotations
 
 from contextlib import asynccontextmanager
 from datetime import date
+from decimal import Decimal
 
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
-from zolaos.agents.erp.engagements import Engagement, detect_alertes, engagement_stats, phase
+from zolaos.agents.erp.engagements import (
+    Engagement,
+    detect_alertes,
+    engagement_stats,
+    phase,
+    pilotage_budgetaire,
+)
 from zolaos.api.main import create_app
 from zolaos.core.settings import Settings
 from zolaos.db.session import get_session
@@ -112,6 +119,49 @@ def test_alertes_depassement_et_bloque() -> None:
     assert "bloque" in types
 
 
+def test_pilotage_budgetaire_engage_vs_budget() -> None:
+    engs = [
+        Engagement(
+            numero_eb="E1",
+            direction="DFC",
+            fournisseur="Alpha",
+            date_bc=date(2026, 5, 1),
+            montant_xaf="900000",
+            numero_bc="B1",
+        ),
+        Engagement(
+            numero_eb="E2",
+            direction="DFC",
+            fournisseur="Alpha",
+            date_bc=date(2026, 5, 10),
+            montant_xaf="200000",
+            numero_bc="B2",
+        ),
+        Engagement(
+            numero_eb="E3",
+            direction="DOM",
+            fournisseur="Beta",
+            date_bc=date(2026, 6, 1),
+            montant_xaf="300000",
+            numero_bc="B3",
+        ),
+    ]
+    budgets = {"DFC": Decimal("1000000"), "DOM": Decimal("1000000")}
+    p = pilotage_budgetaire(engs, budgets)
+    dfc = next(d for d in p.par_direction if d.direction == "DFC")
+    assert dfc.engage_xaf == 1100000
+    assert dfc.reste_xaf == -100000
+    assert dfc.niveau == "depassement"  # 110% > budget
+    dom = next(d for d in p.par_direction if d.direction == "DOM")
+    assert dom.niveau == "ok"  # 30%
+    assert p.engage_total_xaf == 1400000
+    assert p.budget_total_xaf == 2000000
+    # série mensuelle (2 mois : mai, juin) et top fournisseur Alpha
+    assert [s.mois for s in p.serie_mensuelle] == ["2026-05", "2026-06"]
+    assert p.top_fournisseurs[0].fournisseur == "Alpha"
+    assert p.top_fournisseurs[0].engage_xaf == 1100000
+
+
 # ----------------------------------------------------------------- endpoints
 
 
@@ -154,3 +204,41 @@ async def test_engagement_crud_and_stats(tmp_path) -> None:  # type: ignore[no-u
         # mise à jour de statut
         r = await ac.patch(f"/v1/erp/engagements/{eng_id}", json={"statut_bc": "Annulé"})
         assert r.json()["statut_bc"] == "Annulé"
+
+
+async def test_pilotage_endpoint_with_budget(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    async with _client(tmp_path) as ac:
+        # budget DIP 2026 (upsert idempotent)
+        await ac.post(
+            "/v1/erp/purchase-budgets",
+            json={"direction": "DIP", "exercice": "2026", "budget_xaf": "200000"},
+        )
+        # ré-upsert : pas de doublon, on relève le budget
+        await ac.post(
+            "/v1/erp/purchase-budgets",
+            json={"direction": "DIP", "exercice": "2026", "budget_xaf": "250000"},
+        )
+        assert len((await ac.get("/v1/erp/purchase-budgets")).json()["budgets"]) == 1
+
+        await ac.post(
+            "/v1/erp/engagements",
+            json={
+                "numero_eb": "0319/26",
+                "numero_bc": "0172/26",
+                "date_bc": "2026-04-30",
+                "direction": "DIP",
+                "fournisseur": "HBM Services",
+                "montant_xaf": "225910",
+                "statut_bc": "Traité",
+            },
+        )
+
+        body = (await ac.get("/v1/erp/engagements/pilotage?exercice=2026")).json()
+        piv = body["pilotage"]
+        dip = next(d for d in piv["par_direction"] if d["direction"] == "DIP")
+        assert dip["niveau"] == "vigilance"  # 225910 / 250000 = 90% (≥ 80%, ≤ 100%)
+        assert piv["top_fournisseurs"][0]["fournisseur"] == "HBM Services"
+
+        # exercice sans engagement → engagé nul
+        body25 = (await ac.get("/v1/erp/engagements/pilotage?exercice=2025")).json()
+        assert body25["pilotage"]["engage_total_xaf"] in (0, "0")

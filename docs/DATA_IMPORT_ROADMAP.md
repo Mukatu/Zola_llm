@@ -66,7 +66,8 @@ Employés=`matricule` · Emplois=`code_emploi` · Compétences=`code_competence`
 | IMP-2 | Toutes entités (11) + **classeurs par pôle** (RH, Compta) multi-feuilles + écran à 2 modes | ✅ | `5fbabf0` |
 | IMP-3 | **Mapping de colonnes assisté** (déterministe + LLM optionnel) + `/inspect` + écran | ✅ | `6d5fef4` |
 | IMP-4 | **Déclinaison aux pôles persistés** : Commercial/CRM (3), Achats (2), Supply (1) + script d'échantillons | ✅ | `f43fa32` |
-| IMP-5 | **Engagements d'achats** (entité alignée sur l'outil métier réel `Engagements_achats`) → pôle Achats à 3 feuilles | ✅ | _(ce lot)_ |
+| IMP-5 | **Engagements d'achats** (entité alignée sur l'outil métier réel `Engagements_achats`) → pôle Achats à 3 feuilles | ✅ | `d2fe083` |
+| IMP-6 | **Budgets achats** (`purchase_budgets`, clé direction+exercice) → pôle Achats à 4 feuilles, pour le pilotage CDG | ✅ | _(ce lot)_ |
 | — | _(réassigné interop)_ sync connecteurs → store | ➡️ | roadmap interop |
 
 ### Détail IMP-4 (livré 2026-06-26)

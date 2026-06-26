@@ -6,6 +6,7 @@ Pattern repository sur AsyncSession : isole l'accès aux données. Multi-tenant
 
 from __future__ import annotations
 
+from decimal import Decimal
 from typing import Any
 
 from sqlalchemy import select
@@ -28,6 +29,7 @@ from zolaos.db.store_models import (
     JobRoleRecord,
     JournalEntryRecord,
     OpportunityRecord,
+    PurchaseBudgetRecord,
     PurchaseOrderRecord,
     QuoteRecord,
     RoleSkillRecord,
@@ -409,6 +411,31 @@ class PurchaseOrderRepository(_CrudRepo):
 
 class EngagementRepository(_CrudRepo):
     model = EngagementRecord
+
+
+class PurchaseBudgetRepository(_CrudRepo):
+    model = PurchaseBudgetRecord
+
+    async def upsert(
+        self, *, tenant_id: str, direction: str, exercice: str, budget_xaf: Decimal
+    ) -> PurchaseBudgetRecord:
+        """Un seul budget par (direction, exercice) : met à jour ou crée."""
+        stmt = select(PurchaseBudgetRecord).where(
+            PurchaseBudgetRecord.tenant_id == tenant_id,
+            PurchaseBudgetRecord.direction == direction,
+            PurchaseBudgetRecord.exercice == exercice,
+        )
+        existing = (await self._s.scalars(stmt)).first()
+        if existing is not None:
+            existing.budget_xaf = budget_xaf
+            await self._s.flush()
+            return existing
+        rec = PurchaseBudgetRecord(
+            tenant_id=tenant_id, direction=direction, exercice=exercice, budget_xaf=budget_xaf
+        )
+        self._s.add(rec)
+        await self._s.flush()
+        return rec
 
 
 class InteractionRepository(_CrudRepo):

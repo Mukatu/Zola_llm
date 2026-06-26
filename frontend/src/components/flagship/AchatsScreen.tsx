@@ -11,6 +11,8 @@ import {
   Star,
   GitBranch,
   AlertTriangle,
+  Wallet,
+  BarChart3,
 } from "lucide-react";
 import { Card, Button } from "../ui";
 import { FlagshipHeader, Inp } from "./_shared";
@@ -29,6 +31,9 @@ import {
   listEngagements,
   createEngagement,
   engagementStats,
+  listPurchaseBudgets,
+  setPurchaseBudget,
+  engagementPilotage,
   type SupplierRec,
   type SupplierScore,
   type PurchaseOrderRec,
@@ -36,6 +41,8 @@ import {
   type EngagementRec,
   type EngagementStats,
   type EngagementAlerte,
+  type PurchaseBudgetRec,
+  type PilotageBudgetaire,
 } from "@/lib/achats";
 
 const GRADE: Record<string, string> = {
@@ -64,8 +71,10 @@ const DEMO_ENGAGEMENTS = [
   { numero_eb: "0410/26", numero_da: "0345/26", numero_bc: "0181/26", date_eb: "2026-05-04", date_da: "2026-05-10", date_bc: "2026-05-18", direction: "DARH", service: "Moyens généraux", demandeur: "OKEMBA J.", acheteur: "Judith", fournisseur: "Beta Distrib", estimation_xaf: "600000", montant_xaf: "850000", statut_ebda: "OK / Traitée", statut_bc: "En cours F/sseur" },
 ];
 
+const EXERCICE = "2026";
+
 export function AchatsScreen() {
-  const [tab, setTab] = useState<"appro" | "engagements">("appro");
+  const [tab, setTab] = useState<"appro" | "engagements" | "pilotage">("appro");
   const [suppliers, setSuppliers] = useState<SupplierRec[]>([]);
   const [scores, setScores] = useState<Record<string, SupplierScore>>({});
   const [pos, setPos] = useState<PurchaseOrderRec[]>([]);
@@ -73,6 +82,8 @@ export function AchatsScreen() {
   const [engagements, setEngagements] = useState<EngagementRec[]>([]);
   const [engStats, setEngStats] = useState<EngagementStats | null>(null);
   const [engAlertes, setEngAlertes] = useState<EngagementAlerte[]>([]);
+  const [pilotage, setPilotage] = useState<PilotageBudgetaire | null>(null);
+  const [budgets, setBudgets] = useState<PurchaseBudgetRec[]>([]);
   const [err, setErr] = useState<string | null>(null);
 
   const [supForm, setSupForm] = useState({ nom: "", note_qualite: "3.0" });
@@ -99,9 +110,32 @@ export function AchatsScreen() {
     }
   }, []);
 
+  const loadPilotage = useCallback(async () => {
+    try {
+      const [p, b] = await Promise.all([
+        engagementPilotage(EXERCICE),
+        listPurchaseBudgets(EXERCICE),
+      ]);
+      setPilotage(p.pilotage);
+      setBudgets(b.budgets);
+    } catch {
+      /* le bandeau d'erreur global suffit */
+    }
+  }, []);
+
   useEffect(() => {
     refresh();
-  }, [refresh]);
+    loadPilotage();
+  }, [refresh, loadPilotage]);
+
+  async function saveBudget(direction: string, montant: string) {
+    try {
+      await setPurchaseBudget({ direction, exercice: EXERCICE, budget_xaf: montant });
+      await loadPilotage();
+    } catch {
+      setErr("Enregistrement du budget impossible.");
+    }
+  }
 
   async function addSupplier() {
     if (!supForm.nom) return;
@@ -198,6 +232,7 @@ export function AchatsScreen() {
         {([
           ["appro", "Approvisionnement"],
           ["engagements", "Engagements"],
+          ["pilotage", "Pilotage"],
         ] as const).map(([k, label]) => (
           <button
             key={k}
@@ -218,7 +253,14 @@ export function AchatsScreen() {
         </Card>
       )}
 
-      {tab === "engagements" ? (
+      {tab === "pilotage" ? (
+        <PilotagePanel
+          exercice={EXERCICE}
+          pilotage={pilotage}
+          budgets={budgets}
+          onSaveBudget={saveBudget}
+        />
+      ) : tab === "engagements" ? (
         <EngagementsPanel
           engagements={engagements}
           stats={engStats}
@@ -531,6 +573,148 @@ function computePhase(e: EngagementRec): string {
   if (e.numero_bc) return "commande";
   if (e.numero_da) return "demande";
   return "besoin";
+}
+
+const NIVEAU_COLOR: Record<string, string> = {
+  ok: "bg-emerald-500",
+  vigilance: "bg-amber-500",
+  depassement: "bg-red-500",
+  hors_budget: "bg-gray-400",
+};
+const NIVEAU_LABEL: Record<string, string> = {
+  ok: "OK",
+  vigilance: "Vigilance",
+  depassement: "Dépassement",
+  hors_budget: "Hors budget",
+};
+
+function PilotagePanel({
+  exercice,
+  pilotage,
+  budgets,
+  onSaveBudget,
+}: {
+  exercice: string;
+  pilotage: PilotageBudgetaire | null;
+  budgets: PurchaseBudgetRec[];
+  onSaveBudget: (direction: string, montant: string) => void;
+}) {
+  const [budForm, setBudForm] = useState({ direction: "", montant: "" });
+  const budgetMap = Object.fromEntries(budgets.map((b) => [b.direction, b.budget_xaf]));
+
+  if (!pilotage) {
+    return <Card><p className="text-sm text-muted">Chargement du pilotage…</p></Card>;
+  }
+  const maxSerie = Math.max(1, ...pilotage.serie_mensuelle.map((s) => s.engage_xaf));
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <Kpi label={`Budget ${exercice}`} value={fmt(pilotage.budget_total_xaf) + " XAF"} />
+        <Kpi label="Engagé" value={fmt(pilotage.engage_total_xaf) + " XAF"} />
+        <Kpi label="Reste" value={fmt(pilotage.reste_total_xaf) + " XAF"} />
+        <Kpi label="Consommation" value={pilotage.consommation_pct + " %"} />
+      </div>
+
+      {/* Engagé vs budget par direction */}
+      <Card>
+        <div className="mb-3 flex items-center gap-2 text-sm font-semibold">
+          <Wallet className="h-4 w-4 text-indigo-600" /> Engagé vs budget par direction ({exercice})
+        </div>
+        {pilotage.par_direction.length === 0 && (
+          <p className="text-sm text-muted">Aucune donnée. Définissez un budget et importez des engagements.</p>
+        )}
+        {pilotage.par_direction.map((d) => {
+          const pct = Math.min(100, d.consommation_pct);
+          return (
+            <div key={d.direction} className="mb-2.5">
+              <div className="flex items-center justify-between text-sm">
+                <span className="font-medium">
+                  {d.direction} <span className="text-xs text-muted">({d.nb})</span>
+                </span>
+                <span className="text-muted">
+                  {fmt(d.engage_xaf)} / {fmt(d.budget_xaf)} XAF · {d.consommation_pct}%
+                  <span className={"ml-2 rounded-full px-2 py-0.5 text-[10px] font-semibold text-white " + (NIVEAU_COLOR[d.niveau] ?? "bg-gray-400")}>
+                    {NIVEAU_LABEL[d.niveau] ?? d.niveau}
+                  </span>
+                </span>
+              </div>
+              <div className="mt-1 h-2 w-full overflow-hidden rounded-full bg-black/10">
+                <div className={"h-full rounded-full transition-all " + (NIVEAU_COLOR[d.niveau] ?? "bg-gray-400")} style={{ width: `${Math.max(2, pct)}%` }} />
+              </div>
+            </div>
+          );
+        })}
+      </Card>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        {/* Tendance mensuelle des engagements */}
+        <Card>
+          <div className="mb-2 flex items-center gap-2 text-sm font-semibold">
+            <BarChart3 className="h-4 w-4 text-indigo-600" /> Engagé par mois
+          </div>
+          {pilotage.serie_mensuelle.length === 0 && (
+            <p className="text-sm text-muted">Aucun engagement daté.</p>
+          )}
+          <div className="flex items-end gap-2 pt-2" style={{ height: 120 }}>
+            {pilotage.serie_mensuelle.map((s) => (
+              <div key={s.mois} className="flex flex-1 flex-col items-center justify-end gap-1">
+                <div
+                  className="w-full rounded-t bg-indigo-400"
+                  style={{ height: `${(s.engage_xaf / maxSerie) * 90}%` }}
+                  title={fmt(s.engage_xaf) + " XAF"}
+                />
+                <span className="text-[10px] text-muted">{s.mois.slice(5)}</span>
+              </div>
+            ))}
+          </div>
+        </Card>
+
+        {/* Concentration fournisseurs */}
+        <Card>
+          <div className="mb-2 text-sm font-semibold">Top fournisseurs (engagé)</div>
+          {pilotage.top_fournisseurs.length === 0 && (
+            <p className="text-sm text-muted">Aucun fournisseur engagé.</p>
+          )}
+          {pilotage.top_fournisseurs.slice(0, 6).map((f) => (
+            <div key={f.fournisseur} className="flex items-center justify-between border-b border-black/5 py-1 text-sm last:border-0">
+              <span>{f.fournisseur} <span className="text-xs text-muted">({f.nb})</span></span>
+              <span className="text-muted">{fmt(f.engage_xaf)} XAF</span>
+            </div>
+          ))}
+        </Card>
+      </div>
+
+      {/* Définition des budgets */}
+      <Card>
+        <div className="mb-2 text-sm font-semibold">Budgets par direction ({exercice})</div>
+        <div className="mb-3 grid grid-cols-[1fr_140px_36px] gap-2">
+          <Inp value={budForm.direction} onChange={(v) => setBudForm({ ...budForm, direction: v })} placeholder="Direction (ex. DFC)" />
+          <Inp value={budForm.montant} type="number" onChange={(v) => setBudForm({ ...budForm, montant: v })} placeholder="Budget XAF" />
+          <button
+            onClick={() => {
+              if (budForm.direction && budForm.montant) {
+                onSaveBudget(budForm.direction.trim(), budForm.montant);
+                setBudForm({ direction: "", montant: "" });
+              }
+            }}
+            className="grid place-items-center rounded-lg bg-primary text-white"
+          >
+            <Plus className="h-4 w-4" />
+          </button>
+        </div>
+        {Object.keys(budgetMap).length === 0 && (
+          <p className="text-sm text-muted">Aucun budget défini. Ajoutez-en (ou importez le pôle Achats).</p>
+        )}
+        {Object.entries(budgetMap).map(([dir, montant]) => (
+          <div key={dir} className="flex items-center justify-between border-b border-black/5 py-1 text-sm last:border-0">
+            <span className="font-medium">{dir}</span>
+            <span className="text-muted">{fmt(montant)} XAF</span>
+          </div>
+        ))}
+      </Card>
+    </div>
+  );
 }
 
 function Kpi({ label, value }: { label: string; value: string }) {

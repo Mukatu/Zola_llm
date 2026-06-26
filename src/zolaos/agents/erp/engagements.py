@@ -45,6 +45,12 @@ def _pct(part: int, whole: int) -> Decimal:
     return (Decimal(part) / Decimal(whole) * 100).quantize(Decimal("0.1"), rounding=ROUND_HALF_UP)
 
 
+def _pct_dec(part: Decimal, whole: Decimal) -> Decimal:
+    if whole <= 0:
+        return _ZERO
+    return (part / whole * 100).quantize(Decimal("0.1"), rounding=ROUND_HALF_UP)
+
+
 def _xaf(v: Decimal) -> Decimal:
     return v.quantize(Decimal("1"), rounding=ROUND_HALF_UP)
 
@@ -174,6 +180,126 @@ def engagement_stats(engagements: list[Engagement]) -> EngagementStats:
         funnel_statut_bc=dict(funnel),
         delai_moyen_eb_da_jours=_delai_moyen(actifs, "date_eb", "date_da"),
         delai_moyen_da_bc_jours=_delai_moyen(actifs, "date_da", "date_bc"),
+    )
+
+
+# ----------------------------------------------------------------- pilotage budgétaire
+
+
+@dataclass(frozen=True)
+class PilotageDirection:
+    direction: str
+    budget_xaf: Decimal
+    engage_xaf: Decimal
+    reste_xaf: Decimal
+    consommation_pct: Decimal
+    niveau: str  # ok | vigilance | depassement | hors_budget
+    nb: int
+
+
+@dataclass(frozen=True)
+class SerieMensuelle:
+    mois: str
+    engage_xaf: Decimal
+
+
+@dataclass(frozen=True)
+class FournisseurEngage:
+    fournisseur: str
+    engage_xaf: Decimal
+    nb: int
+
+
+@dataclass(frozen=True)
+class PilotageBudgetaire:
+    budget_total_xaf: Decimal
+    engage_total_xaf: Decimal
+    reste_total_xaf: Decimal
+    consommation_pct: Decimal
+    par_direction: list[PilotageDirection]
+    serie_mensuelle: list[SerieMensuelle]
+    top_fournisseurs: list[FournisseurEngage]
+
+
+def _niveau(engage: Decimal, budget: Decimal) -> str:
+    if budget <= 0:
+        return "hors_budget"
+    if engage > budget:
+        return "depassement"
+    if engage >= budget * Decimal("0.8"):
+        return "vigilance"
+    return "ok"
+
+
+def _date_ref(e: Engagement) -> date | None:
+    return e.date_bc or e.date_da or e.date_eb
+
+
+def pilotage_budgetaire(
+    engagements: list[Engagement], budget_par_direction: dict[str, Decimal]
+) -> PilotageBudgetaire:
+    """Croise les engagements (montant engagé) avec les budgets par direction.
+
+    `budget_par_direction` est déjà filtré sur l'exercice voulu par l'appelant.
+    Les engagements annulés sont exclus.
+    """
+    actifs = [e for e in engagements if not _is_annule(e)]
+
+    eng_dir: dict[str, dict[str, Decimal]] = defaultdict(lambda: {"engage": _ZERO, "nb": _ZERO})
+    for e in actifs:
+        cle = (e.direction or "—").strip() or "—"
+        eng_dir[cle]["engage"] += e.montant_xaf
+        eng_dir[cle]["nb"] += 1
+
+    directions = sorted(set(eng_dir) | set(budget_par_direction))
+    par_direction: list[PilotageDirection] = []
+    for d in directions:
+        budget = budget_par_direction.get(d, _ZERO)
+        engage = eng_dir.get(d, {}).get("engage", _ZERO)
+        par_direction.append(
+            PilotageDirection(
+                direction=d,
+                budget_xaf=_xaf(budget),
+                engage_xaf=_xaf(engage),
+                reste_xaf=_xaf(budget - engage),
+                consommation_pct=_pct_dec(engage, budget),
+                niveau=_niveau(engage, budget),
+                nb=int(eng_dir.get(d, {}).get("nb", _ZERO)),
+            )
+        )
+    par_direction.sort(key=lambda x: x.engage_xaf, reverse=True)
+
+    serie: dict[str, Decimal] = defaultdict(lambda: _ZERO)
+    for e in actifs:
+        ref = _date_ref(e)
+        if ref is not None and e.montant_xaf > 0:
+            serie[ref.strftime("%Y-%m")] += e.montant_xaf
+    serie_mensuelle = [SerieMensuelle(mois=m, engage_xaf=_xaf(v)) for m, v in sorted(serie.items())]
+
+    four: dict[str, dict[str, Decimal]] = defaultdict(lambda: {"engage": _ZERO, "nb": _ZERO})
+    for e in actifs:
+        if e.fournisseur and e.montant_xaf > 0:
+            four[e.fournisseur.strip()]["engage"] += e.montant_xaf
+            four[e.fournisseur.strip()]["nb"] += 1
+    top_fournisseurs = sorted(
+        (
+            FournisseurEngage(fournisseur=f, engage_xaf=_xaf(v["engage"]), nb=int(v["nb"]))
+            for f, v in four.items()
+        ),
+        key=lambda x: x.engage_xaf,
+        reverse=True,
+    )
+
+    budget_total = sum(budget_par_direction.values(), _ZERO)
+    engage_total = sum((e.montant_xaf for e in actifs), _ZERO)
+    return PilotageBudgetaire(
+        budget_total_xaf=_xaf(budget_total),
+        engage_total_xaf=_xaf(engage_total),
+        reste_total_xaf=_xaf(budget_total - engage_total),
+        consommation_pct=_pct_dec(engage_total, budget_total),
+        par_direction=par_direction,
+        serie_mensuelle=serie_mensuelle,
+        top_fournisseurs=top_fournisseurs,
     )
 
 

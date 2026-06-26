@@ -28,6 +28,7 @@ from zolaos.agents.erp.engagements import (
     Engagement,
     detect_alertes,
     engagement_stats,
+    pilotage_budgetaire,
 )
 from zolaos.agents.erp.reconciliation import reconcilier
 from zolaos.agents.erp.supply import StockItem, alertes_rupture, analyser_reappro
@@ -37,6 +38,7 @@ from zolaos.db.store_repo import (
     EngagementRepository,
     InvoiceRepository,
     JournalRepository,
+    PurchaseBudgetRepository,
     PurchaseOrderRepository,
     StockRepository,
     SupplierRepository,
@@ -775,3 +777,92 @@ async def delete_engagement(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="engagement_not_found")
     await session.commit()
     return {"deleted": engagement_id}
+
+
+# ---------------------------------------------------------------- Pilotage budgétaire (CDG)
+
+
+class PurchaseBudgetIn(BaseModel):
+    direction: str
+    exercice: str
+    budget_xaf: Decimal = Decimal("0")
+
+
+@router.post(
+    "/purchase-budgets", status_code=status.HTTP_201_CREATED, summary="Définir un budget achats"
+)
+async def set_purchase_budget(
+    body: PurchaseBudgetIn,
+    tenant_id: str = "local",
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    """Upsert : un seul budget par (direction, exercice)."""
+    rec = await PurchaseBudgetRepository(session).upsert(
+        tenant_id=tenant_id,
+        direction=body.direction,
+        exercice=body.exercice,
+        budget_xaf=body.budget_xaf,
+    )
+    await session.commit()
+    return rec.to_dict()
+
+
+@router.get("/purchase-budgets", summary="Lister les budgets achats")
+async def list_purchase_budgets(
+    tenant_id: str = "local",
+    exercice: str | None = None,
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    rows = await PurchaseBudgetRepository(session).list(tenant_id=tenant_id)
+    if exercice is not None:
+        rows = [r for r in rows if r.exercice == exercice]
+    return {"budgets": [r.to_dict() for r in rows]}
+
+
+@router.delete("/purchase-budgets/{budget_id}", summary="Supprimer un budget achats")
+async def delete_purchase_budget(
+    budget_id: str,
+    tenant_id: str = "local",
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    ok = await PurchaseBudgetRepository(session).delete(budget_id, tenant_id=tenant_id)
+    if not ok:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="budget_not_found")
+    await session.commit()
+    return {"deleted": budget_id}
+
+
+@router.get("/engagements/pilotage", summary="Pilotage CDG : engagé vs budget par direction")
+async def engagements_pilotage(
+    tenant_id: str = "local",
+    exercice: str | None = None,
+    date_debut: date | None = None,
+    date_fin: date | None = None,
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    eng_rows = await EngagementRepository(session).list(tenant_id=tenant_id)
+    budget_rows = await PurchaseBudgetRepository(session).list(tenant_id=tenant_id)
+
+    def _ref(r: Any) -> date | None:
+        return r.date_bc or r.date_da or r.date_eb
+
+    def _garde(r: Any) -> bool:
+        d = _ref(r)
+        if exercice is not None and (d is None or d.strftime("%Y") != exercice):
+            return False
+        if date_debut is not None and (d is None or d < date_debut):
+            return False
+        if date_fin is not None and (d is None or d > date_fin):
+            return False
+        return True
+
+    engagements = [_engagement_of(r) for r in eng_rows if _garde(r)]
+    budget_par_direction: dict[str, Decimal] = {}
+    for b in budget_rows:
+        if exercice is None or b.exercice == exercice:
+            budget_par_direction[b.direction] = (
+                budget_par_direction.get(b.direction, Decimal("0")) + b.budget_xaf
+            )
+
+    pilotage = pilotage_budgetaire(engagements, budget_par_direction)
+    return {"exercice": exercice, "pilotage": asdict(pilotage)}

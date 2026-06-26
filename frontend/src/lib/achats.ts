@@ -180,3 +180,56 @@ export function createEngagement(b: {
 export function engagementStats(): Promise<{ stats: EngagementStats; alertes: EngagementAlerte[] }> {
   return api("/v1/erp/engagements/stats");
 }
+
+// ----- Pilotage budgétaire (CDG) -----
+export interface PurchaseBudgetRec {
+  id: string;
+  direction: string;
+  exercice: string;
+  budget_xaf: string;
+}
+export interface PilotageDirection {
+  direction: string;
+  budget_xaf: number;
+  engage_xaf: number;
+  reste_xaf: number;
+  consommation_pct: number;
+  niveau: string; // ok | vigilance | depassement | hors_budget
+  nb: number;
+}
+export interface SerieMensuelle {
+  mois: string;
+  engage_xaf: number;
+}
+export interface FournisseurEngage {
+  fournisseur: string;
+  engage_xaf: number;
+  nb: number;
+}
+export interface PilotageBudgetaire {
+  budget_total_xaf: number;
+  engage_total_xaf: number;
+  reste_total_xaf: number;
+  consommation_pct: number;
+  par_direction: PilotageDirection[];
+  serie_mensuelle: SerieMensuelle[];
+  top_fournisseurs: FournisseurEngage[];
+}
+
+export function listPurchaseBudgets(exercice?: string): Promise<{ budgets: PurchaseBudgetRec[] }> {
+  const qs = exercice ? `?exercice=${encodeURIComponent(exercice)}` : "";
+  return api(`/v1/erp/purchase-budgets${qs}`);
+}
+export function setPurchaseBudget(b: {
+  direction: string;
+  exercice: string;
+  budget_xaf: string;
+}): Promise<PurchaseBudgetRec> {
+  return api("/v1/erp/purchase-budgets", { body: b });
+}
+export function engagementPilotage(
+  exercice?: string,
+): Promise<{ exercice: string | null; pilotage: PilotageBudgetaire }> {
+  const qs = exercice ? `?exercice=${encodeURIComponent(exercice)}` : "";
+  return api(`/v1/erp/engagements/pilotage${qs}`);
+}

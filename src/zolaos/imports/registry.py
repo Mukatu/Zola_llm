@@ -13,6 +13,7 @@ from zolaos.db.store_models import (
     InvoiceRecord,
     JobRoleRecord,
     OpportunityRecord,
+    PurchaseBudgetRecord,
     PurchaseOrderRecord,
     QuoteRecord,
     RoleSkillRecord,
@@ -483,6 +484,25 @@ _ENGAGEMENTS = EntitySpec(
     ),
 )
 
+_PURCHASE_BUDGETS = EntitySpec(
+    entity="purchase_budgets",
+    label="Budgets achats",
+    model=PurchaseBudgetRecord,
+    natural_key=("direction", "exercice"),
+    columns=(
+        Column("direction", "str", required=True, aliases=("direction", "dir", "entite")),
+        Column(
+            "exercice", "str", required=True, help="Année (ex. 2026)", aliases=("annee", "exercice")
+        ),
+        Column(
+            "budget_xaf",
+            "decimal",
+            help="Budget alloué pour l'exercice",
+            aliases=("budget", "dotation", "enveloppe"),
+        ),
+    ),
+)
+
 # ----------------------------------------------------------------- Supply / Stocks (P2)
 
 _STOCK_ITEMS = EntitySpec(
@@ -542,6 +562,7 @@ REGISTRY: dict[str, EntitySpec] = {
         _SUPPLIERS,
         _PURCHASE_ORDERS,
         _ENGAGEMENTS,
+        _PURCHASE_BUDGETS,
         _STOCK_ITEMS,
     )
 }
@@ -573,7 +594,7 @@ POLES: dict[str, PoleSpec] = {
     "achats": PoleSpec(
         pole="achats",
         label="Achats",
-        entities=(_SUPPLIERS, _PURCHASE_ORDERS, _ENGAGEMENTS),
+        entities=(_SUPPLIERS, _PURCHASE_ORDERS, _ENGAGEMENTS, _PURCHASE_BUDGETS),
     ),
     "supply": PoleSpec(
         pole="supply",
