@@ -1087,6 +1087,97 @@ class PurchaseBudgetRecord(StoreBase):
         }
 
 
+class MarketingContactRecord(StoreBase):
+    """Contact marketing persisté — **consentement & finalités** (Loi 29-2019, MKT-1)."""
+
+    __tablename__ = "store_marketing_contacts"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    tenant_id: Mapped[str] = mapped_column(String(64), index=True)
+    id_externe: Mapped[str] = mapped_column(String(64))
+    nom: Mapped[str] = mapped_column(String(200))
+    email: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    telephone: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    secteur: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    type: Mapped[str] = mapped_column(String(12), default="prospect")  # client | prospect
+    derniere_interaction: Mapped[date | None] = mapped_column(Date, nullable=True)
+    consentement_marketing: Mapped[bool] = mapped_column(Boolean, default=False)
+    finalites: Mapped[list[str]] = mapped_column(JSON, default=list)
+    date_consentement: Mapped[date | None] = mapped_column(Date, nullable=True)
+    source: Mapped[str | None] = mapped_column(String(60), nullable=True)
+    country: Mapped[str] = mapped_column(String(2), default="cg")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_now, onupdate=_now
+    )
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "tenant_id": self.tenant_id,
+            "id_externe": self.id_externe,
+            "nom": self.nom,
+            "email": self.email,
+            "telephone": self.telephone,
+            "secteur": self.secteur,
+            "type": self.type,
+            "derniere_interaction": (
+                self.derniere_interaction.isoformat() if self.derniere_interaction else None
+            ),
+            "consentement_marketing": self.consentement_marketing,
+            "finalites": self.finalites,
+            "date_consentement": (
+                self.date_consentement.isoformat() if self.date_consentement else None
+            ),
+            "source": self.source,
+            "country": self.country,
+        }
+
+
+class CampaignRecord(StoreBase):
+    """Campagne marketing persistée (canal, finalité, statut, métriques) — MKT-1."""
+
+    __tablename__ = "store_campaigns"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    tenant_id: Mapped[str] = mapped_column(String(64), index=True)
+    nom: Mapped[str] = mapped_column(String(120))
+    canal: Mapped[str] = mapped_column(String(8), default="email")  # email | sms | post
+    finalite: Mapped[str] = mapped_column(String(60))
+    segment: Mapped[str | None] = mapped_column(String(60), nullable=True)
+    objet: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    statut: Mapped[str] = mapped_column(
+        String(12), default="brouillon"
+    )  # brouillon|validee|envoyee
+    date_creation: Mapped[date | None] = mapped_column(Date, nullable=True)
+    date_envoi: Mapped[date | None] = mapped_column(Date, nullable=True)
+    nb_cibles: Mapped[int] = mapped_column(Integer, default=0)
+    nb_envois: Mapped[int] = mapped_column(Integer, default=0)
+    nb_ouvertures: Mapped[int] = mapped_column(Integer, default=0)
+    nb_clics: Mapped[int] = mapped_column(Integer, default=0)
+    country: Mapped[str] = mapped_column(String(2), default="cg")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "tenant_id": self.tenant_id,
+            "nom": self.nom,
+            "canal": self.canal,
+            "finalite": self.finalite,
+            "segment": self.segment,
+            "objet": self.objet,
+            "statut": self.statut,
+            "date_creation": self.date_creation.isoformat() if self.date_creation else None,
+            "date_envoi": self.date_envoi.isoformat() if self.date_envoi else None,
+            "nb_cibles": self.nb_cibles,
+            "nb_envois": self.nb_envois,
+            "nb_ouvertures": self.nb_ouvertures,
+            "nb_clics": self.nb_clics,
+            "country": self.country,
+        }
+
+
 class EvaluationRecord(StoreBase):
     """Évaluation annuelle : performance × potentiel (SIRH-3b)."""
 

@@ -16,6 +16,7 @@ from zolaos.db.store_models import (
     AbsenceRecord,
     ApplicationRecord,
     BankAccountRecord,
+    CampaignRecord,
     CandidateRecord,
     CashFlowRecord,
     ContractRecord,
@@ -30,6 +31,7 @@ from zolaos.db.store_models import (
     InvoiceRecord,
     JobRoleRecord,
     JournalEntryRecord,
+    MarketingContactRecord,
     OpportunityRecord,
     PurchaseBudgetRecord,
     PurchaseOrderRecord,
@@ -429,6 +431,14 @@ class StockMoveRepository(_CrudRepo):
             stmt = stmt.where(StockMoveRecord.sku == sku)
         stmt = stmt.order_by(StockMoveRecord.date_mouvement.desc())
         return list(await self._s.scalars(stmt))
+
+
+class MarketingContactRepository(_CrudRepo):
+    model = MarketingContactRecord
+
+
+class CampaignRepository(_CrudRepo):
+    model = CampaignRecord
 
 
 class BankAccountRepository(_CrudRepo):

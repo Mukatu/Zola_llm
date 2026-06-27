@@ -5,6 +5,7 @@ from __future__ import annotations
 from zolaos.db.store_models import (
     AbsenceRecord,
     BankAccountRecord,
+    CampaignRecord,
     CashFlowRecord,
     ContractRecord,
     CustomerRecord,
@@ -14,6 +15,7 @@ from zolaos.db.store_models import (
     EvaluationRecord,
     InvoiceRecord,
     JobRoleRecord,
+    MarketingContactRecord,
     OpportunityRecord,
     PurchaseBudgetRecord,
     PurchaseOrderRecord,
@@ -650,6 +652,54 @@ _CASH_FLOWS = EntitySpec(
     ),
 )
 
+# ----------------------------------------------------------------- Marketing (MKT-1)
+
+_MARKETING_CONTACTS = EntitySpec(
+    entity="marketing_contacts",
+    label="Contacts marketing",
+    model=MarketingContactRecord,
+    natural_key=("id_externe",),
+    columns=(
+        Column("id_externe", "str", required=True, aliases=("id contact", "code contact")),
+        Column("nom", "str", required=True, aliases=("nom complet", "intitule")),
+        Column("email", "str", aliases=("courriel", "mail")),
+        Column("telephone", "str", aliases=("tel", "mobile")),
+        Column("secteur", "str", aliases=("activite", "domaine")),
+        Column("type", "str", enum=("client", "prospect"), aliases=("categorie",)),
+        Column("derniere_interaction", "date", help="AAAA-MM-JJ", aliases=("dernier contact",)),
+        Column(
+            "consentement_marketing",
+            "bool",
+            help="oui/non — Loi 29-2019",
+            aliases=("consentement", "opt-in", "opt in", "consent"),
+        ),
+        Column(
+            "finalites",
+            "list",
+            help="Finalités consenties, séparées par ; (newsletter;promotions)",
+            aliases=("finalite", "objets", "usages"),
+        ),
+        Column("date_consentement", "date", help="AAAA-MM-JJ", aliases=("date consentement",)),
+        Column("source", "str", aliases=("origine", "provenance", "canal acquisition")),
+    ),
+)
+
+_CAMPAIGNS = EntitySpec(
+    entity="campaigns",
+    label="Campagnes",
+    model=CampaignRecord,
+    natural_key=("nom",),
+    columns=(
+        Column("nom", "str", required=True, aliases=("nom campagne", "intitule")),
+        Column("canal", "str", enum=("email", "sms", "post"), aliases=("media", "support")),
+        Column("finalite", "str", required=True, help="Doit être consentie par la cible"),
+        Column("segment", "str", aliases=("cible", "audience")),
+        Column("objet", "str", aliases=("sujet", "titre")),
+        Column("statut", "str", enum=("brouillon", "validee", "envoyee"), aliases=("etat",)),
+        Column("date_creation", "date", help="AAAA-MM-JJ", aliases=("date",)),
+    ),
+)
+
 # Toutes les entités (endpoints par entité).
 REGISTRY: dict[str, EntitySpec] = {
     s.entity: s
@@ -676,6 +726,8 @@ REGISTRY: dict[str, EntitySpec] = {
         _STOCK_MOVES,
         _BANK_ACCOUNTS,
         _CASH_FLOWS,
+        _MARKETING_CONTACTS,
+        _CAMPAIGNS,
     )
 }
 
@@ -717,5 +769,10 @@ POLES: dict[str, PoleSpec] = {
         pole="tresorerie",
         label="Trésorerie",
         entities=(_BANK_ACCOUNTS, _CASH_FLOWS),
+    ),
+    "marketing": PoleSpec(
+        pole="marketing",
+        label="Marketing",
+        entities=(_MARKETING_CONTACTS, _CAMPAIGNS),
     ),
 }
