@@ -22,6 +22,10 @@ export interface Kpi { code: string; libelle: string; valeur: string; unite: str
 export function biKpis(payload: { invoices?: unknown[]; transactions?: unknown[]; employees?: unknown[]; periode?: string }): Promise<{ kpis: Kpi[] }> {
   return api("/v1/bi/kpis", { body: payload });
 }
+// Cockpit transversal agrégé sur le registre vivant (store).
+export function biDashboard(): Promise<{ kpis: Kpi[] }> {
+  return api("/v1/bi/dashboard");
+}
 
 // ----- Finance -----
 export interface FinanceFinding { type: string; severity: string; libelle: string; montant_xaf: string; references: string[] }

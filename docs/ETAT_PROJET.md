@@ -71,7 +71,7 @@ La persistance ne couvre **aujourd'hui que 3 entités** ; les autres métiers on
 | 6 | RH | ✅ | générique | ❌ | Registre des employés + contrats | `Employee` + `Contract` |
 | 7 | Paie | ✅ | ✅ | ❌ | Historique des bulletins | `Payslip` (après RH) |
 | 8 | CRM / Commercial | ✅ | ✅ kanban persisté | ✅ `store_customers`+`store_opportunities`+`store_quotes`+`store_interactions` (P2b) | **Pipeline réel** suivi dans le temps, forecast pondéré, devis→facture | mouvements de devis, multi-devis/opportunité |
-| 9 | BI / Pilotage | ✅ | ✅ | N/A (agrège) | KPIs sur **données réelles** stockées | brancher sur le store |
+| 9 | BI / Pilotage | ✅ | ✅ cockpit transversal | ✅ agrège le store (`/v1/bi/dashboard`) | **11 KPIs cross-métiers** sur données réelles (CA, marge, pipeline, trésorerie, stock, engagé, RH) | séries temporelles, drill-down |
 | 10 | Marketing | ✅ | ✅ | ❌ | Base contacts + journal consentement | `MarketingContact`+`Campaign` |
 | 11 | Moyens Généraux / Facility | ✅ | ✅ | ❌ | Registre des actifs + échéancier | `Asset`+`Echeance` |
 | 12 | HSE / RSE | ✅ | ✅ | ❌ | Registre des risques | `Risque`+`Incident` |
