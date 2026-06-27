@@ -72,7 +72,7 @@ La persistance ne couvre **aujourd'hui que 3 entités** ; les autres métiers on
 | 7 | Paie | ✅ | ✅ | ❌ | Historique des bulletins | `Payslip` (après RH) |
 | 8 | CRM / Commercial | ✅ | ✅ kanban persisté | ✅ `store_customers`+`store_opportunities`+`store_quotes`+`store_interactions` (P2b) | **Pipeline réel** suivi dans le temps, forecast pondéré, devis→facture | mouvements de devis, multi-devis/opportunité |
 | 9 | BI / Pilotage | ✅ | ✅ cockpit transversal | ✅ agrège le store (`/v1/bi/dashboard`) | **11 KPIs cross-métiers** sur données réelles (CA, marge, pipeline, trésorerie, stock, engagé, RH) | séries temporelles, drill-down |
-| 10 | Marketing | ✅ | ✅ | ❌ | Base contacts + journal consentement | `MarketingContact`+`Campaign` |
+| 10 | Marketing | ✅ | ✅ persisté | ✅ `store_marketing_contacts`+`store_campaigns` (MKT-1) | **Base d'audience consentante** (Loi 29-2019), segmentation, campagnes + envoi conforme, taux de consentement | A/B testing, journal d'événements |
 | 11 | Moyens Généraux / Facility | ✅ | ✅ | ❌ | Registre des actifs + échéancier | `Asset`+`Echeance` |
 | 12 | HSE / RSE | ✅ | ✅ | ❌ | Registre des risques | `Risque`+`Incident` |
 | 13 | Secrétariat sociétaire | ✅ | générique | ❌ | Registre mandats, AG/PV | `Mandat`+`Resolution` |
