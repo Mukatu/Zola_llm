@@ -156,3 +156,54 @@ def compute_kpis(
         )
 
     return out
+
+
+def dashboard_kpis(
+    *,
+    ca_ht: Decimal,
+    marge_brute_xaf: Decimal,
+    encours_clients_xaf: Decimal,
+    encours_fournisseurs_xaf: Decimal,
+    dso: Decimal,
+    position_tresorerie_xaf: Decimal,
+    valeur_stock_xaf: Decimal,
+    pipeline_pondere_xaf: Decimal,
+    engage_achats_xaf: Decimal,
+    effectif_actif: int,
+    masse_salariale_xaf: Decimal,
+    periode: str | None = None,
+) -> list[KpiValue]:
+    """Cockpit transversal : KPIs agrégés sur le **store** (déterministe).
+
+    Les scalaires sont déjà calculés par l'appelant (à partir des registres
+    persistés). Cette fonction n'assemble que la liste typée d'indicateurs.
+    """
+    rows: list[tuple[str, str, Decimal | int, str, str]] = [
+        ("ca_ht", "Chiffre d'affaires (HT)", _xaf(ca_ht), "XAF", "commercial"),
+        ("marge_brute", "Marge brute", _xaf(marge_brute_xaf), "XAF", "commercial"),
+        ("pipeline_pondere", "Pipeline pondéré", _xaf(pipeline_pondere_xaf), "XAF", "commercial"),
+        ("encours_clients", "Encours clients (TTC)", _xaf(encours_clients_xaf), "XAF", "finance"),
+        ("dso", "DSO (encaissement)", dso, "jours", "finance"),
+        (
+            "position_tresorerie",
+            "Position de trésorerie",
+            _xaf(position_tresorerie_xaf),
+            "XAF",
+            "finance",
+        ),
+        (
+            "encours_fournisseurs",
+            "Encours fournisseurs (TTC)",
+            _xaf(encours_fournisseurs_xaf),
+            "XAF",
+            "achats",
+        ),
+        ("engage_achats", "Engagé achats", _xaf(engage_achats_xaf), "XAF", "achats"),
+        ("valeur_stock", "Valeur du stock", _xaf(valeur_stock_xaf), "XAF", "supply"),
+        ("effectif", "Effectif actif", effectif_actif, "unité", "rh"),
+        ("masse_salariale", "Masse salariale brute", _xaf(masse_salariale_xaf), "XAF", "rh"),
+    ]
+    return [
+        KpiValue(code=c, libelle=lib, valeur=Decimal(v), unite=u, domaine=d, periode=periode)
+        for c, lib, v, u, d in rows
+    ]
