@@ -3,12 +3,20 @@
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
+from datetime import date
 from decimal import Decimal
 
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
-from zolaos.agents.erp.treasury import CompteTresorerie, FluxTresorerie, position_tresorerie
+from zolaos.agents.erp.treasury import (
+    CompteTresorerie,
+    FluxRapprochable,
+    FluxTresorerie,
+    LigneReleve,
+    position_tresorerie,
+    rapprocher,
+)
 from zolaos.api.main import create_app
 from zolaos.core.settings import Settings
 from zolaos.db.session import get_session
@@ -75,6 +83,32 @@ def test_position_realisee_et_projetee() -> None:
     assert p.par_devise["XAF"] == "1340000.00"
 
 
+def test_rapprochement_bancaire() -> None:
+    flux = [
+        FluxRapprochable(
+            id="F1", sens="encaissement", montant_xaf="500000", date_operation=date(2026, 6, 15)
+        ),
+        FluxRapprochable(
+            id="F2", sens="decaissement", montant_xaf="200000", date_operation=date(2026, 6, 16)
+        ),
+        FluxRapprochable(
+            id="F3", sens="decaissement", montant_xaf="999999", date_operation=date(2026, 6, 1)
+        ),
+    ]
+    releve = [
+        LigneReleve(date=date(2026, 6, 15), montant_xaf="500000", sens="encaissement"),
+        LigneReleve(date=date(2026, 6, 18), montant_xaf="200000", sens="decaissement"),  # +2 j ok
+        LigneReleve(
+            date=date(2026, 6, 18), montant_xaf="123456", sens="encaissement"
+        ),  # sans correspondance
+    ]
+    res = rapprocher(flux, releve, fenetre_jours=5)
+    assert len(res.rapprochements) == 2
+    assert res.flux_non_rapproches == ["F3"]
+    assert res.releve_non_rapproche == [2]
+    assert str(res.taux_rapprochement_pct) == "66.7"
+
+
 # ----------------------------------------------------------------- endpoints
 
 
@@ -118,3 +152,77 @@ async def test_treasury_crud_and_position(tmp_path) -> None:  # type: ignore[no-
         assert cpt["solde_realise_xaf"] == "1300000.00"
         assert cpt["solde_projete_xaf"] == "1000000.00"
         assert pos["total_realise_xaf"] == "1300000.00"
+
+
+async def test_decaissement_double_validation(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    async with _client(tmp_path) as ac:
+        await ac.post(
+            "/v1/erp/bank-accounts",
+            json={"code": "BNK", "libelle": "BGFI", "solde_initial_xaf": "0"},
+        )
+        flow = (
+            await ac.post(
+                "/v1/erp/cash-flows",
+                json={
+                    "reference": "DEC-XL",
+                    "compte_code": "BNK",
+                    "sens": "decaissement",
+                    "montant_xaf": "5000000",  # > seuil
+                    "date_operation": "2026-06-15",
+                    "statut": "prevu",
+                },
+            )
+        ).json()
+        # N1 : au-dessus du seuil → pas exécuté
+        r1 = await ac.post(f"/v1/erp/cash-flows/{flow['id']}/approve")
+        assert r1.json()["execute"] is False and r1.json()["requiert_n2"] is True
+        assert r1.json()["flow"]["niveau_validation"] == "n1"
+        # N2 : exécuté → réalisé
+        r2 = await ac.post(f"/v1/erp/cash-flows/{flow['id']}/approve")
+        assert r2.json()["execute"] is True
+        assert r2.json()["flow"]["statut"] == "realise"
+        # déjà exécuté → 409
+        assert (await ac.post(f"/v1/erp/cash-flows/{flow['id']}/approve")).status_code == 409
+
+
+async def test_treasury_reconcile_endpoint(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    async with _client(tmp_path) as ac:
+        await ac.post(
+            "/v1/erp/bank-accounts",
+            json={"code": "BNK", "libelle": "BGFI", "solde_initial_xaf": "0"},
+        )
+        await ac.post(
+            "/v1/erp/cash-flows",
+            json={
+                "reference": "ENC-1",
+                "compte_code": "BNK",
+                "sens": "encaissement",
+                "montant_xaf": "500000",
+                "date_operation": "2026-06-15",
+                "statut": "realise",
+            },
+        )
+        body = (
+            await ac.post(
+                "/v1/erp/treasury/reconcile",
+                json={
+                    "releve": [
+                        {"date": "2026-06-16", "montant_xaf": "500000", "sens": "encaissement"}
+                    ]
+                },
+            )
+        ).json()
+        assert len(body["rapprochements"]) == 1
+        assert body["taux_rapprochement_pct"] == "100.0"
+        # le flux est marqué rapproché → un 2e rapprochement ne le réapparie pas
+        again = (
+            await ac.post(
+                "/v1/erp/treasury/reconcile",
+                json={
+                    "releve": [
+                        {"date": "2026-06-16", "montant_xaf": "500000", "sens": "encaissement"}
+                    ]
+                },
+            )
+        ).json()
+        assert len(again["rapprochements"]) == 0

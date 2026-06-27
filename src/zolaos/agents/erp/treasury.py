@@ -9,11 +9,15 @@ from __future__ import annotations
 
 from collections import defaultdict
 from dataclasses import dataclass, field
+from datetime import date
 from decimal import ROUND_HALF_UP, Decimal
 
 from pydantic import BaseModel, Field
 
 _ZERO = Decimal("0")
+
+# Au-delà de ce montant, un décaissement requiert une double validation (N1 puis N2).
+SEUIL_DECAISSEMENT_DEFAUT_XAF = Decimal("1000000")
 
 
 class CompteTresorerie(BaseModel):
@@ -110,4 +114,81 @@ def position_tresorerie(
         total_projete_xaf=_xaf(total_projete),
         par_devise={d: str(_xaf(v)) for d, v in sorted(par_devise.items())},
         par_compte=par_compte,
+    )
+
+
+# ----------------------------------------------------------------- rapprochement bancaire
+
+
+class LigneReleve(BaseModel):
+    model_config = {"extra": "forbid"}
+
+    date: date
+    montant_xaf: Decimal
+    sens: str  # encaissement | decaissement
+    libelle: str = ""
+
+
+class FluxRapprochable(BaseModel):
+    model_config = {"extra": "forbid"}
+
+    id: str
+    compte_code: str = ""
+    sens: str = "encaissement"
+    montant_xaf: Decimal = Field(default=_ZERO)
+    date_operation: date
+
+
+@dataclass(frozen=True)
+class Rapprochement:
+    flux_id: str
+    releve_index: int
+    montant_xaf: Decimal
+
+
+@dataclass(frozen=True)
+class RapprochementResult:
+    rapprochements: list[Rapprochement]
+    flux_non_rapproches: list[str]
+    releve_non_rapproche: list[int]
+    taux_rapprochement_pct: Decimal
+
+
+def rapprocher(
+    flux: list[FluxRapprochable], releve: list[LigneReleve], *, fenetre_jours: int = 5
+) -> RapprochementResult:
+    """Apparie le relevé bancaire aux flux **réalisés** (montant + sens + fenêtre de date).
+
+    Déterministe, appariement glouton 1↔1 ; la fenêtre tolère un décalage de date.
+    """
+    used_flux: set[str] = set()
+    rapprochements: list[Rapprochement] = []
+    releve_ok: set[int] = set()
+    for i, ligne in enumerate(releve):
+        for f in flux:
+            if f.id in used_flux:
+                continue
+            if f.sens != ligne.sens or f.montant_xaf != ligne.montant_xaf:
+                continue
+            if abs((f.date_operation - ligne.date).days) > fenetre_jours:
+                continue
+            used_flux.add(f.id)
+            releve_ok.add(i)
+            rapprochements.append(
+                Rapprochement(flux_id=f.id, releve_index=i, montant_xaf=_xaf(f.montant_xaf))
+            )
+            break
+    flux_non = [f.id for f in flux if f.id not in used_flux]
+    releve_non = [i for i in range(len(releve)) if i not in releve_ok]
+    total = len(releve)
+    taux = (
+        (Decimal(len(releve_ok)) / Decimal(total) * 100).quantize(Decimal("0.1"))
+        if total
+        else _ZERO
+    )
+    return RapprochementResult(
+        rapprochements=rapprochements,
+        flux_non_rapproches=flux_non,
+        releve_non_rapproche=releve_non,
+        taux_rapprochement_pct=taux,
     )

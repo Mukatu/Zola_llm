@@ -45,7 +45,15 @@ from zolaos.agents.erp.inventory import (
 )
 from zolaos.agents.erp.reconciliation import reconcilier
 from zolaos.agents.erp.supply import StockItem, alertes_rupture, analyser_reappro
-from zolaos.agents.erp.treasury import CompteTresorerie, FluxTresorerie, position_tresorerie
+from zolaos.agents.erp.treasury import (
+    SEUIL_DECAISSEMENT_DEFAUT_XAF,
+    CompteTresorerie,
+    FluxRapprochable,
+    FluxTresorerie,
+    LigneReleve,
+    position_tresorerie,
+    rapprocher,
+)
 from zolaos.connectors.models import BankTransaction, Invoice, JournalEntry, JournalLine
 from zolaos.db.session import get_session
 from zolaos.db.store_repo import (
@@ -1456,3 +1464,97 @@ async def treasury_position(
         for f in flows
     ]
     return {"position": asdict(position_tresorerie(comptes, flux))}
+
+
+# ----- gouvernance : validation des décaissements (TRESO-3) -----
+
+
+@router.post(
+    "/cash-flows/{flow_id}/approve",
+    summary="Approuver un décaissement (workflow à seuil : N1 puis N2)",
+)
+async def approve_cash_flow(
+    flow_id: str,
+    tenant_id: str = "local",
+    seuil_xaf: Decimal = SEUIL_DECAISSEMENT_DEFAUT_XAF,
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    flows = CashFlowRepository(session)
+    flow = await flows.get(flow_id, tenant_id=tenant_id)
+    if flow is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="flow_not_found")
+    if flow.sens != "decaissement":
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="seuls_decaissements"
+        )
+    if flow.statut == "realise":
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="deja_execute")
+
+    # 1er palier (N1) si au-dessus du seuil et pas encore validé une fois.
+    if flow.niveau_validation == "" and flow.montant_xaf > seuil_xaf:
+        flow.niveau_validation = "n1"
+        await session.flush()
+        await session.commit()
+        return {"flow": flow.to_dict(), "execute": False, "requiert_n2": True}
+
+    # Exécution : sous le seuil, ou 2e validation (N2).
+    flow.niveau_validation = "validee"
+    flow.statut = "realise"
+    await session.flush()
+    await session.commit()
+    return {"flow": flow.to_dict(), "execute": True}
+
+
+# ----- rapprochement bancaire (TRESO-3) -----
+
+
+class ReleveLigneIn(BaseModel):
+    date: date
+    montant_xaf: Decimal
+    sens: str  # encaissement | decaissement
+    libelle: str = ""
+
+
+class ReconcileTresoIn(BaseModel):
+    releve: list[ReleveLigneIn] = Field(default_factory=list)
+    compte_code: str | None = None
+    fenetre_jours: int = Field(default=5, ge=0, le=60)
+
+
+@router.post("/treasury/reconcile", summary="Rapprochement bancaire (relevé vs flux réalisés)")
+async def treasury_reconcile(
+    body: ReconcileTresoIn,
+    tenant_id: str = "local",
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    repo = CashFlowRepository(session)
+    rows = await repo.list(tenant_id=tenant_id, compte_code=body.compte_code, statut="realise")
+    candidats = [r for r in rows if not r.rapproche]
+    flux = [
+        FluxRapprochable(
+            id=r.id,
+            compte_code=r.compte_code,
+            sens=r.sens,
+            montant_xaf=r.montant_xaf,
+            date_operation=r.date_operation,
+        )
+        for r in candidats
+    ]
+    releve = [
+        LigneReleve(date=x.date, montant_xaf=x.montant_xaf, sens=x.sens, libelle=x.libelle)
+        for x in body.releve
+    ]
+    res = rapprocher(flux, releve, fenetre_jours=body.fenetre_jours)
+    # marque les flux appariés comme rapprochés
+    appariés = {r.flux_id for r in res.rapprochements}
+    for r in candidats:
+        if r.id in appariés:
+            r.rapproche = True
+    await session.flush()
+    await session.commit()
+    return {
+        "rapprochements": [asdict(r) for r in res.rapprochements],
+        "flux_non_rapproches": res.flux_non_rapproches,
+        "releve_non_rapproche": res.releve_non_rapproche,
+        "taux_rapprochement_pct": str(res.taux_rapprochement_pct),
+    }

@@ -964,6 +964,9 @@ class CashFlowRecord(StoreBase):
     date_operation: Mapped[date] = mapped_column(Date)
     date_prevue: Mapped[date | None] = mapped_column(Date, nullable=True)
     statut: Mapped[str] = mapped_column(String(8), default="realise")  # prevu|realise
+    # workflow de validation des décaissements : "" | n1 | validee
+    niveau_validation: Mapped[str] = mapped_column(String(8), default="")
+    rapproche: Mapped[bool] = mapped_column(Boolean, default=False)
     categorie: Mapped[str] = mapped_column(String(60), default="")
     tiers: Mapped[str] = mapped_column(String(200), default="")
     libelle: Mapped[str] = mapped_column(String(200), default="")
@@ -983,6 +986,8 @@ class CashFlowRecord(StoreBase):
             "date_operation": self.date_operation.isoformat() if self.date_operation else None,
             "date_prevue": self.date_prevue.isoformat() if self.date_prevue else None,
             "statut": self.statut,
+            "niveau_validation": self.niveau_validation,
+            "rapproche": self.rapproche,
             "categorie": self.categorie,
             "tiers": self.tiers,
             "libelle": self.libelle,

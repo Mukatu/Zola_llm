@@ -21,6 +21,8 @@ export interface CashFlowRec {
   date_operation: string | null;
   date_prevue: string | null;
   statut: string;
+  niveau_validation: string;
+  rapproche: boolean;
   categorie: string;
   tiers: string;
   libelle: string;
@@ -99,4 +101,26 @@ export function deleteCashFlow(id: string): Promise<{ deleted: string }> {
 // ----- Position -----
 export function treasuryPosition(): Promise<{ position: PositionTresorerie }> {
   return api("/v1/erp/treasury/position");
+}
+
+// ----- Gouvernance & rapprochement (TRESO-3) -----
+export function approveCashFlow(
+  id: string,
+): Promise<{ flow: CashFlowRec; execute: boolean; requiert_n2?: boolean }> {
+  return api(`/v1/erp/cash-flows/${id}/approve`, { method: "POST", body: {} });
+}
+
+export interface ReleveLigne {
+  date: string;
+  montant_xaf: string;
+  sens: string;
+}
+export interface ReconcileResult {
+  rapprochements: { flux_id: string; releve_index: number; montant_xaf: number }[];
+  flux_non_rapproches: string[];
+  releve_non_rapproche: number[];
+  taux_rapprochement_pct: string;
+}
+export function treasuryReconcile(releve: ReleveLigne[]): Promise<ReconcileResult> {
+  return api("/v1/erp/treasury/reconcile", { body: { releve } });
 }

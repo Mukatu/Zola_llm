@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Wallet, Plus, Trash2, Landmark, ArrowDownToLine, ArrowUpFromLine, Clock } from "lucide-react";
+import { Wallet, Plus, Trash2, Landmark, ArrowDownToLine, ArrowUpFromLine, Clock, CheckCircle2, ScrollText } from "lucide-react";
 import { Card, Button } from "../ui";
 import { FlagshipHeader, Inp } from "./_shared";
 import { fmt } from "@/lib/data";
@@ -14,9 +14,13 @@ import {
   createCashFlow,
   deleteCashFlow,
   treasuryPosition,
+  approveCashFlow,
+  treasuryReconcile,
   type BankAccountRec,
   type CashFlowRec,
   type PositionTresorerie,
+  type ReleveLigne,
+  type ReconcileResult,
 } from "@/lib/treasury";
 
 const TODAY = new Date().toISOString().slice(0, 10);
@@ -42,6 +46,8 @@ export function FinanceScreen() {
 
   const [accForm, setAccForm] = useState({ code: "", libelle: "", type: "banque", solde: "" });
   const [flowForm, setFlowForm] = useState({ compte: "", sens: "encaissement", statut: "realise", montant: "", libelle: "" });
+  const [releve, setReleve] = useState<ReleveLigne[]>([{ date: TODAY, montant_xaf: "", sens: "encaissement" }]);
+  const [recRes, setRecRes] = useState<ReconcileResult | null>(null);
 
   const refresh = useCallback(async () => {
     try {
@@ -101,6 +107,28 @@ export function FinanceScreen() {
       setErr("Initialisation de la démo impossible (backend/DB).");
     }
   }
+  async function approve(id: string) {
+    try {
+      const r = await approveCashFlow(id);
+      if (!r.execute && r.requiert_n2) setErr("Décaissement validé N1 — une 2ᵉ validation (N2) est requise.");
+      else setErr(null);
+      await refresh();
+    } catch (e) {
+      setErr(e instanceof ApiError && e.status === 409 ? "Décaissement déjà exécuté." : "Approbation impossible.");
+    }
+  }
+  async function runReconcile() {
+    const lignes = releve.filter((l) => l.montant_xaf !== "");
+    if (lignes.length === 0) return;
+    try {
+      setRecRes(await treasuryReconcile(lignes));
+      await refresh();
+    } catch {
+      setErr("Rapprochement impossible (backend/DB).");
+    }
+  }
+  const setReleveLine = (i: number, k: keyof ReleveLigne, v: string) =>
+    setReleve((l) => l.map((r, j) => (j === i ? { ...r, [k]: v } : r)));
 
   const isEmpty = accounts.length === 0;
   const aVenir = position ? position.total_projete_xaf - position.total_realise_xaf : 0;
@@ -223,6 +251,15 @@ export function FinanceScreen() {
                 </span>
                 <span className="flex items-center gap-2 text-muted">
                   {fmt(f.montant_xaf)}
+                  {f.sens === "decaissement" && f.statut === "prevu" && f.niveau_validation === "" && (
+                    <button onClick={() => approve(f.id)} title="Approuver" className="text-emerald-600 hover:text-emerald-800"><CheckCircle2 className="h-4 w-4" /></button>
+                  )}
+                  {f.sens === "decaissement" && f.statut === "prevu" && f.niveau_validation === "n1" && (
+                    <button onClick={() => approve(f.id)} title="Valider N2" className="flex items-center gap-1 text-amber-600 hover:text-amber-800">
+                      <span className="text-[10px] font-semibold">N1✓</span><CheckCircle2 className="h-4 w-4" />
+                    </button>
+                  )}
+                  {f.rapproche && <span className="rounded-full bg-emerald-100 px-1.5 text-[10px] text-emerald-700">rappr.</span>}
                   <button onClick={() => deleteCashFlow(f.id).then(refresh)} className="hover:text-red-600"><Trash2 className="h-4 w-4" /></button>
                 </span>
               </div>
@@ -230,6 +267,42 @@ export function FinanceScreen() {
           })}
         </Card>
       </div>
+
+      {/* Rapprochement bancaire */}
+      <Card>
+        <div className="mb-2 flex items-center justify-between">
+          <h2 className="flex items-center gap-2 text-sm font-semibold">
+            <ScrollText className="h-4 w-4 text-indigo-600" /> Rapprochement bancaire
+          </h2>
+          <div className="flex gap-2">
+            <Button variant="ghost" onClick={() => setReleve((l) => [...l, { date: TODAY, montant_xaf: "", sens: "encaissement" }])}>
+              <Plus className="h-4 w-4" /> Ligne
+            </Button>
+            <Button onClick={runReconcile}>Rapprocher</Button>
+          </div>
+        </div>
+        <p className="mb-2 text-xs text-muted">Saisissez les lignes du relevé : elles sont appariées aux flux réalisés (montant + sens + date à ±5 j).</p>
+        {releve.map((l, i) => (
+          <div key={i} className="mb-1 grid grid-cols-[130px_1fr_130px] gap-2">
+            <Inp value={l.date} type="date" onChange={(v) => setReleveLine(i, "date", v)} />
+            <Inp value={l.montant_xaf} type="number" onChange={(v) => setReleveLine(i, "montant_xaf", v)} placeholder="Montant" />
+            <select value={l.sens} onChange={(e) => setReleveLine(i, "sens", e.target.value)} className="rounded-lg border border-black/10 bg-white px-2 py-1 text-sm">
+              <option value="encaissement">encaissement</option>
+              <option value="decaissement">décaissement</option>
+            </select>
+          </div>
+        ))}
+        {recRes && (
+          <div className="mt-2 text-sm">
+            <div className="font-semibold">
+              {recRes.rapprochements.length} rapproché(s) · taux {recRes.taux_rapprochement_pct}%
+            </div>
+            {recRes.releve_non_rapproche.length > 0 && (
+              <div className="text-amber-700">Lignes de relevé sans correspondance : {recRes.releve_non_rapproche.map((i) => i + 1).join(", ")}</div>
+            )}
+          </div>
+        )}
+      </Card>
     </div>
   );
 }
