@@ -4,15 +4,18 @@ from __future__ import annotations
 
 from zolaos.db.store_models import (
     AbsenceRecord,
+    AssetRecord,
     BankAccountRecord,
     CampaignRecord,
     CashFlowRecord,
     ContractRecord,
     CustomerRecord,
+    EcheanceRecord,
     EmployeeRecord,
     EmployeeSkillRecord,
     EngagementRecord,
     EvaluationRecord,
+    IncidentRecord,
     InvoiceRecord,
     JobRoleRecord,
     MarketingContactRecord,
@@ -20,6 +23,7 @@ from zolaos.db.store_models import (
     PurchaseBudgetRecord,
     PurchaseOrderRecord,
     QuoteRecord,
+    RisqueRecord,
     RoleSkillRecord,
     SkillRecord,
     StockItemRecord,
@@ -700,6 +704,93 @@ _CAMPAIGNS = EntitySpec(
     ),
 )
 
+# ----------------------------------------------------------------- Facility / HSE (OPS-1)
+
+_ASSETS = EntitySpec(
+    entity="assets",
+    label="Actifs",
+    model=AssetRecord,
+    natural_key=("id_externe",),
+    columns=(
+        Column("id_externe", "str", required=True, aliases=("id actif", "code actif", "reference")),
+        Column("libelle", "str", required=True, aliases=("intitule", "designation")),
+        Column(
+            "type_actif",
+            "str",
+            enum=("vehicule", "batiment", "equipement", "autre"),
+            aliases=("type", "nature"),
+        ),
+        Column(
+            "maintenance_intervalle_jours",
+            "int",
+            help="Périodicité du préventif (jours, 0 = aucun)",
+            aliases=("intervalle", "periodicite"),
+        ),
+        Column(
+            "derniere_maintenance",
+            "date",
+            help="AAAA-MM-JJ",
+            aliases=("derniere intervention", "dernier entretien"),
+        ),
+    ),
+)
+
+_ECHEANCES = EntitySpec(
+    entity="echeances",
+    label="Échéances",
+    model=EcheanceRecord,
+    natural_key=("id_externe",),
+    columns=(
+        Column("id_externe", "str", required=True, aliases=("id echeance", "reference")),
+        Column("asset_id", "str", help="Actif rattaché (optionnel)", aliases=("actif",)),
+        Column(
+            "type_echeance",
+            "str",
+            enum=("assurance", "controle", "contrat", "autre"),
+            aliases=("type", "nature"),
+        ),
+        Column("libelle", "str", required=True, aliases=("intitule", "objet")),
+        Column(
+            "date_echeance", "date", required=True, help="AAAA-MM-JJ", aliases=("echeance", "date")
+        ),
+    ),
+)
+
+_RISQUES = EntitySpec(
+    entity="risques",
+    label="Risques",
+    model=RisqueRecord,
+    natural_key=("id_externe",),
+    columns=(
+        Column("id_externe", "str", required=True, aliases=("id risque", "code", "reference")),
+        Column("libelle", "str", required=True, aliases=("intitule", "danger")),
+        Column("probabilite", "int", help="1 à 5", aliases=("proba", "frequence")),
+        Column("gravite", "int", help="1 à 5", aliases=("severite", "impact")),
+    ),
+)
+
+_INCIDENTS = EntitySpec(
+    entity="incidents",
+    label="Incidents",
+    model=IncidentRecord,
+    natural_key=("id_externe",),
+    columns=(
+        Column("id_externe", "str", required=True, aliases=("id incident", "reference")),
+        Column("date_incident", "date", required=True, help="AAAA-MM-JJ", aliases=("date",)),
+        Column(
+            "type_incident",
+            "str",
+            enum=("accident", "presqu_accident", "maladie", "environnement", "autre"),
+            aliases=("type", "nature"),
+        ),
+        Column("gravite", "str", enum=("mineur", "majeur", "critique"), aliases=("severite",)),
+        Column("description", "str", aliases=("details", "commentaire")),
+        Column(
+            "jours_arret", "int", help="Jours d'arrêt de travail", aliases=("arret", "jours perdus")
+        ),
+    ),
+)
+
 # Toutes les entités (endpoints par entité).
 REGISTRY: dict[str, EntitySpec] = {
     s.entity: s
@@ -728,6 +819,10 @@ REGISTRY: dict[str, EntitySpec] = {
         _CASH_FLOWS,
         _MARKETING_CONTACTS,
         _CAMPAIGNS,
+        _ASSETS,
+        _ECHEANCES,
+        _RISQUES,
+        _INCIDENTS,
     )
 }
 
@@ -774,5 +869,15 @@ POLES: dict[str, PoleSpec] = {
         pole="marketing",
         label="Marketing",
         entities=(_MARKETING_CONTACTS, _CAMPAIGNS),
+    ),
+    "facility": PoleSpec(
+        pole="facility",
+        label="Moyens généraux",
+        entities=(_ASSETS, _ECHEANCES),
+    ),
+    "hse": PoleSpec(
+        pole="hse",
+        label="HSE",
+        entities=(_RISQUES, _INCIDENTS),
     ),
 }

@@ -15,6 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from zolaos.db.store_models import (
     AbsenceRecord,
     ApplicationRecord,
+    AssetRecord,
     BankAccountRecord,
     CampaignRecord,
     CandidateRecord,
@@ -22,10 +23,12 @@ from zolaos.db.store_models import (
     ContractRecord,
     CustomerRecord,
     DocumentRecord,
+    EcheanceRecord,
     EmployeeRecord,
     EmployeeSkillRecord,
     EngagementRecord,
     EvaluationRecord,
+    IncidentRecord,
     InteractionRecord,
     InterviewRecord,
     InvoiceRecord,
@@ -36,6 +39,7 @@ from zolaos.db.store_models import (
     PurchaseBudgetRecord,
     PurchaseOrderRecord,
     QuoteRecord,
+    RisqueRecord,
     RoleSkillRecord,
     SkillRecord,
     StockItemRecord,
@@ -431,6 +435,22 @@ class StockMoveRepository(_CrudRepo):
             stmt = stmt.where(StockMoveRecord.sku == sku)
         stmt = stmt.order_by(StockMoveRecord.date_mouvement.desc())
         return list(await self._s.scalars(stmt))
+
+
+class AssetRepository(_CrudRepo):
+    model = AssetRecord
+
+
+class EcheanceRepository(_CrudRepo):
+    model = EcheanceRecord
+
+
+class RisqueRepository(_CrudRepo):
+    model = RisqueRecord
+
+
+class IncidentRepository(_CrudRepo):
+    model = IncidentRecord
 
 
 class MarketingContactRepository(_CrudRepo):

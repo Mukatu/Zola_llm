@@ -1087,6 +1087,126 @@ class PurchaseBudgetRecord(StoreBase):
         }
 
 
+class AssetRecord(StoreBase):
+    """Actif / équipement (Facility / Moyens généraux — OPS-1)."""
+
+    __tablename__ = "store_assets"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    tenant_id: Mapped[str] = mapped_column(String(64), index=True)
+    id_externe: Mapped[str] = mapped_column(String(64))
+    libelle: Mapped[str] = mapped_column(String(200))
+    type_actif: Mapped[str] = mapped_column(String(20), default="autre")
+    maintenance_intervalle_jours: Mapped[int] = mapped_column(Integer, default=0)
+    derniere_maintenance: Mapped[date | None] = mapped_column(Date, nullable=True)
+    country: Mapped[str] = mapped_column(String(2), default="cg")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_now, onupdate=_now
+    )
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "tenant_id": self.tenant_id,
+            "id_externe": self.id_externe,
+            "libelle": self.libelle,
+            "type_actif": self.type_actif,
+            "maintenance_intervalle_jours": self.maintenance_intervalle_jours,
+            "derniere_maintenance": (
+                self.derniere_maintenance.isoformat() if self.derniere_maintenance else None
+            ),
+            "country": self.country,
+        }
+
+
+class EcheanceRecord(StoreBase):
+    """Échéance (assurance, contrôle réglementaire, contrat…) — Facility, OPS-1."""
+
+    __tablename__ = "store_echeances"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    tenant_id: Mapped[str] = mapped_column(String(64), index=True)
+    id_externe: Mapped[str] = mapped_column(String(64))
+    asset_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    type_echeance: Mapped[str] = mapped_column(String(20), default="autre")
+    libelle: Mapped[str] = mapped_column(String(200))
+    date_echeance: Mapped[date] = mapped_column(Date)
+    country: Mapped[str] = mapped_column(String(2), default="cg")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "tenant_id": self.tenant_id,
+            "id_externe": self.id_externe,
+            "asset_id": self.asset_id,
+            "type_echeance": self.type_echeance,
+            "libelle": self.libelle,
+            "date_echeance": self.date_echeance.isoformat() if self.date_echeance else None,
+            "country": self.country,
+        }
+
+
+class RisqueRecord(StoreBase):
+    """Risque HSE (probabilité × gravité → criticité) — OPS-1."""
+
+    __tablename__ = "store_risques"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    tenant_id: Mapped[str] = mapped_column(String(64), index=True)
+    id_externe: Mapped[str] = mapped_column(String(64))
+    libelle: Mapped[str] = mapped_column(String(200))
+    probabilite: Mapped[int] = mapped_column(Integer, default=1)  # 1-5
+    gravite: Mapped[int] = mapped_column(Integer, default=1)  # 1-5
+    country: Mapped[str] = mapped_column(String(2), default="cg")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_now, onupdate=_now
+    )
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "tenant_id": self.tenant_id,
+            "id_externe": self.id_externe,
+            "libelle": self.libelle,
+            "probabilite": self.probabilite,
+            "gravite": self.gravite,
+            "country": self.country,
+        }
+
+
+class IncidentRecord(StoreBase):
+    """Incident HSE (accident, presqu'accident…) — OPS-1."""
+
+    __tablename__ = "store_incidents"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    tenant_id: Mapped[str] = mapped_column(String(64), index=True)
+    id_externe: Mapped[str] = mapped_column(String(64))
+    date_incident: Mapped[date] = mapped_column(Date)
+    type_incident: Mapped[str] = mapped_column(String(20), default="autre")
+    gravite: Mapped[str] = mapped_column(String(12), default="mineur")
+    description: Mapped[str] = mapped_column(Text, default="")
+    jours_arret: Mapped[int] = mapped_column(Integer, default=0)
+    country: Mapped[str] = mapped_column(String(2), default="cg")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "tenant_id": self.tenant_id,
+            "id_externe": self.id_externe,
+            "date_incident": self.date_incident.isoformat() if self.date_incident else None,
+            "type_incident": self.type_incident,
+            "gravite": self.gravite,
+            "description": self.description,
+            "jours_arret": self.jours_arret,
+            "country": self.country,
+        }
+
+
 class MarketingContactRecord(StoreBase):
     """Contact marketing persisté — **consentement & finalités** (Loi 29-2019, MKT-1)."""
 

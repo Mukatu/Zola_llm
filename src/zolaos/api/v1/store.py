@@ -33,6 +33,15 @@ from zolaos.agents.erp.engagements import (
     engagement_stats,
     pilotage_budgetaire,
 )
+from zolaos.agents.erp.facility import Asset, Echeance, echeances_dues, maintenances_dues
+from zolaos.agents.erp.hse import (
+    Incident,
+    Risque,
+    cartographie_risques,
+    statistiques_incidents,
+    taux_frequence,
+    taux_gravite,
+)
 from zolaos.agents.erp.inventory import (
     SEUIL_VALIDATION_DEFAUT_XAF,
     ArticleStock,
@@ -62,13 +71,17 @@ from zolaos.agents.erp.treasury import (
 from zolaos.connectors.models import BankTransaction, Invoice, JournalEntry, JournalLine
 from zolaos.db.session import get_session
 from zolaos.db.store_repo import (
+    AssetRepository,
     BankAccountRepository,
     CashFlowRepository,
+    EcheanceRepository,
     EngagementRepository,
+    IncidentRepository,
     InvoiceRepository,
     JournalRepository,
     PurchaseBudgetRepository,
     PurchaseOrderRepository,
+    RisqueRepository,
     StockMoveRepository,
     StockRepository,
     SupplierRepository,
@@ -1688,3 +1701,289 @@ async def export_treasury_pilotage(
         media_type=_XLSX_MEDIA,
         headers={"Content-Disposition": 'attachment; filename="pilotage_tresorerie.xlsx"'},
     )
+
+
+# ---------------------------------------------------------------- Facility / Moyens généraux (OPS-1)
+
+
+class AssetIn(BaseModel):
+    id_externe: str
+    libelle: str
+    type_actif: str = "autre"
+    maintenance_intervalle_jours: int = 0
+    derniere_maintenance: date | None = None
+    country: str = "cg"
+
+
+class AssetPatch(BaseModel):
+    libelle: str | None = None
+    type_actif: str | None = None
+    maintenance_intervalle_jours: int | None = None
+    derniere_maintenance: date | None = None
+
+
+class EcheanceIn(BaseModel):
+    id_externe: str
+    asset_id: str | None = None
+    type_echeance: str = "autre"
+    libelle: str
+    date_echeance: date
+    country: str = "cg"
+
+
+@router.post("/assets", status_code=status.HTTP_201_CREATED, summary="Créer un actif")
+async def create_asset(
+    body: AssetIn, tenant_id: str = "local", session: AsyncSession = Depends(get_session)
+) -> dict[str, Any]:
+    rec = await AssetRepository(session).create({**body.model_dump(), "tenant_id": tenant_id})
+    await session.commit()
+    return rec.to_dict()
+
+
+@router.get("/assets", summary="Lister les actifs")
+async def list_assets(
+    tenant_id: str = "local", session: AsyncSession = Depends(get_session)
+) -> dict[str, Any]:
+    rows = await AssetRepository(session).list(tenant_id=tenant_id)
+    return {"assets": [r.to_dict() for r in rows]}
+
+
+@router.patch("/assets/{asset_id}", summary="Mettre à jour un actif")
+async def patch_asset(
+    asset_id: str,
+    body: AssetPatch,
+    tenant_id: str = "local",
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    rec = await AssetRepository(session).update(
+        asset_id, tenant_id=tenant_id, fields=body.model_dump(exclude_none=True)
+    )
+    if rec is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="asset_not_found")
+    await session.commit()
+    return rec.to_dict()
+
+
+@router.delete("/assets/{asset_id}", summary="Supprimer un actif")
+async def delete_asset(
+    asset_id: str, tenant_id: str = "local", session: AsyncSession = Depends(get_session)
+) -> dict[str, Any]:
+    ok = await AssetRepository(session).delete(asset_id, tenant_id=tenant_id)
+    if not ok:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="asset_not_found")
+    await session.commit()
+    return {"deleted": asset_id}
+
+
+@router.post("/echeances", status_code=status.HTTP_201_CREATED, summary="Créer une échéance")
+async def create_echeance(
+    body: EcheanceIn, tenant_id: str = "local", session: AsyncSession = Depends(get_session)
+) -> dict[str, Any]:
+    rec = await EcheanceRepository(session).create({**body.model_dump(), "tenant_id": tenant_id})
+    await session.commit()
+    return rec.to_dict()
+
+
+@router.get("/echeances", summary="Lister les échéances")
+async def list_echeances(
+    tenant_id: str = "local", session: AsyncSession = Depends(get_session)
+) -> dict[str, Any]:
+    rows = await EcheanceRepository(session).list(tenant_id=tenant_id)
+    return {"echeances": [r.to_dict() for r in rows]}
+
+
+@router.delete("/echeances/{echeance_id}", summary="Supprimer une échéance")
+async def delete_echeance(
+    echeance_id: str, tenant_id: str = "local", session: AsyncSession = Depends(get_session)
+) -> dict[str, Any]:
+    ok = await EcheanceRepository(session).delete(echeance_id, tenant_id=tenant_id)
+    if not ok:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="echeance_not_found")
+    await session.commit()
+    return {"deleted": echeance_id}
+
+
+_TYPES_ACTIF = ("vehicule", "batiment", "equipement", "autre")
+_TYPES_ECHEANCE = ("assurance", "controle", "contrat", "autre")
+
+
+@router.get("/facility/echeancier", summary="Maintenances + échéances dues (sur le store)")
+async def facility_echeancier_store(
+    tenant_id: str = "local",
+    horizon_jours: int = 30,
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    asset_rows = await AssetRepository(session).list(tenant_id=tenant_id)
+    ech_rows = await EcheanceRepository(session).list(tenant_id=tenant_id)
+    assets = [
+        Asset(
+            id_externe=a.id_externe,
+            libelle=a.libelle,
+            type_actif=a.type_actif if a.type_actif in _TYPES_ACTIF else "autre",
+            maintenance_intervalle_jours=a.maintenance_intervalle_jours,
+            derniere_maintenance=a.derniere_maintenance,
+            country=a.country,
+        )
+        for a in asset_rows
+    ]
+    echeances = [
+        Echeance(
+            id_externe=e.id_externe,
+            asset_id=e.asset_id,
+            type_echeance=e.type_echeance if e.type_echeance in _TYPES_ECHEANCE else "autre",
+            libelle=e.libelle,
+            date_echeance=e.date_echeance,
+        )
+        for e in ech_rows
+    ]
+    return {
+        "maintenances": [asdict(m) for m in maintenances_dues(assets, horizon_jours=horizon_jours)],
+        "echeances": [asdict(x) for x in echeances_dues(echeances, horizon_jours=horizon_jours)],
+    }
+
+
+# ---------------------------------------------------------------- HSE / RSE (OPS-1)
+
+
+class RisqueIn(BaseModel):
+    id_externe: str
+    libelle: str
+    probabilite: int = Field(default=1, ge=1, le=5)
+    gravite: int = Field(default=1, ge=1, le=5)
+    country: str = "cg"
+
+
+class RisquePatch(BaseModel):
+    libelle: str | None = None
+    probabilite: int | None = None
+    gravite: int | None = None
+
+
+class IncidentIn(BaseModel):
+    id_externe: str
+    date_incident: date
+    type_incident: str = "autre"
+    gravite: str = "mineur"
+    description: str = ""
+    jours_arret: int = 0
+    country: str = "cg"
+
+
+_TYPES_INCIDENT = ("accident", "presqu_accident", "maladie", "environnement", "autre")
+_GRAVITES_INCIDENT = ("mineur", "grave", "critique")
+
+
+@router.post("/risques", status_code=status.HTTP_201_CREATED, summary="Créer un risque")
+async def create_risque(
+    body: RisqueIn, tenant_id: str = "local", session: AsyncSession = Depends(get_session)
+) -> dict[str, Any]:
+    rec = await RisqueRepository(session).create({**body.model_dump(), "tenant_id": tenant_id})
+    await session.commit()
+    return rec.to_dict()
+
+
+@router.get("/risques", summary="Lister les risques")
+async def list_risques(
+    tenant_id: str = "local", session: AsyncSession = Depends(get_session)
+) -> dict[str, Any]:
+    rows = await RisqueRepository(session).list(tenant_id=tenant_id)
+    return {"risques": [r.to_dict() for r in rows]}
+
+
+@router.patch("/risques/{risque_id}", summary="Mettre à jour un risque")
+async def patch_risque(
+    risque_id: str,
+    body: RisquePatch,
+    tenant_id: str = "local",
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    rec = await RisqueRepository(session).update(
+        risque_id, tenant_id=tenant_id, fields=body.model_dump(exclude_none=True)
+    )
+    if rec is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="risque_not_found")
+    await session.commit()
+    return rec.to_dict()
+
+
+@router.delete("/risques/{risque_id}", summary="Supprimer un risque")
+async def delete_risque(
+    risque_id: str, tenant_id: str = "local", session: AsyncSession = Depends(get_session)
+) -> dict[str, Any]:
+    ok = await RisqueRepository(session).delete(risque_id, tenant_id=tenant_id)
+    if not ok:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="risque_not_found")
+    await session.commit()
+    return {"deleted": risque_id}
+
+
+@router.post("/incidents", status_code=status.HTTP_201_CREATED, summary="Déclarer un incident")
+async def create_incident(
+    body: IncidentIn, tenant_id: str = "local", session: AsyncSession = Depends(get_session)
+) -> dict[str, Any]:
+    rec = await IncidentRepository(session).create({**body.model_dump(), "tenant_id": tenant_id})
+    await session.commit()
+    return rec.to_dict()
+
+
+@router.get("/incidents", summary="Lister les incidents")
+async def list_incidents(
+    tenant_id: str = "local", session: AsyncSession = Depends(get_session)
+) -> dict[str, Any]:
+    rows = await IncidentRepository(session).list(tenant_id=tenant_id)
+    return {"incidents": [r.to_dict() for r in rows]}
+
+
+@router.delete("/incidents/{incident_id}", summary="Supprimer un incident")
+async def delete_incident(
+    incident_id: str, tenant_id: str = "local", session: AsyncSession = Depends(get_session)
+) -> dict[str, Any]:
+    ok = await IncidentRepository(session).delete(incident_id, tenant_id=tenant_id)
+    if not ok:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="incident_not_found")
+    await session.commit()
+    return {"deleted": incident_id}
+
+
+@router.get("/hse/cartographie", summary="Cartographie des risques (sur le store)")
+async def hse_cartographie_store(
+    tenant_id: str = "local", session: AsyncSession = Depends(get_session)
+) -> dict[str, Any]:
+    rows = await RisqueRepository(session).list(tenant_id=tenant_id)
+    risques = [
+        Risque(
+            id_externe=r.id_externe,
+            libelle=r.libelle,
+            probabilite=r.probabilite,
+            gravite=r.gravite,
+            country=r.country,
+        )
+        for r in rows
+    ]
+    return {"risques": [asdict(x) for x in cartographie_risques(risques)]}
+
+
+@router.get("/hse/indicators", summary="Indicateurs HSE (fréquence, gravité, incidents)")
+async def hse_indicators_store(
+    tenant_id: str = "local",
+    heures_travaillees: int = 200000,
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    rows = await IncidentRepository(session).list(tenant_id=tenant_id)
+    incidents = [
+        Incident(
+            id_externe=i.id_externe,
+            date_incident=i.date_incident,
+            type_incident=i.type_incident if i.type_incident in _TYPES_INCIDENT else "autre",
+            gravite=i.gravite if i.gravite in _GRAVITES_INCIDENT else "mineur",
+            description=i.description,
+            jours_arret=i.jours_arret,
+            country=i.country,
+        )
+        for i in rows
+    ]
+    return {
+        "statistiques": statistiques_incidents(incidents),
+        "taux_frequence": str(taux_frequence(incidents, heures_travaillees=heures_travaillees)),
+        "taux_gravite": str(taux_gravite(incidents, heures_travaillees=heures_travaillees)),
+    }
