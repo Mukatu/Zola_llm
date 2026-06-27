@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal
 
 from httpx import ASGITransport, AsyncClient
@@ -11,10 +11,13 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 
 from zolaos.agents.erp.treasury import (
     CompteTresorerie,
+    FluxPrevu,
     FluxRapprochable,
     FluxTresorerie,
     LigneReleve,
+    indicateurs_tresorerie,
     position_tresorerie,
+    previsionnel_tresorerie,
     rapprocher,
 )
 from zolaos.api.main import create_app
@@ -107,6 +110,39 @@ def test_rapprochement_bancaire() -> None:
     assert res.flux_non_rapproches == ["F3"]
     assert res.releve_non_rapproche == [2]
     assert str(res.taux_rapprochement_pct) == "66.7"
+
+
+def test_previsionnel_et_decouvert() -> None:
+    flux = [
+        FluxPrevu(
+            sens="decaissement", montant_xaf="2000000", date=date.today() + timedelta(days=3)
+        ),
+        FluxPrevu(
+            sens="encaissement", montant_xaf="500000", date=date.today() + timedelta(days=10)
+        ),
+    ]
+    prev = previsionnel_tresorerie(
+        Decimal("1000000"), flux, as_of=date.today(), horizon_jours=30, pas_jours=7
+    )
+    # S1 (j0-6) : -2M → solde 1M-2M = -1M → découvert ; S2 (j7-13) : +0.5M → -0.5M
+    assert prev.decouvert_periode == "S1"
+    assert prev.position_finale_xaf == Decimal("-500000.00")
+
+
+def test_indicateurs_dso_dpo_bfr_runway() -> None:
+    ind = indicateurs_tresorerie(
+        encours_clients=Decimal("3000000"),
+        encours_fournisseurs=Decimal("1500000"),
+        ca=Decimal("36500000"),
+        achats=Decimal("18250000"),
+        valeur_stock=Decimal("1000000"),
+        position_actuelle=Decimal("2000000"),
+        net_mensuel_prevu=Decimal("-500000"),
+    )
+    assert ind.dso_jours == 30  # 3M / 36.5M * 365
+    assert ind.dpo_jours == 30  # 1.5M / 18.25M * 365
+    assert ind.bfr_xaf == Decimal("2500000.00")  # 3M + 1M - 1.5M
+    assert ind.runway_mois == Decimal("4.0")  # 2M / 0.5M
 
 
 # ----------------------------------------------------------------- endpoints
@@ -226,3 +262,45 @@ async def test_treasury_reconcile_endpoint(tmp_path) -> None:  # type: ignore[no
             )
         ).json()
         assert len(again["rapprochements"]) == 0
+
+
+async def test_treasury_pilotage_and_export(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    async with _client(tmp_path) as ac:
+        await ac.post(
+            "/v1/erp/bank-accounts",
+            json={"code": "BNK", "libelle": "BGFI", "solde_initial_xaf": "1000000"},
+        )
+        # un décaissement prévu dans 5 jours
+        d5 = (date.today() + timedelta(days=5)).isoformat()
+        await ac.post(
+            "/v1/erp/cash-flows",
+            json={
+                "reference": "DEC-PREV",
+                "compte_code": "BNK",
+                "sens": "decaissement",
+                "montant_xaf": "300000",
+                "date_operation": d5,
+                "date_prevue": d5,
+                "statut": "prevu",
+            },
+        )
+        # une facture client impayée (encours clients → DSO)
+        await ac.post(
+            "/v1/erp/invoices",
+            json={
+                "numero": "FV-1",
+                "tiers": "ACME",
+                "date_emission": "2026-06-01",
+                "montant_ttc_xaf": "2000000",
+            },
+        )
+
+        body = (await ac.get("/v1/erp/treasury/pilotage?horizon_jours=30")).json()
+        prev = body["previsionnel"]
+        assert prev["position_initiale_xaf"] == "1000000.00"
+        assert len(prev["periodes"]) >= 1
+        assert body["indicateurs"]["encours_clients_xaf"] == "2000000.00"
+
+        r = await ac.get("/v1/erp/treasury/pilotage/export?horizon_jours=30")
+        assert r.status_code == 200
+        assert "spreadsheetml" in r.headers["content-type"]

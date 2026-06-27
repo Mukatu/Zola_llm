@@ -10,6 +10,7 @@ from __future__ import annotations
 from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import date
+from datetime import timedelta as _td
 from decimal import ROUND_HALF_UP, Decimal
 
 from pydantic import BaseModel, Field
@@ -191,4 +192,135 @@ def rapprocher(
         flux_non_rapproches=flux_non,
         releve_non_rapproche=releve_non,
         taux_rapprochement_pct=taux,
+    )
+
+
+# ----------------------------------------------------------------- prévisionnel & pilotage
+
+
+class FluxPrevu(BaseModel):
+    model_config = {"extra": "forbid"}
+
+    sens: str  # encaissement | decaissement
+    montant_xaf: Decimal = Field(default=_ZERO)
+    date: date
+
+
+@dataclass(frozen=True)
+class PeriodeForecast:
+    libelle: str
+    debut: str
+    encaissements_xaf: Decimal
+    decaissements_xaf: Decimal
+    flux_net_xaf: Decimal
+    solde_projete_xaf: Decimal
+
+
+@dataclass(frozen=True)
+class Previsionnel:
+    position_initiale_xaf: Decimal
+    encaissements_total_xaf: Decimal
+    decaissements_total_xaf: Decimal
+    position_finale_xaf: Decimal
+    decouvert_periode: str | None
+    decouvert_xaf: Decimal | None
+    periodes: list[PeriodeForecast] = field(default_factory=list)
+
+
+def previsionnel_tresorerie(
+    position_initiale: Decimal,
+    flux: list[FluxPrevu],
+    *,
+    as_of: date,
+    horizon_jours: int = 90,
+    pas_jours: int = 7,
+) -> Previsionnel:
+    """Projette le solde sur l'horizon (par pas), à partir des flux prévus.
+
+    Déterministe : flux échus/à venir agrégés par période ; détecte le premier
+    découvert (solde projeté négatif).
+    """
+    nb = max(1, -(-horizon_jours // pas_jours))  # arrondi supérieur
+    buckets = [{"enc": _ZERO, "dec": _ZERO} for _ in range(nb)]
+    for f in flux:
+        delta = (f.date - as_of).days
+        idx = 0 if delta < 0 else delta // pas_jours  # échus → 1re période
+        if idx >= nb:
+            continue
+        buckets[idx]["enc" if f.sens == "encaissement" else "dec"] += f.montant_xaf
+
+    cumul = position_initiale
+    periodes: list[PeriodeForecast] = []
+    enc_total = _ZERO
+    dec_total = _ZERO
+    decouvert_periode: str | None = None
+    decouvert_xaf: Decimal | None = None
+    for i, b in enumerate(buckets):
+        net = b["enc"] - b["dec"]
+        cumul += net
+        enc_total += b["enc"]
+        dec_total += b["dec"]
+        debut = as_of + _td(i * pas_jours)
+        lib = f"S{i + 1}"
+        periodes.append(
+            PeriodeForecast(
+                libelle=lib,
+                debut=debut.isoformat(),
+                encaissements_xaf=_xaf(b["enc"]),
+                decaissements_xaf=_xaf(b["dec"]),
+                flux_net_xaf=_xaf(net),
+                solde_projete_xaf=_xaf(cumul),
+            )
+        )
+        if cumul < 0 and decouvert_periode is None:
+            decouvert_periode = lib
+            decouvert_xaf = _xaf(cumul)
+
+    return Previsionnel(
+        position_initiale_xaf=_xaf(position_initiale),
+        encaissements_total_xaf=_xaf(enc_total),
+        decaissements_total_xaf=_xaf(dec_total),
+        position_finale_xaf=_xaf(cumul),
+        decouvert_periode=decouvert_periode,
+        decouvert_xaf=decouvert_xaf,
+        periodes=periodes,
+    )
+
+
+@dataclass(frozen=True)
+class IndicateursTreso:
+    encours_clients_xaf: Decimal
+    encours_fournisseurs_xaf: Decimal
+    dso_jours: int
+    dpo_jours: int
+    bfr_xaf: Decimal
+    runway_mois: Decimal | None
+
+
+def indicateurs_tresorerie(
+    *,
+    encours_clients: Decimal,
+    encours_fournisseurs: Decimal,
+    ca: Decimal,
+    achats: Decimal,
+    valeur_stock: Decimal,
+    position_actuelle: Decimal,
+    net_mensuel_prevu: Decimal,
+) -> IndicateursTreso:
+    """DSO/DPO (jours), BFR et runway — déterministe, annualisé sur 365 j."""
+    dso = int((encours_clients / ca * 365).quantize(Decimal("1"))) if ca > 0 else 0
+    dpo = int((encours_fournisseurs / achats * 365).quantize(Decimal("1"))) if achats > 0 else 0
+    bfr = encours_clients + valeur_stock - encours_fournisseurs
+    runway = (
+        (position_actuelle / -net_mensuel_prevu).quantize(Decimal("0.1"))
+        if net_mensuel_prevu < 0 and position_actuelle > 0
+        else None
+    )
+    return IndicateursTreso(
+        encours_clients_xaf=_xaf(encours_clients),
+        encours_fournisseurs_xaf=_xaf(encours_fournisseurs),
+        dso_jours=dso,
+        dpo_jours=dpo,
+        bfr_xaf=_xaf(bfr),
+        runway_mois=runway,
     )

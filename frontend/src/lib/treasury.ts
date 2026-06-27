@@ -1,5 +1,6 @@
 // Client typé — Trésorerie persistée (/v1/erp/bank-accounts | cash-flows | treasury).
 import { api } from "./api";
+import { getToken } from "./auth";
 
 export interface BankAccountRec {
   id: string;
@@ -123,4 +124,50 @@ export interface ReconcileResult {
 }
 export function treasuryReconcile(releve: ReleveLigne[]): Promise<ReconcileResult> {
   return api("/v1/erp/treasury/reconcile", { body: { releve } });
+}
+
+// ----- Pilotage (TRESO-4) -----
+export interface PeriodeForecast {
+  libelle: string;
+  debut: string;
+  encaissements_xaf: number;
+  decaissements_xaf: number;
+  flux_net_xaf: number;
+  solde_projete_xaf: number;
+}
+export interface Previsionnel {
+  position_initiale_xaf: number;
+  encaissements_total_xaf: number;
+  decaissements_total_xaf: number;
+  position_finale_xaf: number;
+  decouvert_periode: string | null;
+  decouvert_xaf: number | null;
+  periodes: PeriodeForecast[];
+}
+export interface IndicateursTreso {
+  encours_clients_xaf: number;
+  encours_fournisseurs_xaf: number;
+  dso_jours: number;
+  dpo_jours: number;
+  bfr_xaf: number;
+  runway_mois: number | null;
+}
+export function treasuryPilotage(
+  horizonJours = 90,
+): Promise<{ previsionnel: Previsionnel; indicateurs: IndicateursTreso }> {
+  return api(`/v1/erp/treasury/pilotage?horizon_jours=${horizonJours}`);
+}
+export async function downloadTreasuryPilotage(horizonJours = 90): Promise<void> {
+  const base = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000";
+  const token = getToken();
+  const r = await fetch(`${base}/v1/erp/treasury/pilotage/export?horizon_jours=${horizonJours}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  if (!r.ok) throw new Error(`HTTP ${r.status}`);
+  const url = URL.createObjectURL(await r.blob());
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "pilotage_tresorerie.xlsx";
+  a.click();
+  URL.revokeObjectURL(url);
 }

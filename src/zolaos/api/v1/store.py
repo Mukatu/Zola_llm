@@ -48,10 +48,15 @@ from zolaos.agents.erp.supply import StockItem, alertes_rupture, analyser_reappr
 from zolaos.agents.erp.treasury import (
     SEUIL_DECAISSEMENT_DEFAUT_XAF,
     CompteTresorerie,
+    FluxPrevu,
     FluxRapprochable,
     FluxTresorerie,
+    IndicateursTreso,
     LigneReleve,
+    Previsionnel,
+    indicateurs_tresorerie,
     position_tresorerie,
+    previsionnel_tresorerie,
     rapprocher,
 )
 from zolaos.connectors.models import BankTransaction, Invoice, JournalEntry, JournalLine
@@ -1558,3 +1563,128 @@ async def treasury_reconcile(
         "releve_non_rapproche": res.releve_non_rapproche,
         "taux_rapprochement_pct": str(res.taux_rapprochement_pct),
     }
+
+
+# ----- pilotage : prévisionnel + indicateurs (TRESO-4) -----
+
+
+async def _compute_treso_pilotage(
+    session: AsyncSession, *, tenant_id: str, horizon_jours: int
+) -> tuple[Previsionnel, IndicateursTreso]:
+    accounts = await BankAccountRepository(session).list(tenant_id=tenant_id)
+    flows = await CashFlowRepository(session).list(tenant_id=tenant_id)
+    invoices = await InvoiceRepository(session).list(tenant_id=tenant_id)
+    stock = await StockRepository(session).list(tenant_id=tenant_id)
+
+    comptes = [
+        CompteTresorerie(
+            code=a.code,
+            libelle=a.libelle,
+            type=a.type,
+            devise=a.devise,
+            solde_initial_xaf=a.solde_initial_xaf,
+        )
+        for a in accounts
+    ]
+    flux_pos = [
+        FluxTresorerie(
+            compte_code=f.compte_code, sens=f.sens, montant_xaf=f.montant_xaf, statut=f.statut
+        )
+        for f in flows
+    ]
+    position = position_tresorerie(comptes, flux_pos)
+
+    flux_prevus = [
+        FluxPrevu(sens=f.sens, montant_xaf=f.montant_xaf, date=f.date_prevue or f.date_operation)
+        for f in flows
+        if f.statut == "prevu"
+    ]
+    prev = previsionnel_tresorerie(
+        position.total_realise_xaf, flux_prevus, as_of=date.today(), horizon_jours=horizon_jours
+    )
+
+    encours_clients = sum(
+        (i.montant_ttc_xaf for i in invoices if i.sens == "vente" and not i.payee), Decimal("0")
+    )
+    encours_fournisseurs = sum(
+        (i.montant_ttc_xaf for i in invoices if i.sens == "achat" and not i.payee), Decimal("0")
+    )
+    ca = sum((i.montant_ttc_xaf for i in invoices if i.sens == "vente"), Decimal("0"))
+    achats = sum((i.montant_ttc_xaf for i in invoices if i.sens == "achat"), Decimal("0"))
+    valeur_stock = sum((s.quantite_actuelle * s.pmp_xaf for s in stock), Decimal("0"))
+
+    mois = Decimal(horizon_jours) / Decimal("30")
+    net_mensuel = (
+        (prev.encaissements_total_xaf - prev.decaissements_total_xaf) / mois
+        if mois > 0
+        else Decimal("0")
+    )
+    indic = indicateurs_tresorerie(
+        encours_clients=encours_clients,
+        encours_fournisseurs=encours_fournisseurs,
+        ca=ca,
+        achats=achats,
+        valeur_stock=valeur_stock,
+        position_actuelle=position.total_realise_xaf,
+        net_mensuel_prevu=net_mensuel,
+    )
+    return prev, indic
+
+
+@router.get("/treasury/pilotage", summary="Pilotage : prévisionnel + DSO/DPO/BFR/runway")
+async def treasury_pilotage(
+    tenant_id: str = "local",
+    horizon_jours: int = 90,
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    prev, indic = await _compute_treso_pilotage(
+        session, tenant_id=tenant_id, horizon_jours=horizon_jours
+    )
+    return {"previsionnel": asdict(prev), "indicateurs": asdict(indic)}
+
+
+@router.get("/treasury/pilotage/export", summary="Exporter le pilotage trésorerie (.xlsx)")
+async def export_treasury_pilotage(
+    tenant_id: str = "local",
+    horizon_jours: int = 90,
+    session: AsyncSession = Depends(get_session),
+) -> Response:
+    prev, indic = await _compute_treso_pilotage(
+        session, tenant_id=tenant_id, horizon_jours=horizon_jours
+    )
+    wb = openpyxl.Workbook()
+    syn = wb.active
+    syn.title = "Synthèse"
+    syn.append(["Pilotage de trésorerie"])
+    syn.append(["Position initiale (XAF)", float(prev.position_initiale_xaf)])
+    syn.append(["Encaissements prévus (XAF)", float(prev.encaissements_total_xaf)])
+    syn.append(["Décaissements prévus (XAF)", float(prev.decaissements_total_xaf)])
+    syn.append(["Position finale projetée (XAF)", float(prev.position_finale_xaf)])
+    syn.append(["Découvert prévu", prev.decouvert_periode or "—"])
+    syn.append(["Encours clients (XAF)", float(indic.encours_clients_xaf)])
+    syn.append(["Encours fournisseurs (XAF)", float(indic.encours_fournisseurs_xaf)])
+    syn.append(["DSO (jours)", indic.dso_jours])
+    syn.append(["DPO (jours)", indic.dpo_jours])
+    syn.append(["BFR (XAF)", float(indic.bfr_xaf)])
+    syn.append(["Runway (mois)", float(indic.runway_mois) if indic.runway_mois is not None else ""])
+
+    det = wb.create_sheet("Prévisionnel")
+    det.append(["Période", "Début", "Encaissements", "Décaissements", "Flux net", "Solde projeté"])
+    for p in prev.periodes:
+        det.append(
+            [
+                p.libelle,
+                p.debut,
+                float(p.encaissements_xaf),
+                float(p.decaissements_xaf),
+                float(p.flux_net_xaf),
+                float(p.solde_projete_xaf),
+            ]
+        )
+    bio = BytesIO()
+    wb.save(bio)
+    return Response(
+        content=bio.getvalue(),
+        media_type=_XLSX_MEDIA,
+        headers={"Content-Disposition": 'attachment; filename="pilotage_tresorerie.xlsx"'},
+    )

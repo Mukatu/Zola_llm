@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Wallet, Plus, Trash2, Landmark, ArrowDownToLine, ArrowUpFromLine, Clock, CheckCircle2, ScrollText } from "lucide-react";
+import { Wallet, Plus, Trash2, Landmark, ArrowDownToLine, ArrowUpFromLine, Clock, CheckCircle2, ScrollText, TrendingUp, Download } from "lucide-react";
 import { Card, Button } from "../ui";
 import { FlagshipHeader, Inp } from "./_shared";
 import { fmt } from "@/lib/data";
@@ -16,11 +16,15 @@ import {
   treasuryPosition,
   approveCashFlow,
   treasuryReconcile,
+  treasuryPilotage,
+  downloadTreasuryPilotage,
   type BankAccountRec,
   type CashFlowRec,
   type PositionTresorerie,
   type ReleveLigne,
   type ReconcileResult,
+  type Previsionnel,
+  type IndicateursTreso,
 } from "@/lib/treasury";
 
 const TODAY = new Date().toISOString().slice(0, 10);
@@ -48,13 +52,22 @@ export function FinanceScreen() {
   const [flowForm, setFlowForm] = useState({ compte: "", sens: "encaissement", statut: "realise", montant: "", libelle: "" });
   const [releve, setReleve] = useState<ReleveLigne[]>([{ date: TODAY, montant_xaf: "", sens: "encaissement" }]);
   const [recRes, setRecRes] = useState<ReconcileResult | null>(null);
+  const [prev, setPrev] = useState<Previsionnel | null>(null);
+  const [indic, setIndic] = useState<IndicateursTreso | null>(null);
 
   const refresh = useCallback(async () => {
     try {
-      const [a, f, p] = await Promise.all([listBankAccounts(), listCashFlows(), treasuryPosition()]);
+      const [a, f, p, pil] = await Promise.all([
+        listBankAccounts(),
+        listCashFlows(),
+        treasuryPosition(),
+        treasuryPilotage(90),
+      ]);
       setAccounts(a.accounts);
       setFlows(f.flows);
       setPosition(p.position);
+      setPrev(pil.previsionnel);
+      setIndic(pil.indicateurs);
       setErr(null);
     } catch (e) {
       setErr(e instanceof ApiError ? "Backend indisponible (DB requise)." : "Service indisponible.");
@@ -198,6 +211,45 @@ export function FinanceScreen() {
         </Card>
       )}
 
+      {/* Pilotage : prévisionnel + indicateurs */}
+      {prev && indic && (
+        <Card>
+          <div className="mb-2 flex items-center justify-between">
+            <h2 className="flex items-center gap-2 text-sm font-semibold">
+              <TrendingUp className="h-4 w-4 text-indigo-600" /> Pilotage (prévisionnel 90 j)
+            </h2>
+            <Button variant="ghost" onClick={() => downloadTreasuryPilotage(90)}>
+              <Download className="h-4 w-4" /> Exporter
+            </Button>
+          </div>
+          <div className="mb-3 grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
+            <Mini label="Position fin de période" value={fmt(prev.position_finale_xaf) + " XAF"} />
+            <Mini label="DSO / DPO" value={`${indic.dso_jours} / ${indic.dpo_jours} j`} />
+            <Mini label="BFR" value={fmt(indic.bfr_xaf) + " XAF"} />
+            <Mini label="Runway" value={indic.runway_mois != null ? indic.runway_mois + " mois" : "—"} />
+          </div>
+          {prev.decouvert_periode && (
+            <p className="mb-2 text-sm text-red-600">
+              ⚠ Découvert prévu en {prev.decouvert_periode} (solde {fmt(prev.decouvert_xaf ?? 0)} XAF).
+            </p>
+          )}
+          {/* Courbe de solde projeté (barres) */}
+          <div className="flex items-end gap-1 pt-2" style={{ height: 90 }}>
+            {prev.periodes.map((p) => {
+              const max = Math.max(1, ...prev.periodes.map((x) => Math.abs(x.solde_projete_xaf)));
+              const h = (Math.abs(p.solde_projete_xaf) / max) * 80;
+              const neg = p.solde_projete_xaf < 0;
+              return (
+                <div key={p.libelle} className="flex flex-1 flex-col items-center justify-end" title={`${p.libelle} : ${fmt(p.solde_projete_xaf)} XAF`}>
+                  <div className={"w-full rounded-t " + (neg ? "bg-red-400" : "bg-indigo-400")} style={{ height: `${Math.max(2, h)}%` }} />
+                  <span className="text-[9px] text-muted">{p.libelle}</span>
+                </div>
+              );
+            })}
+          </div>
+        </Card>
+      )}
+
       <div className="grid gap-4 lg:grid-cols-2">
         {/* Comptes */}
         <Card>
@@ -313,5 +365,14 @@ function Kpi({ label, value }: { label: string; value: string }) {
       <div className="text-xs text-muted">{label}</div>
       <div className="mt-1 text-lg font-semibold">{value}</div>
     </Card>
+  );
+}
+
+function Mini({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-xl bg-black/[0.03] p-2">
+      <div className="text-xs text-muted">{label}</div>
+      <div className="mt-0.5 font-semibold">{value}</div>
+    </div>
   );
 }
