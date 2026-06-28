@@ -1,56 +1,84 @@
 "use client";
 
-import { useState } from "react";
-import { Wallet, AlertCircle } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { Wallet, AlertCircle, CheckCircle2, Trash2, FileSpreadsheet } from "lucide-react";
 import { Card, Button } from "../ui";
 import { ApiError } from "@/lib/api";
-import { payrollCompute, fmtXaf, type PayrollResult } from "@/lib/erp";
+import { fmt } from "@/lib/data";
+import {
+  createPayslip,
+  listPayslips,
+  patchPayslip,
+  deletePayslip,
+  payrollDashboard,
+  type PayslipRec,
+  type PayrollDashboard,
+} from "@/lib/payroll";
 
-/** Écran phare Paie : formulaire → moteur déterministe /v1/erp/payroll/compute. */
+const PERIODE_DEFAUT = new Date().toISOString().slice(0, 7); // AAAA-MM
+
 export function PaieScreen() {
-  const [brut, setBrut] = useState("450000");
-  const [sim, setSim] = useState(true);
-  const [res, setRes] = useState<PayrollResult | null>(null);
+  const [periode, setPeriode] = useState(PERIODE_DEFAUT);
+  const [payslips, setPayslips] = useState<PayslipRec[]>([]);
+  const [dash, setDash] = useState<PayrollDashboard | null>(null);
+  const [form, setForm] = useState({ matricule: "", brut: "450000", sim: true });
   const [err, setErr] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
 
-  async function compute() {
-    setLoading(true); setErr(null); setRes(null);
+  const refresh = useCallback(async () => {
     try {
-      setRes(await payrollCompute(brut, sim));
+      const [p, d] = await Promise.all([listPayslips(periode), payrollDashboard(periode)]);
+      setPayslips(p.payslips);
+      setDash(d);
+      setErr(null);
     } catch (e) {
-      if (e instanceof ApiError && e.status === 409) {
-        setErr("Barème non validé : activez la simulation pour un calcul indicatif.");
-      } else {
-        setErr(e instanceof ApiError ? e.message : "Service indisponible (hors-ligne ?).");
-      }
-    } finally { setLoading(false); }
+      setErr(e instanceof ApiError ? "Backend indisponible (DB requise)." : "Service indisponible.");
+    }
+  }, [periode]);
+
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
+
+  async function emit() {
+    if (!form.matricule || !form.brut) return;
+    try {
+      await createPayslip({
+        employee_matricule: form.matricule,
+        periode,
+        brut_mensuel_xaf: form.brut,
+        allow_unvalidated: form.sim,
+      });
+      setForm({ ...form, matricule: "" });
+      await refresh();
+    } catch (e) {
+      setErr(
+        e instanceof ApiError && e.status === 409
+          ? "Barème non validé : activez la simulation pour émettre un bulletin indicatif."
+          : "Émission impossible (backend/DB).",
+      );
+    }
+  }
+  async function pay(id: string) {
+    try {
+      await patchPayslip(id, { statut: "valide", date_paiement: new Date().toISOString().slice(0, 10) });
+      await refresh();
+    } catch {
+      setErr("Action impossible.");
+    }
   }
 
   return (
-    <div className="mx-auto flex max-w-2xl flex-col gap-4">
-      <div className="flex items-center gap-3">
-        <span className="grid h-10 w-10 place-items-center rounded-xl bg-primary/10 text-primary"><Wallet className="h-5 w-5" /></span>
-        <div>
-          <h1 className="text-lg font-semibold">Paie</h1>
-          <p className="text-sm text-muted">Bulletin déterministe (CNSS/CIPRES/IRPP). Calcul exact côté moteur.</p>
+    <div className="mx-auto flex max-w-4xl flex-col gap-4">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <span className="grid h-10 w-10 place-items-center rounded-xl bg-primary/10 text-primary"><Wallet className="h-5 w-5" /></span>
+          <div>
+            <h1 className="text-lg font-semibold">Paie</h1>
+            <p className="text-sm text-muted">Bulletins historisés (CNSS/IRPP) + masse salariale — registre vivant.</p>
+          </div>
         </div>
+        <input type="month" value={periode} onChange={(e) => setPeriode(e.target.value)} className="rounded-lg border border-black/10 bg-white px-2 py-1 text-sm" />
       </div>
-
-      <Card>
-        <label className="block text-sm font-medium">Salaire brut mensuel (XAF)</label>
-        <input
-          type="number" value={brut} onChange={(e) => setBrut(e.target.value)}
-          className="mt-1 w-full rounded-xl border border-black/10 bg-white p-2 text-sm outline-none focus:ring-2 focus:ring-primary/40"
-        />
-        <label className="mt-3 flex items-center gap-2 text-sm text-muted">
-          <input type="checkbox" checked={sim} onChange={(e) => setSim(e.target.checked)} />
-          Mode simulation (barème non encore validé)
-        </label>
-        <div className="mt-3 flex justify-end">
-          <Button onClick={compute} disabled={loading}>{loading ? "Calcul…" : "Calculer"}</Button>
-        </div>
-      </Card>
 
       {err && (
         <Card className="ring-amber-200">
@@ -58,32 +86,81 @@ export function PaieScreen() {
         </Card>
       )}
 
-      {res && (
-        <Card>
-          {!res["barème_validé"] && (
-            <div className="mb-3 rounded-lg bg-amber-100 px-3 py-1.5 text-xs font-medium text-amber-800">
-              Simulation — barème non validé (à confirmer par un expert paie).
-            </div>
-          )}
-          <Row label="Brut" value={res.brut_xaf} strong />
-          {Object.entries(res.cotisations_salariales).map(([k, v]) => <Row key={k} label={`Cotisation ${k}`} value={`- ${fmtXaf(v)}`} />)}
-          <Row label="Base imposable" value={res.base_imposable_xaf} />
-          <Row label="IRPP" value={`- ${fmtXaf(res.irpp_xaf)}`} />
-          <div className="my-2 border-t border-black/10" />
-          <Row label="Net à payer" value={res.net_a_payer_xaf} strong />
-          <div className="my-2 border-t border-black/10" />
-          <Row label="Coût employeur" value={res.cout_employeur_xaf} muted />
-        </Card>
+      {dash && (
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <Kpi label="Bulletins" value={String(dash.nb_bulletins)} />
+          <Kpi label="Masse salariale brute" value={fmt(dash.masse_salariale_brute_xaf) + " XAF"} />
+          <Kpi label="Net à payer" value={fmt(dash.total_net_a_payer_xaf) + " XAF"} />
+          <Kpi label="Coût employeur" value={fmt(dash.cout_employeur_total_xaf) + " XAF"} />
+        </div>
       )}
+
+      {/* Émission */}
+      <Card>
+        <h2 className="mb-2 text-sm font-semibold">Émettre un bulletin · {periode}</h2>
+        <div className="grid grid-cols-[110px_1fr_auto_120px] items-center gap-2">
+          <input value={form.matricule} onChange={(e) => setForm({ ...form, matricule: e.target.value })} placeholder="Matricule" className="rounded-lg border border-black/10 bg-white px-2 py-1 text-sm" />
+          <input type="number" value={form.brut} onChange={(e) => setForm({ ...form, brut: e.target.value })} placeholder="Brut mensuel XAF" className="rounded-lg border border-black/10 bg-white px-2 py-1 text-sm" />
+          <label className="flex items-center gap-1 text-xs text-muted">
+            <input type="checkbox" checked={form.sim} onChange={(e) => setForm({ ...form, sim: e.target.checked })} /> simulation
+          </label>
+          <Button onClick={emit}><FileSpreadsheet className="h-4 w-4" /> Émettre</Button>
+        </div>
+      </Card>
+
+      {/* Bulletins */}
+      <Card>
+        <h2 className="mb-2 text-sm font-semibold">Bulletins ({payslips.length})</h2>
+        {payslips.length === 0 && <p className="text-sm text-muted">Aucun bulletin pour cette période.</p>}
+        <div className="overflow-x-auto">
+          {payslips.length > 0 && (
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-xs text-muted">
+                  <th className="py-1 pr-2">Matricule</th>
+                  <th className="pr-2 text-right">Brut</th>
+                  <th className="pr-2 text-right">Cotis.</th>
+                  <th className="pr-2 text-right">IRPP</th>
+                  <th className="pr-2 text-right">Net</th>
+                  <th className="pr-2">Statut</th>
+                  <th className="pr-2" />
+                </tr>
+              </thead>
+              <tbody>
+                {payslips.map((p) => (
+                  <tr key={p.id} className="border-t border-black/5">
+                    <td className="py-1 pr-2 font-medium">{p.employee_matricule}</td>
+                    <td className="pr-2 text-right">{fmt(p.brut_xaf)}</td>
+                    <td className="pr-2 text-right text-muted">{fmt(p.total_cotisations_salariales_xaf)}</td>
+                    <td className="pr-2 text-right text-muted">{fmt(p.irpp_xaf)}</td>
+                    <td className="pr-2 text-right font-semibold">{fmt(p.net_a_payer_xaf)}</td>
+                    <td className="pr-2">
+                      <span className={"rounded-full px-2 py-0.5 text-[10px] font-semibold " + (p.statut === "valide" ? "bg-emerald-100 text-emerald-700" : "bg-gray-100 text-gray-600")}>{p.statut}</span>
+                    </td>
+                    <td className="pr-2">
+                      <span className="flex items-center gap-2">
+                        {p.statut !== "valide" && (
+                          <button onClick={() => pay(p.id)} title="Valider/payer" className="text-emerald-600 hover:text-emerald-800"><CheckCircle2 className="h-4 w-4" /></button>
+                        )}
+                        <button onClick={() => deletePayslip(p.id).then(refresh)} className="text-muted hover:text-red-600"><Trash2 className="h-4 w-4" /></button>
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      </Card>
     </div>
   );
 }
 
-function Row({ label, value, strong, muted }: { label: string; value: string; strong?: boolean; muted?: boolean }) {
+function Kpi({ label, value }: { label: string; value: string }) {
   return (
-    <div className={"flex items-center justify-between py-1 text-sm " + (muted ? "text-muted" : "")}>
-      <span className={strong ? "font-semibold" : ""}>{label}</span>
-      <span className={strong ? "font-semibold" : ""}>{value.startsWith("-") ? value : fmtXaf(value)}</span>
-    </div>
+    <Card>
+      <div className="text-xs text-muted">{label}</div>
+      <div className="mt-1 text-lg font-semibold">{value}</div>
+    </Card>
   );
 }
