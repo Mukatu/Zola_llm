@@ -26,6 +26,7 @@ from zolaos.agents.erp.achats import (
     verifier_conformite,
 )
 from zolaos.agents.erp.compta import ChartOfAccounts, JournalValidator
+from zolaos.agents.erp.das1 import Das1, LignePaie, Salarie, construire_das1, libelle_mois
 from zolaos.agents.erp.engagements import (
     Engagement,
     PilotageBudgetaire,
@@ -73,13 +74,16 @@ from zolaos.agents.erp.treasury import (
     previsionnel_tresorerie,
     rapprocher,
 )
+from zolaos.api.v1.config import get_config_service
 from zolaos.connectors.models import BankTransaction, Invoice, JournalEntry, JournalLine
+from zolaos.core.personalization import TenantConfigService
 from zolaos.db.session import get_session
 from zolaos.db.store_repo import (
     AssetRepository,
     BankAccountRepository,
     CashFlowRepository,
     EcheanceRepository,
+    EmployeeRepository,
     EngagementRepository,
     IncidentRepository,
     InvoiceRepository,
@@ -2116,3 +2120,231 @@ async def payroll_dashboard(
         "total_cotisations_patronales_xaf": str(cot_pat),
         "cout_employeur_total_xaf": str(cout),
     }
+
+
+# ---------------------------------------------------------------- DAS 1 (agrégation annuelle, PAIE-3)
+
+
+def _employeur(config_service: TenantConfigService, tenant_id: str) -> dict[str, str]:
+    """Infos du déclarant, lues dans la config du tenant (champs personnalisés)."""
+    cfg = config_service.resolve("box", tenant_id=tenant_id)
+    cp = cfg.champs_personnalises
+    return {
+        "raison_sociale": cp.get("employeur_raison_sociale", cfg.branding.nom_affichage),
+        "matricule_cnss": cp.get("employeur_matricule_cnss", ""),
+        "n_contribuable": cp.get("employeur_n_contribuable", ""),
+        "bp": cp.get("employeur_bp", ""),
+        "ville": cp.get("employeur_ville", ""),
+    }
+
+
+async def _build_das1(session: AsyncSession, *, tenant_id: str, annee: str) -> Das1:
+    payslips = await PayslipRepository(session).list(tenant_id=tenant_id)
+    lignes = [
+        LignePaie(
+            matricule=p.employee_matricule,
+            mois=int(p.periode[5:7]),
+            brut_xaf=p.brut_xaf,
+            base_imposable_xaf=p.base_imposable_xaf,
+            irpp_xaf=p.irpp_xaf,
+        )
+        for p in payslips
+        if p.periode[:4] == annee and len(p.periode) >= 7
+    ]
+    employees = await EmployeeRepository(session).list(tenant_id=tenant_id)
+    salaries = [
+        Salarie(
+            matricule=e.matricule,
+            nom=e.nom_complet,
+            sexe=e.genre,
+            date_embauche=e.date_embauche,
+            date_depart=e.date_sortie,
+            profession=e.poste,
+        )
+        for e in employees
+    ]
+    scale = load_payroll_scale("cg")
+    return construire_das1(
+        lignes, salaries, exercice=annee, plafond_mensuel_xaf=scale.cnss_plafond_xaf
+    )
+
+
+@router.get("/payroll/etat-annuel", summary="État annuel brut & IRPP (matrice salarié × 12 mois)")
+async def payroll_etat_annuel(
+    annee: str,
+    tenant_id: str = "local",
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    das1 = await _build_das1(session, tenant_id=tenant_id, annee=annee)
+    return {
+        "exercice": annee,
+        "mois": [libelle_mois(i) for i in range(1, 13)],
+        "lignes": [
+            {
+                "matricule": e.matricule,
+                "nom": e.nom,
+                "mensuels_xaf": [str(v) for v in e.mensuels_xaf],
+                "total_xaf": str(e.total_xaf),
+                "irpp_annuel_xaf": str(e.irpp_annuel_xaf),
+            }
+            for e in das1.etat_annuel
+        ],
+        "total_brut_xaf": str(das1.total_brut_xaf),
+        "total_irpp_xaf": str(das1.total_irpp_xaf),
+    }
+
+
+@router.get("/payroll/das1", summary="DAS 1 / CNSS 1 (par salarié) — exercice")
+async def payroll_das1(
+    annee: str,
+    tenant_id: str = "local",
+    session: AsyncSession = Depends(get_session),
+    config_service: TenantConfigService = Depends(get_config_service),
+) -> dict[str, Any]:
+    das1 = await _build_das1(session, tenant_id=tenant_id, annee=annee)
+    return {
+        "exercice": annee,
+        "employeur": _employeur(config_service, tenant_id),
+        "nb_salaries": das1.nb_salaries,
+        "totaux": {
+            "brut_xaf": str(das1.total_brut_xaf),
+            "plafonne_xaf": str(das1.total_plafonne_xaf),
+            "base_imposable_xaf": str(das1.total_base_imposable_xaf),
+            "irpp_xaf": str(das1.total_irpp_xaf),
+        },
+        "lignes": [asdict(line) for line in das1.lignes],
+    }
+
+
+def build_das1_xlsx(das1: Das1, employeur: dict[str, str]) -> bytes:
+    """Reproduit la DAS 1 (formulaire officiel) + l'état annuel sur 2 feuilles."""
+    from openpyxl.styles import Alignment, Border, Font, Side
+
+    wb = openpyxl.Workbook()
+    bold = Font(bold=True)
+    title = Font(bold=True, size=12)
+    center = Alignment(horizontal="center", vertical="center", wrap_text=True)
+    thin = Side(style="thin")
+    box = Border(left=thin, right=thin, top=thin, bottom=thin)
+
+    # ---- Feuille 1 : État annuel brut & IRPP
+    e = wb.active
+    e.title = "ETAT ANNUEL BRUT & IRPP"
+    e.merge_cells("A1:O1")
+    e["A1"] = (
+        f"ÉTAT RÉCAPITULATIF DES SALAIRES BRUTS & IRPP — {employeur['raison_sociale']} — Exercice {das1.exercice}"
+    )
+    e["A1"].font = title
+    e["A1"].alignment = center
+    entete = ["N°", "NOMS", *[libelle_mois(i)[:4] for i in range(1, 13)], "TOTAL", "IRPP"]
+    e.append([])
+    e.append(entete)
+    for c in e[3]:
+        c.font = bold
+        c.border = box
+        c.alignment = center
+    for i, ligne in enumerate(das1.etat_annuel, start=1):
+        e.append(
+            [
+                i,
+                ligne.nom,
+                *[float(v) for v in ligne.mensuels_xaf],
+                float(ligne.total_xaf),
+                float(ligne.irpp_annuel_xaf),
+            ]
+        )
+    e.append(
+        ["", "TOTAL GÉNÉRAL", *[""] * 12, float(das1.total_brut_xaf), float(das1.total_irpp_xaf)]
+    )
+    for c in e[e.max_row]:
+        c.font = bold
+
+    # ---- Feuille 2 : DAS 1 (formulaire)
+    d = wb.create_sheet("DAS 1")
+    d.merge_cells("A1:J1")
+    d["A1"] = "RÉPUBLIQUE DU CONGO — DAS 1 / CNSS 1"
+    d["A1"].font = title
+    d["A1"].alignment = center
+    d.merge_cells("A2:J2")
+    d["A2"] = "DÉCLARATION ANNUELLE DES SALAIRES ET AUTRES RÉMUNÉRATIONS VERSÉES"
+    d["A2"].alignment = center
+    d.merge_cells("A3:J3")
+    d["A3"] = (
+        f"EMPLOYEUR : {employeur['raison_sociale']}   ·   MATRICULE CNSS : "
+        f"{employeur['matricule_cnss']}   ·   N° CONTRIBUABLE : {employeur['n_contribuable']}"
+    )
+    d.merge_cells("A4:J4")
+    d["A4"] = f"B.P : {employeur['bp']}   ·   {employeur['ville']}   ·   EXERCICE : {das1.exercice}"
+    d.append([])
+    cols = [
+        "N° D'ORDRE",
+        "NOM - PRÉNOM",
+        "SEXE",
+        "PROFESSION",
+        "DATE EMBAUCHE",
+        "DATE DÉPART",
+        "(f) SALAIRE BRUT",
+        "SALAIRE PLAFONNÉ",
+        "BASE IMPOSABLE (g=80%)",
+        "(h) I.R.P.P.",
+    ]
+    d.append(cols)
+    for c in d[d.max_row]:
+        c.font = bold
+        c.border = box
+        c.alignment = center
+    for i, line in enumerate(das1.lignes, start=1):
+        d.append(
+            [
+                i,
+                line.nom,
+                line.sexe,
+                line.profession,
+                line.date_embauche or "",
+                line.date_depart or "",
+                float(line.brut_annuel_xaf),
+                float(line.salaire_plafonne_xaf),
+                float(line.base_imposable_xaf),
+                float(line.irpp_xaf),
+            ]
+        )
+        for c in d[d.max_row]:
+            c.border = box
+    d.append(
+        [
+            "",
+            "TOTAUX",
+            "",
+            "",
+            "",
+            "",
+            float(das1.total_brut_xaf),
+            float(das1.total_plafonne_xaf),
+            float(das1.total_base_imposable_xaf),
+            float(das1.total_irpp_xaf),
+        ]
+    )
+    for c in d[d.max_row]:
+        c.font = bold
+    for col, w in zip("ABCDEFGHIJ", (10, 26, 6, 22, 14, 14, 16, 16, 18, 14), strict=True):
+        d.column_dimensions[col].width = w
+
+    bio = BytesIO()
+    wb.save(bio)
+    return bio.getvalue()
+
+
+@router.get("/payroll/das1/export", summary="Exporter la DAS 1 + état annuel (.xlsx, formulaire)")
+async def export_das1(
+    annee: str,
+    tenant_id: str = "local",
+    session: AsyncSession = Depends(get_session),
+    config_service: TenantConfigService = Depends(get_config_service),
+) -> Response:
+    das1 = await _build_das1(session, tenant_id=tenant_id, annee=annee)
+    content = build_das1_xlsx(das1, _employeur(config_service, tenant_id))
+    return Response(
+        content=content,
+        media_type=_XLSX_MEDIA,
+        headers={"Content-Disposition": f'attachment; filename="DAS1_{annee}.xlsx"'},
+    )

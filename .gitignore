@@ -126,3 +126,7 @@ samples/imports/*.xlsx
 # Fichiers métier réels de l'utilisateur (données, ne pas versionner)
 Engagements_achats.xlsm
 *.xlsm
+
+# Déclaration sociale réelle (données salariés, ne pas versionner)
+DAS1_.xls
+*.xls
