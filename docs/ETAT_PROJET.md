@@ -73,8 +73,8 @@ La persistance ne couvre **aujourd'hui que 3 entités** ; les autres métiers on
 | 8 | CRM / Commercial | ✅ | ✅ kanban persisté | ✅ `store_customers`+`store_opportunities`+`store_quotes`+`store_interactions` (P2b) | **Pipeline réel** suivi dans le temps, forecast pondéré, devis→facture | mouvements de devis, multi-devis/opportunité |
 | 9 | BI / Pilotage | ✅ | ✅ cockpit transversal | ✅ agrège le store (`/v1/bi/dashboard`) | **11 KPIs cross-métiers** sur données réelles (CA, marge, pipeline, trésorerie, stock, engagé, RH) | séries temporelles, drill-down |
 | 10 | Marketing | ✅ | ✅ persisté | ✅ `store_marketing_contacts`+`store_campaigns` (MKT-1) | **Base d'audience consentante** (Loi 29-2019), segmentation, campagnes + envoi conforme, taux de consentement | A/B testing, journal d'événements |
-| 11 | Moyens Généraux / Facility | ✅ | ✅ | ❌ | Registre des actifs + échéancier | `Asset`+`Echeance` |
-| 12 | HSE / RSE | ✅ | ✅ | ❌ | Registre des risques | `Risque`+`Incident` |
+| 11 | Moyens Généraux / Facility | ✅ | ✅ persisté | ✅ `store_assets`+`store_echeances` (OPS-1) | Registre des actifs + **échéancier** (maintenance, assurances, contrôles) | réceptions partielles |
+| 12 | HSE / RSE | ✅ | ✅ persisté | ✅ `store_risques`+`store_incidents` (OPS-1) | **Cartographie des risques** (criticité) + journal d'incidents + indicateurs (TF/TG) | plans d'action |
 | 13 | Secrétariat sociétaire | ✅ | générique | ❌ | Registre mandats, AG/PV | `Mandat`+`Resolution` |
 | 14 | Projets ONG | ✅ | générique | ❌ | Budgets bailleurs, ventilation | `Projet`+`LigneBudget` |
 | 15-17 | GRC (conformité, audit, reporting) | ⚠️ | générique | ❌ | Registres obligations/constats/rapports | pôle GRC à compléter |
