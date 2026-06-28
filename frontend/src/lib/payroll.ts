@@ -1,5 +1,6 @@
-// Client typé — Paie historisée (/v1/erp/payslips | payroll/dashboard).
+// Client typé — Paie historisée (/v1/erp/payslips | payroll/dashboard | DAS 1).
 import { api } from "./api";
+import { getToken } from "./auth";
 
 export interface PayslipRec {
   id: string;
@@ -50,4 +51,60 @@ export function deletePayslip(id: string): Promise<{ deleted: string }> {
 export function payrollDashboard(periode?: string): Promise<PayrollDashboard> {
   const qs = periode ? `?periode=${encodeURIComponent(periode)}` : "";
   return api(`/v1/erp/payroll/dashboard${qs}`);
+}
+
+// ----- DAS 1 / état annuel (PAIE-3) -----
+export interface EtatAnnuelLigne {
+  matricule: string;
+  nom: string;
+  mensuels_xaf: string[];
+  total_xaf: string;
+  irpp_annuel_xaf: string;
+}
+export interface EtatAnnuel {
+  exercice: string;
+  mois: string[];
+  lignes: EtatAnnuelLigne[];
+  total_brut_xaf: string;
+  total_irpp_xaf: string;
+}
+export interface Das1Ligne {
+  matricule: string;
+  nom: string;
+  sexe: string;
+  profession: string;
+  date_embauche: string | null;
+  date_depart: string | null;
+  brut_annuel_xaf: number;
+  salaire_plafonne_xaf: number;
+  base_imposable_xaf: number;
+  irpp_xaf: number;
+}
+export interface Das1 {
+  exercice: string;
+  employeur: Record<string, string>;
+  nb_salaries: number;
+  totaux: { brut_xaf: string; plafonne_xaf: string; base_imposable_xaf: string; irpp_xaf: string };
+  lignes: Das1Ligne[];
+}
+
+export function payrollEtatAnnuel(annee: string): Promise<EtatAnnuel> {
+  return api(`/v1/erp/payroll/etat-annuel?annee=${encodeURIComponent(annee)}`);
+}
+export function payrollDas1(annee: string): Promise<Das1> {
+  return api(`/v1/erp/payroll/das1?annee=${encodeURIComponent(annee)}`);
+}
+export async function downloadDas1(annee: string): Promise<void> {
+  const base = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000";
+  const token = getToken();
+  const r = await fetch(`${base}/v1/erp/payroll/das1/export?annee=${encodeURIComponent(annee)}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  if (!r.ok) throw new Error(`HTTP ${r.status}`);
+  const url = URL.createObjectURL(await r.blob());
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `DAS1_${annee}.xlsx`;
+  a.click();
+  URL.revokeObjectURL(url);
 }

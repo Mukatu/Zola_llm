@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Wallet, AlertCircle, CheckCircle2, Trash2, FileSpreadsheet } from "lucide-react";
+import { Wallet, AlertCircle, CheckCircle2, Trash2, FileSpreadsheet, Download, FileText } from "lucide-react";
 import { Card, Button } from "../ui";
 import { ApiError } from "@/lib/api";
 import { fmt } from "@/lib/data";
@@ -11,8 +11,11 @@ import {
   patchPayslip,
   deletePayslip,
   payrollDashboard,
+  payrollDas1,
+  downloadDas1,
   type PayslipRec,
   type PayrollDashboard,
+  type Das1,
 } from "@/lib/payroll";
 
 const PERIODE_DEFAUT = new Date().toISOString().slice(0, 7); // AAAA-MM
@@ -22,7 +25,10 @@ export function PaieScreen() {
   const [payslips, setPayslips] = useState<PayslipRec[]>([]);
   const [dash, setDash] = useState<PayrollDashboard | null>(null);
   const [form, setForm] = useState({ matricule: "", brut: "450000", sim: true });
+  const [das1, setDas1] = useState<Das1 | null>(null);
   const [err, setErr] = useState<string | null>(null);
+
+  const annee = periode.slice(0, 4);
 
   const refresh = useCallback(async () => {
     try {
@@ -64,6 +70,14 @@ export function PaieScreen() {
       await refresh();
     } catch {
       setErr("Action impossible.");
+    }
+  }
+  async function loadDas1() {
+    try {
+      setDas1(await payrollDas1(annee));
+      setErr(null);
+    } catch {
+      setErr("Génération DAS 1 impossible (backend/DB).");
     }
   }
 
@@ -152,6 +166,68 @@ export function PaieScreen() {
           )}
         </div>
       </Card>
+
+      {/* Déclarations annuelles — DAS 1 */}
+      <Card>
+        <div className="mb-2 flex items-center justify-between">
+          <h2 className="flex items-center gap-2 text-sm font-semibold">
+            <FileText className="h-4 w-4 text-primary" /> Déclarations · DAS 1 {annee}
+          </h2>
+          <div className="flex gap-2">
+            <Button variant="ghost" onClick={loadDas1}>Aperçu</Button>
+            <Button variant="ghost" onClick={() => downloadDas1(annee)}><Download className="h-4 w-4" /> Exporter</Button>
+          </div>
+        </div>
+        <p className="mb-2 text-xs text-muted">
+          Consolide les bulletins de l&apos;exercice {annee} : état annuel (brut × 12 mois) +
+          DAS 1 / CNSS 1 (brut, salaire plafonné, base imposable 80 %, IRPP).
+        </p>
+        {das1 && (
+          <>
+            <div className="mb-2 grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
+              <Mini label="Salariés" value={String(das1.nb_salaries)} />
+              <Mini label="Brut annuel" value={fmt(das1.totaux.brut_xaf) + " XAF"} />
+              <Mini label="Base imposable" value={fmt(das1.totaux.base_imposable_xaf) + " XAF"} />
+              <Mini label="IRPP" value={fmt(das1.totaux.irpp_xaf) + " XAF"} />
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-left text-xs text-muted">
+                    <th className="py-1 pr-2">Matricule</th>
+                    <th className="pr-2">Nom</th>
+                    <th className="pr-2 text-right">Brut</th>
+                    <th className="pr-2 text-right">Plafonné</th>
+                    <th className="pr-2 text-right">Base imp.</th>
+                    <th className="pr-2 text-right">IRPP</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {das1.lignes.map((l) => (
+                    <tr key={l.matricule} className="border-t border-black/5">
+                      <td className="py-1 pr-2 font-medium">{l.matricule}</td>
+                      <td className="pr-2">{l.nom || "—"}</td>
+                      <td className="pr-2 text-right">{fmt(l.brut_annuel_xaf)}</td>
+                      <td className="pr-2 text-right text-muted">{fmt(l.salaire_plafonne_xaf)}</td>
+                      <td className="pr-2 text-right text-muted">{fmt(l.base_imposable_xaf)}</td>
+                      <td className="pr-2 text-right">{fmt(l.irpp_xaf)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
+      </Card>
+    </div>
+  );
+}
+
+function Mini({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-xl bg-black/[0.03] p-2">
+      <div className="text-xs text-muted">{label}</div>
+      <div className="mt-0.5 font-semibold">{value}</div>
     </div>
   );
 }
