@@ -89,6 +89,24 @@ _EMPLOYEES = EntitySpec(
             aliases=("temps de travail", "etp"),
         ),
         Column("statut", "str", enum=("actif", "sorti"), aliases=("etat", "situation")),
+        Column("livret_cnss", "str", help="N° livret CNSS (DAS 1)", aliases=("livret", "n livret")),
+        Column(
+            "n_contribuable",
+            "str",
+            help="N° contribuable du salarié (DAS 1)",
+            aliases=("contribuable", "niu"),
+        ),
+        Column(
+            "situation_matrimoniale",
+            "str",
+            enum=("celibataire", "marie", "veuf", "divorce"),
+            help="CMVD",
+            aliases=("cmvd", "situation familiale"),
+        ),
+        Column("nationalite", "str", aliases=("nat",)),
+        Column(
+            "nb_enfants", "int", help="Nombre d'enfants à charge", aliases=("enfants", "nb enf")
+        ),
     ),
 )
 

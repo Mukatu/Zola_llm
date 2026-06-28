@@ -55,6 +55,11 @@ class Salarie(BaseModel):
     date_embauche: date | None = None
     date_depart: date | None = None
     profession: str = ""
+    livret_cnss: str = ""
+    n_contribuable: str = ""
+    situation_matrimoniale: str = ""
+    nationalite: str = ""
+    nb_enfants: int = 0
 
 
 def _xaf(v: Decimal) -> Decimal:
@@ -78,6 +83,11 @@ class Das1Ligne:
     date_embauche: str | None
     date_depart: str | None
     profession: str
+    livret_cnss: str
+    n_contribuable: str
+    situation_matrimoniale: str
+    nationalite: str
+    nb_enfants: int
     brut_annuel_xaf: Decimal
     salaire_plafonne_xaf: Decimal
     base_imposable_xaf: Decimal
@@ -157,6 +167,11 @@ def construire_das1(
                 date_embauche=s.date_embauche.isoformat() if s and s.date_embauche else None,
                 date_depart=s.date_depart.isoformat() if s and s.date_depart else None,
                 profession=s.profession if s else "",
+                livret_cnss=s.livret_cnss if s else "",
+                n_contribuable=s.n_contribuable if s else "",
+                situation_matrimoniale=s.situation_matrimoniale if s else "",
+                nationalite=s.nationalite if s else "",
+                nb_enfants=s.nb_enfants if s else 0,
                 brut_annuel_xaf=brut_a,
                 salaire_plafonne_xaf=plaf_a,
                 base_imposable_xaf=base_a,

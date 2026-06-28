@@ -97,10 +97,28 @@ async def test_das1_endpoints_and_export(tmp_path) -> None:  # type: ignore[no-u
         e1 = next(x for x in etat["lignes"] if x["matricule"] == "E1")
         assert e1["total_xaf"] == "1000000"
 
+        # identité DAS1 enrichie (PAIE-3c) via le registre du personnel
+        await ac.post(
+            "/v1/erp/employees",
+            json={
+                "matricule": "E1",
+                "nom_complet": "AWA OKEMBA",
+                "date_embauche": "2024-01-01",
+                "situation_matrimoniale": "marie",
+                "nationalite": "congolaise",
+                "nb_enfants": 3,
+                "livret_cnss": "LV-001",
+            },
+        )
         das1 = (await ac.get("/v1/erp/payroll/das1?annee=2026")).json()
         assert das1["nb_salaries"] == 2
         assert das1["totaux"]["brut_xaf"] == "1300000"
         assert "raison_sociale" in das1["employeur"]
+        e1 = next(x for x in das1["lignes"] if x["matricule"] == "E1")
+        assert e1["nom"] == "AWA OKEMBA"
+        assert e1["situation_matrimoniale"] == "marie"
+        assert e1["nb_enfants"] == 3
+        assert e1["livret_cnss"] == "LV-001"
 
         r = await ac.get("/v1/erp/payroll/das1/export?annee=2026")
         assert r.status_code == 200

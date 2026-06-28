@@ -48,6 +48,11 @@ class EmployeeIn(BaseModel):
     statut: str = "actif"
     date_sortie: date | None = None
     motif_sortie: str | None = None
+    livret_cnss: str | None = None
+    n_contribuable: str | None = None
+    situation_matrimoniale: str = ""
+    nationalite: str = ""
+    nb_enfants: int = 0
     country: str = "cg"
 
 
@@ -61,6 +66,11 @@ class EmployeePatch(BaseModel):
     statut: str | None = None
     date_sortie: date | None = None
     motif_sortie: str | None = None
+    livret_cnss: str | None = None
+    n_contribuable: str | None = None
+    situation_matrimoniale: str | None = None
+    nationalite: str | None = None
+    nb_enfants: int | None = None
 
 
 class ContractIn(BaseModel):

@@ -2160,6 +2160,11 @@ async def _build_das1(session: AsyncSession, *, tenant_id: str, annee: str) -> D
             date_embauche=e.date_embauche,
             date_depart=e.date_sortie,
             profession=e.poste,
+            livret_cnss=e.livret_cnss or "",
+            n_contribuable=e.n_contribuable or "",
+            situation_matrimoniale=e.situation_matrimoniale,
+            nationalite=e.nationalite,
+            nb_enfants=e.nb_enfants,
         )
         for e in employees
     ]
@@ -2261,28 +2266,33 @@ def build_das1_xlsx(das1: Das1, employeur: dict[str, str]) -> bytes:
 
     # ---- Feuille 2 : DAS 1 (formulaire)
     d = wb.create_sheet("DAS 1")
-    d.merge_cells("A1:J1")
+    d.merge_cells("A1:O1")
     d["A1"] = "RÉPUBLIQUE DU CONGO — DAS 1 / CNSS 1"
     d["A1"].font = title
     d["A1"].alignment = center
-    d.merge_cells("A2:J2")
+    d.merge_cells("A2:O2")
     d["A2"] = "DÉCLARATION ANNUELLE DES SALAIRES ET AUTRES RÉMUNÉRATIONS VERSÉES"
     d["A2"].alignment = center
-    d.merge_cells("A3:J3")
+    d.merge_cells("A3:O3")
     d["A3"] = (
         f"EMPLOYEUR : {employeur['raison_sociale']}   ·   MATRICULE CNSS : "
         f"{employeur['matricule_cnss']}   ·   N° CONTRIBUABLE : {employeur['n_contribuable']}"
     )
-    d.merge_cells("A4:J4")
+    d.merge_cells("A4:O4")
     d["A4"] = f"B.P : {employeur['bp']}   ·   {employeur['ville']}   ·   EXERCICE : {das1.exercice}"
     d.append([])
     cols = [
-        "N° D'ORDRE",
+        "N°",
         "NOM - PRÉNOM",
         "SEXE",
+        "SIT. MATRIM. (CMVD)",
+        "NATIONALITÉ",
+        "NB ENF.",
+        "N° LIVRET CNSS",
+        "N° CONTRIBUABLE",
         "PROFESSION",
-        "DATE EMBAUCHE",
-        "DATE DÉPART",
+        "EMBAUCHE",
+        "DÉPART",
         "(f) SALAIRE BRUT",
         "SALAIRE PLAFONNÉ",
         "BASE IMPOSABLE (g=80%)",
@@ -2299,6 +2309,11 @@ def build_das1_xlsx(das1: Das1, employeur: dict[str, str]) -> bytes:
                 i,
                 line.nom,
                 line.sexe,
+                line.situation_matrimoniale,
+                line.nationalite,
+                line.nb_enfants,
+                line.livret_cnss,
+                line.n_contribuable,
                 line.profession,
                 line.date_embauche or "",
                 line.date_depart or "",
@@ -2314,10 +2329,7 @@ def build_das1_xlsx(das1: Das1, employeur: dict[str, str]) -> bytes:
         [
             "",
             "TOTAUX",
-            "",
-            "",
-            "",
-            "",
+            *[""] * 9,
             float(das1.total_brut_xaf),
             float(das1.total_plafonne_xaf),
             float(das1.total_base_imposable_xaf),
@@ -2326,7 +2338,8 @@ def build_das1_xlsx(das1: Das1, employeur: dict[str, str]) -> bytes:
     )
     for c in d[d.max_row]:
         c.font = bold
-    for col, w in zip("ABCDEFGHIJ", (10, 26, 6, 22, 14, 14, 16, 16, 18, 14), strict=True):
+    widths = (6, 24, 6, 16, 14, 8, 16, 16, 20, 12, 12, 16, 16, 18, 14)
+    for col, w in zip("ABCDEFGHIJKLMNO", widths, strict=True):
         d.column_dimensions[col].width = w
 
     bio = BytesIO()

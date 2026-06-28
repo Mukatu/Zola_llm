@@ -224,6 +224,12 @@ class EmployeeRecord(StoreBase):
     statut: Mapped[str] = mapped_column(String(8), default="actif")
     date_sortie: Mapped[date | None] = mapped_column(Date, nullable=True)
     motif_sortie: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    # Champs déclaratifs (DAS 1 / CNSS — PAIE-3c)
+    livret_cnss: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    n_contribuable: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    situation_matrimoniale: Mapped[str] = mapped_column(String(12), default="")  # CMVD
+    nationalite: Mapped[str] = mapped_column(String(40), default="")
+    nb_enfants: Mapped[int] = mapped_column(Integer, default=0)
     country: Mapped[str] = mapped_column(String(2), default="cg")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
@@ -246,6 +252,11 @@ class EmployeeRecord(StoreBase):
             "statut": self.statut,
             "date_sortie": self.date_sortie.isoformat() if self.date_sortie else None,
             "motif_sortie": self.motif_sortie,
+            "livret_cnss": self.livret_cnss,
+            "n_contribuable": self.n_contribuable,
+            "situation_matrimoniale": self.situation_matrimoniale,
+            "nationalite": self.nationalite,
+            "nb_enfants": self.nb_enfants,
             "country": self.country,
         }
 
