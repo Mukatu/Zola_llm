@@ -1298,6 +1298,53 @@ class CampaignRecord(StoreBase):
         }
 
 
+class PayslipRecord(StoreBase):
+    """Bulletin de paie historisé (résultat du moteur paie) — PAIE-1."""
+
+    __tablename__ = "store_payslips"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    tenant_id: Mapped[str] = mapped_column(String(64), index=True)
+    employee_matricule: Mapped[str] = mapped_column(String(32), index=True)
+    periode: Mapped[str] = mapped_column(String(7))  # AAAA-MM
+    brut_xaf: Mapped[Decimal] = mapped_column(Numeric(18, 2), default=Decimal("0"))
+    cotisations_salariales: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    total_cotisations_salariales_xaf: Mapped[Decimal] = mapped_column(
+        Numeric(18, 2), default=Decimal("0")
+    )
+    base_imposable_xaf: Mapped[Decimal] = mapped_column(Numeric(18, 2), default=Decimal("0"))
+    irpp_xaf: Mapped[Decimal] = mapped_column(Numeric(18, 2), default=Decimal("0"))
+    net_a_payer_xaf: Mapped[Decimal] = mapped_column(Numeric(18, 2), default=Decimal("0"))
+    cotisations_patronales: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    cout_employeur_xaf: Mapped[Decimal] = mapped_column(Numeric(18, 2), default=Decimal("0"))
+    statut: Mapped[str] = mapped_column(String(12), default="brouillon")  # brouillon | valide
+    date_paiement: Mapped[date | None] = mapped_column(Date, nullable=True)
+    country: Mapped[str] = mapped_column(String(2), default="cg")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_now, onupdate=_now
+    )
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "tenant_id": self.tenant_id,
+            "employee_matricule": self.employee_matricule,
+            "periode": self.periode,
+            "brut_xaf": str(self.brut_xaf),
+            "cotisations_salariales": self.cotisations_salariales,
+            "total_cotisations_salariales_xaf": str(self.total_cotisations_salariales_xaf),
+            "base_imposable_xaf": str(self.base_imposable_xaf),
+            "irpp_xaf": str(self.irpp_xaf),
+            "net_a_payer_xaf": str(self.net_a_payer_xaf),
+            "cotisations_patronales": self.cotisations_patronales,
+            "cout_employeur_xaf": str(self.cout_employeur_xaf),
+            "statut": self.statut,
+            "date_paiement": self.date_paiement.isoformat() if self.date_paiement else None,
+            "country": self.country,
+        }
+
+
 class EvaluationRecord(StoreBase):
     """Évaluation annuelle : performance × potentiel (SIRH-3b)."""
 

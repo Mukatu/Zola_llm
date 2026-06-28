@@ -52,6 +52,11 @@ from zolaos.agents.erp.inventory import (
     pilotage_stock,
     requiert_double_validation,
 )
+from zolaos.agents.erp.payroll import (
+    PayrollCalculator,
+    PayrollScaleNotValidated,
+    load_payroll_scale,
+)
 from zolaos.agents.erp.reconciliation import reconcilier
 from zolaos.agents.erp.supply import StockItem, alertes_rupture, analyser_reappro
 from zolaos.agents.erp.treasury import (
@@ -79,6 +84,7 @@ from zolaos.db.store_repo import (
     IncidentRepository,
     InvoiceRepository,
     JournalRepository,
+    PayslipRepository,
     PurchaseBudgetRepository,
     PurchaseOrderRepository,
     RisqueRepository,
@@ -1986,4 +1992,127 @@ async def hse_indicators_store(
         "statistiques": statistiques_incidents(incidents),
         "taux_frequence": str(taux_frequence(incidents, heures_travaillees=heures_travaillees)),
         "taux_gravite": str(taux_gravite(incidents, heures_travaillees=heures_travaillees)),
+    }
+
+
+# ---------------------------------------------------------------- Paie historisée (PAIE-1)
+
+_payroll_calc = PayrollCalculator()
+
+
+class PayslipIn(BaseModel):
+    employee_matricule: str
+    periode: str  # AAAA-MM
+    brut_mensuel_xaf: Decimal = Field(..., ge=0)
+    allow_unvalidated: bool = False
+    country: str = "cg"
+
+
+class PayslipPatch(BaseModel):
+    statut: str | None = None
+    date_paiement: date | None = None
+
+
+@router.post(
+    "/payslips", status_code=status.HTTP_201_CREATED, summary="Émettre un bulletin (historisé)"
+)
+async def create_payslip(
+    body: PayslipIn,
+    tenant_id: str = "local",
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    scale = load_payroll_scale(body.country)
+    try:
+        result = _payroll_calc.compute(
+            body.brut_mensuel_xaf, scale=scale, allow_unvalidated=body.allow_unvalidated
+        )
+    except PayrollScaleNotValidated as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail="bareme_non_valide"
+        ) from exc
+    rec = await PayslipRepository(session).upsert(
+        {
+            "tenant_id": tenant_id,
+            "employee_matricule": body.employee_matricule,
+            "periode": body.periode,
+            "brut_xaf": result.brut_xaf,
+            "cotisations_salariales": {k: str(v) for k, v in result.cotisations_salariales.items()},
+            "total_cotisations_salariales_xaf": result.total_cotisations_salariales_xaf,
+            "base_imposable_xaf": result.base_imposable_xaf,
+            "irpp_xaf": result.irpp_xaf,
+            "net_a_payer_xaf": result.net_a_payer_xaf,
+            "cotisations_patronales": {k: str(v) for k, v in result.cotisations_patronales.items()},
+            "cout_employeur_xaf": result.cout_employeur_xaf,
+            "country": body.country,
+        }
+    )
+    await session.commit()
+    return rec.to_dict()
+
+
+@router.get("/payslips", summary="Lister les bulletins (filtrable période/matricule)")
+async def list_payslips(
+    tenant_id: str = "local",
+    periode: str | None = None,
+    employee_matricule: str | None = None,
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    rows = await PayslipRepository(session).list(
+        tenant_id=tenant_id, periode=periode, employee_matricule=employee_matricule
+    )
+    return {"payslips": [r.to_dict() for r in rows]}
+
+
+@router.patch("/payslips/{payslip_id}", summary="Valider / marquer payé un bulletin")
+async def patch_payslip(
+    payslip_id: str,
+    body: PayslipPatch,
+    tenant_id: str = "local",
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    rec = await PayslipRepository(session).update(
+        payslip_id, tenant_id=tenant_id, fields=body.model_dump(exclude_none=True)
+    )
+    if rec is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="payslip_not_found")
+    await session.commit()
+    return rec.to_dict()
+
+
+@router.delete("/payslips/{payslip_id}", summary="Supprimer un bulletin")
+async def delete_payslip(
+    payslip_id: str, tenant_id: str = "local", session: AsyncSession = Depends(get_session)
+) -> dict[str, Any]:
+    ok = await PayslipRepository(session).delete(payslip_id, tenant_id=tenant_id)
+    if not ok:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="payslip_not_found")
+    await session.commit()
+    return {"deleted": payslip_id}
+
+
+@router.get("/payroll/dashboard", summary="Pilotage masse salariale + déclaratif (par période)")
+async def payroll_dashboard(
+    tenant_id: str = "local",
+    periode: str | None = None,
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    rows = await PayslipRepository(session).list(tenant_id=tenant_id, periode=periode)
+    z = Decimal("0")
+    brut = sum((r.brut_xaf for r in rows), z)
+    net = sum((r.net_a_payer_xaf for r in rows), z)
+    irpp = sum((r.irpp_xaf for r in rows), z)
+    cot_sal = sum((r.total_cotisations_salariales_xaf for r in rows), z)
+    cot_pat = sum(
+        (sum((Decimal(v) for v in r.cotisations_patronales.values()), z) for r in rows), z
+    )
+    cout = sum((r.cout_employeur_xaf for r in rows), z)
+    return {
+        "periode": periode,
+        "nb_bulletins": len(rows),
+        "masse_salariale_brute_xaf": str(brut),
+        "total_net_a_payer_xaf": str(net),
+        "total_irpp_xaf": str(irpp),
+        "total_cotisations_salariales_xaf": str(cot_sal),
+        "total_cotisations_patronales_xaf": str(cot_pat),
+        "cout_employeur_total_xaf": str(cout),
     }

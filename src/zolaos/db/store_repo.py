@@ -36,6 +36,7 @@ from zolaos.db.store_models import (
     JournalEntryRecord,
     MarketingContactRecord,
     OpportunityRecord,
+    PayslipRecord,
     PurchaseBudgetRecord,
     PurchaseOrderRecord,
     QuoteRecord,
@@ -435,6 +436,43 @@ class StockMoveRepository(_CrudRepo):
             stmt = stmt.where(StockMoveRecord.sku == sku)
         stmt = stmt.order_by(StockMoveRecord.date_mouvement.desc())
         return list(await self._s.scalars(stmt))
+
+
+class PayslipRepository(_CrudRepo):
+    model = PayslipRecord
+
+    async def list(  # type: ignore[override]
+        self,
+        *,
+        tenant_id: str,
+        periode: str | None = None,
+        employee_matricule: str | None = None,
+    ) -> list[PayslipRecord]:
+        stmt = select(PayslipRecord).where(PayslipRecord.tenant_id == tenant_id)
+        if periode is not None:
+            stmt = stmt.where(PayslipRecord.periode == periode)
+        if employee_matricule is not None:
+            stmt = stmt.where(PayslipRecord.employee_matricule == employee_matricule)
+        return list(await self._s.scalars(stmt))
+
+    async def upsert(self, data: dict[str, Any]) -> PayslipRecord:
+        """Un seul bulletin par (matricule, période)."""
+        stmt = select(PayslipRecord).where(
+            PayslipRecord.tenant_id == data["tenant_id"],
+            PayslipRecord.employee_matricule == data["employee_matricule"],
+            PayslipRecord.periode == data["periode"],
+        )
+        existing = (await self._s.scalars(stmt)).first()
+        if existing is not None:
+            for k, v in data.items():
+                if k not in {"id", "tenant_id", "created_at"}:
+                    setattr(existing, k, v)
+            await self._s.flush()
+            return existing
+        rec = PayslipRecord(**data)
+        self._s.add(rec)
+        await self._s.flush()
+        return rec
 
 
 class AssetRepository(_CrudRepo):
