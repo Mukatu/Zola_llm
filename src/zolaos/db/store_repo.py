@@ -41,6 +41,7 @@ from zolaos.db.store_models import (
     PayrollScaleRecord,
     PayrollScaleValidationRecord,
     PayslipRecord,
+    PayslipTemplateRecord,
     PurchaseBudgetRecord,
     PurchaseOrderRecord,
     QuoteRecord,
@@ -531,6 +532,26 @@ class EmployeeRubriqueRepository:
         await self._s.delete(rec)
         await self._s.flush()
         return True
+
+
+class PayslipTemplateRepository:
+    """Modèle de bulletin de paie par tenant — PAIE-7a."""
+
+    def __init__(self, session: AsyncSession) -> None:
+        self._s = session
+
+    async def get(self, *, tenant_id: str) -> PayslipTemplateRecord | None:
+        stmt = select(PayslipTemplateRecord).where(PayslipTemplateRecord.tenant_id == tenant_id)
+        return (await self._s.scalars(stmt)).first()
+
+    async def upsert(self, *, tenant_id: str, payload: dict[str, Any]) -> PayslipTemplateRecord:
+        rec = await self.get(tenant_id=tenant_id)
+        if rec is None:
+            rec = PayslipTemplateRecord(tenant_id=tenant_id)
+            self._s.add(rec)
+        rec.payload = payload
+        await self._s.flush()
+        return rec
 
 
 class PayrollScaleRepository:

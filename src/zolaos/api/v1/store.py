@@ -95,6 +95,7 @@ from zolaos.db.store_repo import (
     PayrollScaleRepository,
     PayrollValidationRepository,
     PayslipRepository,
+    PayslipTemplateRepository,
     PurchaseBudgetRepository,
     PurchaseOrderRepository,
     RisqueRepository,
@@ -2675,4 +2676,186 @@ async def export_das1(
         content=content,
         media_type=_XLSX_MEDIA,
         headers={"Content-Disposition": f'attachment; filename="DAS1_{annee}.xlsx"'},
+    )
+
+
+# --------------------------------------------------- Bulletin imprimable + modèle (PAIE-7a)
+
+_BULLETIN_MODELE_DEFAUT: dict[str, Any] = {
+    "titre": "BULLETIN DE PAIE",
+    "logo_texte": "",
+    "couleur": "1F4E79",
+    "mentions": "Document à conserver sans limitation de durée.",
+    "afficher_cotisations_patronales": False,
+    "afficher_cout_employeur": True,
+    "devise": "XAF",
+}
+
+
+class BulletinModeleIn(BaseModel):
+    titre: str = "BULLETIN DE PAIE"
+    logo_texte: str = ""
+    couleur: str = "1F4E79"
+    mentions: str = ""
+    afficher_cotisations_patronales: bool = False
+    afficher_cout_employeur: bool = True
+    devise: str = "XAF"
+
+
+async def _bulletin_modele(session: AsyncSession, tenant_id: str) -> dict[str, Any]:
+    rec = await PayslipTemplateRepository(session).get(tenant_id=tenant_id)
+    return {**_BULLETIN_MODELE_DEFAUT, **(rec.payload if rec is not None else {})}
+
+
+def build_bulletin_xlsx(
+    payslip: dict[str, Any],
+    employee: dict[str, Any] | None,
+    employeur: dict[str, str],
+    modele: dict[str, Any],
+    libelles: dict[str, str],
+) -> bytes:
+    """Assemble un bulletin de paie .xlsx à partir du modèle + des données du bulletin."""
+    from openpyxl.styles import Alignment, Font, PatternFill
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Bulletin"
+    accent = str(modele.get("couleur", "1F4E79")).lstrip("#") or "1F4E79"
+    dev = modele.get("devise", "XAF")
+    fill = PatternFill("solid", fgColor=accent)
+    white_bold = Font(bold=True, color="FFFFFF")
+    bold = Font(bold=True)
+    left = Alignment(horizontal="left", vertical="center")
+    right = Alignment(horizontal="right")
+
+    ws.merge_cells("A1:D1")
+    ws["A1"] = modele.get("titre") or "BULLETIN DE PAIE"
+    ws["A1"].font = Font(bold=True, size=14, color="FFFFFF")
+    ws["A1"].alignment = Alignment(horizontal="center", vertical="center")
+    ws["A1"].fill = fill
+    if modele.get("logo_texte"):
+        ws["A2"] = str(modele["logo_texte"])
+        ws["A2"].font = bold
+
+    ws.append([])
+    ws.append([employeur.get("raison_sociale", ""), "", "Période", payslip.get("periode", "")])
+    ws.append(
+        [
+            f"B.P {employeur.get('bp', '')} · {employeur.get('ville', '')}",
+            "",
+            "Matricule",
+            payslip.get("employee_matricule", ""),
+        ]
+    )
+    ws.append(
+        [
+            f"CNSS {employeur.get('matricule_cnss', '')}",
+            "",
+            "Salarié",
+            (employee or {}).get("nom_complet", payslip.get("employee_matricule", "")),
+        ]
+    )
+    ws.append(["", "", "Poste", (employee or {}).get("poste", "")])
+    ws.append([])
+
+    hdr = ws.max_row + 1
+    ws.append(["Libellé", "Gain", "Retenue", ""])
+    for c in ws[hdr]:
+        c.font = white_bold
+        c.fill = fill
+
+    def ligne(lib: str, gain: Decimal | None = None, ret: Decimal | None = None) -> None:
+        ws.append([lib, float(gain) if gain else "", float(ret) if ret else ""])
+
+    ligne("Salaire brut", gain=Decimal(payslip["brut_xaf"]))
+    for code, montant in (payslip.get("rubriques") or {}).items():
+        m = Decimal(montant)
+        lib = libelles.get(code, code)
+        ligne(lib, gain=m if m > 0 else None, ret=(-m if m < 0 else None))
+    for code, montant in (payslip.get("cotisations_salariales") or {}).items():
+        ligne(f"Cotisation {libelles.get(code, code)}", ret=Decimal(montant))
+    ligne("I.R.P.P.", ret=Decimal(payslip["irpp_xaf"]))
+
+    net_row = ws.max_row + 1
+    ws.append([f"NET À PAYER ({dev})", "", float(Decimal(payslip["net_a_payer_xaf"]))])
+    for c in ws[net_row]:
+        c.font = white_bold
+        c.fill = fill
+    ws.append(["Base imposable", "", float(Decimal(payslip["base_imposable_xaf"]))])
+
+    if modele.get("afficher_cotisations_patronales"):
+        ws.append([])
+        ws.append(["Charges patronales", "", ""])
+        ws[ws.max_row][0].font = bold
+        for code, montant in (payslip.get("cotisations_patronales") or {}).items():
+            ws.append([libelles.get(code, code), "", float(Decimal(montant))])
+    if modele.get("afficher_cout_employeur"):
+        ws.append([f"Coût employeur ({dev})", "", float(Decimal(payslip["cout_employeur_xaf"]))])
+        ws[ws.max_row][0].font = bold
+
+    if modele.get("mentions"):
+        ws.append([])
+        m = ws.max_row + 1
+        ws.merge_cells(f"A{m}:D{m}")
+        ws[f"A{m}"] = str(modele["mentions"])
+        ws[f"A{m}"].font = Font(italic=True, size=9)
+
+    for col, w in zip("ABCD", (32, 16, 16, 18), strict=True):
+        ws.column_dimensions[col].width = w
+    for row in ws.iter_rows(min_row=hdr + 1, min_col=2, max_col=3):
+        for cell in row:
+            cell.alignment = right
+    ws["A3"].alignment = left
+
+    bio = BytesIO()
+    wb.save(bio)
+    return bio.getvalue()
+
+
+@router.get("/payroll/bulletin-modele", summary="Modèle de bulletin (personnalisation tenant)")
+async def get_bulletin_modele(
+    tenant_id: str = "local",
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    return await _bulletin_modele(session, tenant_id)
+
+
+@router.put("/payroll/bulletin-modele", summary="Enregistrer le modèle de bulletin")
+async def save_bulletin_modele(
+    body: BulletinModeleIn,
+    tenant_id: str = "local",
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    await PayslipTemplateRepository(session).upsert(tenant_id=tenant_id, payload=body.model_dump())
+    await session.commit()
+    return await _bulletin_modele(session, tenant_id)
+
+
+@router.get("/payslips/{payslip_id}/bulletin", summary="Générer le bulletin de paie (.xlsx)")
+async def download_bulletin(
+    payslip_id: str,
+    tenant_id: str = "local",
+    session: AsyncSession = Depends(get_session),
+    config_service: TenantConfigService = Depends(get_config_service),
+) -> Response:
+    p = await PayslipRepository(session).get(payslip_id, tenant_id=tenant_id)
+    if p is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="payslip_not_found")
+    emp = await EmployeeRepository(session).get_by_matricule(
+        p.employee_matricule, tenant_id=tenant_id
+    )
+    scale, _, _ = await _resolve_scale(session, tenant_id=tenant_id, country=p.country)
+    libelles = {r.code: r.libelle or r.code for r in scale.rubriques}
+    content = build_bulletin_xlsx(
+        p.to_dict(),
+        emp.to_dict() if emp is not None else None,
+        _employeur(config_service, tenant_id),
+        await _bulletin_modele(session, tenant_id),
+        libelles,
+    )
+    filename = f"bulletin_{p.employee_matricule}_{p.periode}.xlsx"
+    return Response(
+        content=content,
+        media_type=_XLSX_MEDIA,
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )

@@ -5,6 +5,7 @@ import { Wallet, AlertCircle, CheckCircle2, Trash2, FileSpreadsheet, Download, F
 import { Card, Button } from "../ui";
 import { BaremePanel } from "./BaremePanel";
 import { EmployeeRubriquesPanel } from "./EmployeeRubriquesPanel";
+import { BulletinModelePanel } from "./BulletinModelePanel";
 import { ApiError } from "@/lib/api";
 import { fmt } from "@/lib/data";
 import {
@@ -15,6 +16,7 @@ import {
   payrollDashboard,
   payrollDas1,
   downloadDas1,
+  downloadBulletin,
   type PayslipRec,
   type PayrollDashboard,
   type Das1,
@@ -155,6 +157,7 @@ export function PaieScreen() {
                     </td>
                     <td className="pr-2">
                       <span className="flex items-center gap-2">
+                        <button onClick={() => downloadBulletin(p.id, `${p.employee_matricule}_${p.periode}`)} title="Télécharger le bulletin" className="text-primary hover:text-primary/80"><Download className="h-4 w-4" /></button>
                         {p.statut !== "valide" && (
                           <button onClick={() => pay(p.id)} title="Valider/payer" className="text-emerald-600 hover:text-emerald-800"><CheckCircle2 className="h-4 w-4" /></button>
                         )}
@@ -228,6 +231,7 @@ export function PaieScreen() {
 
       <BaremePanel />
       <EmployeeRubriquesPanel />
+      <BulletinModelePanel />
     </div>
   );
 }

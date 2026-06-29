@@ -1366,6 +1366,28 @@ class PayslipRecord(StoreBase):
         }
 
 
+class PayslipTemplateRecord(StoreBase):
+    """Modèle de bulletin de paie personnalisé par tenant (PAIE-7a).
+
+    `payload` : configuration structurée (titre, logo, couleur, mentions, options
+    d'affichage). Le bulletin est assemblé à partir de ce modèle + des données du
+    bulletin + de l'identité employeur (config tenant).
+    """
+
+    __tablename__ = "store_payslip_templates"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    tenant_id: Mapped[str] = mapped_column(String(64), index=True, unique=True)
+    payload: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_now, onupdate=_now
+    )
+
+    def to_dict(self) -> dict[str, Any]:
+        return {"id": self.id, "tenant_id": self.tenant_id, "payload": self.payload}
+
+
 class EmployeeRubriqueRecord(StoreBase):
     """Affectation d'une rubrique de paie à un salarié (avec montant facultatif) — PAIE-6c.
 

@@ -55,6 +55,37 @@ export function payrollDashboard(periode?: string): Promise<PayrollDashboard> {
   return api(`/v1/erp/payroll/dashboard${qs}`);
 }
 
+// ----- Bulletin imprimable + modèle (PAIE-7a) -----
+export interface BulletinModele {
+  titre: string;
+  logo_texte: string;
+  couleur: string;
+  mentions: string;
+  afficher_cotisations_patronales: boolean;
+  afficher_cout_employeur: boolean;
+  devise: string;
+}
+export function getBulletinModele(): Promise<BulletinModele> {
+  return api("/v1/erp/payroll/bulletin-modele");
+}
+export function saveBulletinModele(b: BulletinModele): Promise<BulletinModele> {
+  return api("/v1/erp/payroll/bulletin-modele", { method: "PUT", body: b });
+}
+export async function downloadBulletin(payslipId: string, label: string): Promise<void> {
+  const base = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000";
+  const token = getToken();
+  const r = await fetch(`${base}/v1/erp/payslips/${payslipId}/bulletin`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  if (!r.ok) throw new Error(`HTTP ${r.status}`);
+  const url = URL.createObjectURL(await r.blob());
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `bulletin_${label}.xlsx`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 // ----- DAS 1 / état annuel (PAIE-3) -----
 export interface EtatAnnuelLigne {
   matricule: string;

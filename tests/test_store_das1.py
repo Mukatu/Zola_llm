@@ -448,3 +448,45 @@ async def test_rubrique_affectee_par_employe(tmp_path) -> None:  # type: ignore[
         # retrait → A revient au net initial
         await ac.delete("/v1/erp/employees/A/rubriques/responsabilite")
         assert Decimal((await emit("A"))["net_a_payer_xaf"]) == net_a0
+
+
+async def test_bulletin_modele_et_generation(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    """PAIE-7a : modèle de bulletin personnalisable + génération .xlsx par bulletin."""
+    async with _client(tmp_path) as ac:
+        # personnaliser le modèle (sans code)
+        m = (
+            await ac.put(
+                "/v1/erp/payroll/bulletin-modele",
+                json={
+                    "titre": "BULLETIN ZOLA",
+                    "logo_texte": "MaBoite SARL",
+                    "mentions": "Confidentiel",
+                    "afficher_cout_employeur": True,
+                },
+            )
+        ).json()
+        assert m["titre"] == "BULLETIN ZOLA"
+        assert m["logo_texte"] == "MaBoite SARL"
+
+        r = await ac.post(
+            "/v1/erp/payslips",
+            json={
+                "employee_matricule": "E1",
+                "periode": "2026-02",
+                "brut_mensuel_xaf": "400000",
+                "allow_unvalidated": True,
+            },
+        )
+        pid = r.json()["id"]
+
+        g = await ac.get(f"/v1/erp/payslips/{pid}/bulletin")
+        assert g.status_code == 200
+        assert "spreadsheetml" in g.headers["content-type"]
+        wb = openpyxl.load_workbook(BytesIO(g.content))
+        vals = [c.value for row in wb["Bulletin"].iter_rows() for c in row if c.value is not None]
+        assert "BULLETIN ZOLA" in vals
+        assert any(isinstance(v, str) and v.startswith("NET À PAYER") for v in vals)
+        assert any(isinstance(v, str) and v.startswith("Coût employeur") for v in vals)
+
+        # bulletin inexistant → 404
+        assert (await ac.get("/v1/erp/payslips/inexistant/bulletin")).status_code == 404
