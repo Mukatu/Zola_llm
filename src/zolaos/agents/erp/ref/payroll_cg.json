@@ -62,7 +62,7 @@
     {"nom": "fonea", "label": "ACPE / FONEA (emploi-apprentissage)", "taux_employeur": "0.005", "plafond_mensuel_xaf": "1200000", "confiance": "faible"}
   ],
 
-  "_sources": [
+  "sources": [
     {"id": "cleiss_2023", "url": "https://www.cleiss.fr/docs/cotisations/congo.html", "label": "CLEISS — Cotisations Congo, taux au 1er janvier 2023", "confiance": "élevée", "couvre": ["cnss_branches", "plafonds"]},
     {"id": "pwc_2025", "url": "https://taxsummaries.pwc.com/republic-of-congo/individual/taxes-on-personal-income", "label": "PwC Tax Summaries — Republic of Congo (rév. déc. 2025)", "confiance": "élevée", "couvre": ["irpp_bareme", "abattement"]},
     {"id": "centralafrica_2023", "url": "https://centralafricataxguide.com/the-republic-of-congo/personal-income-taxpit/", "label": "CentralAfricaTaxGuide — PIT Republic of Congo", "confiance": "élevée", "couvre": ["irpp_bareme", "quotient_familial"]},

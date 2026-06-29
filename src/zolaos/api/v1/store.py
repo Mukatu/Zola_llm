@@ -89,6 +89,7 @@ from zolaos.db.store_repo import (
     IncidentRepository,
     InvoiceRepository,
     JournalRepository,
+    PayrollValidationRepository,
     PayslipRepository,
     PurchaseBudgetRepository,
     PurchaseOrderRepository,
@@ -2039,11 +2040,16 @@ async def create_payslip(
         else Decimal("1")
     )
     annee = int(body.periode[:4]) if len(body.periode) >= 4 and body.periode[:4].isdigit() else None
+    # Verrou levé si un expert a validé cette version du barème (PAIE-5)
+    val = await PayrollValidationRepository(session).get(
+        tenant_id=tenant_id, country=body.country, version=scale.version
+    )
+    valide = scale.validated or bool(val and val.validated)
     try:
         result = _payroll_calc.compute(
             body.brut_mensuel_xaf,
             scale=scale,
-            allow_unvalidated=body.allow_unvalidated,
+            allow_unvalidated=body.allow_unvalidated or valide,
             parts=parts,
             annee=annee,
         )
@@ -2139,6 +2145,95 @@ async def payroll_dashboard(
         "total_cotisations_patronales_xaf": str(cot_pat),
         "cout_employeur_total_xaf": str(cout),
     }
+
+
+# ---------------------------------------------------------------- Barème de paie (validation, PAIE-5)
+
+
+class BaremeValidationIn(BaseModel):
+    validated: bool = True
+    validated_by: str = ""
+    note: str = ""
+
+
+def _bareme_payload(scale: Any, val: Any) -> dict[str, Any]:
+    """Vue du barème (valeurs + sources + confiance) + statut de validation."""
+    return {
+        "country": scale.country,
+        "version": scale.version,
+        "source": scale.source,
+        "valide_fichier": scale.validated,
+        "validation": (
+            val.to_dict()
+            if val is not None
+            else {"validated": False, "validated_by": "", "note": "", "validated_at": None}
+        ),
+        "effectivement_valide": scale.validated or bool(val and val.validated),
+        "smig_xaf": str(scale.smig_xaf),
+        "abattement_irpp_taux": str(scale.abattement_irpp_taux),
+        "plafond_parts": str(scale.plafond_parts),
+        "regime_its_depuis_annee": scale.regime_its_depuis_annee,
+        "regimes": {
+            cle: {
+                "label": reg.label,
+                "bareme": [
+                    {
+                        "plafond_xaf": (str(t.plafond_xaf) if t.plafond_xaf is not None else None),
+                        "taux": str(t.taux),
+                    }
+                    for t in reg.bareme
+                ],
+            }
+            for cle, reg in scale.regimes.items()
+        },
+        "cnss_branches": [
+            {
+                "nom": b.nom,
+                "label": b.label,
+                "taux_salarie": str(b.taux_salarie),
+                "taux_employeur": str(b.taux_employeur),
+                "plafond_mensuel_xaf": (
+                    str(b.plafond_mensuel_xaf) if b.plafond_mensuel_xaf is not None else None
+                ),
+            }
+            for b in scale.cnss_branches
+        ],
+        "autres_charges_a_confirmer": scale.autres_charges_patronales_a_confirmer,
+        "sources": scale.sources,
+    }
+
+
+@router.get("/payroll/bareme", summary="Barème de paie : valeurs + sources + statut de validation")
+async def get_bareme(
+    country: str = "cg",
+    tenant_id: str = "local",
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    scale = load_payroll_scale(country)
+    val = await PayrollValidationRepository(session).get(
+        tenant_id=tenant_id, country=country, version=scale.version
+    )
+    return _bareme_payload(scale, val)
+
+
+@router.post("/payroll/bareme/validate", summary="Valider / révoquer un barème (lève le verrou)")
+async def validate_bareme(
+    body: BaremeValidationIn,
+    country: str = "cg",
+    tenant_id: str = "local",
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    scale = load_payroll_scale(country)
+    val = await PayrollValidationRepository(session).set_validation(
+        tenant_id=tenant_id,
+        country=country,
+        version=scale.version,
+        validated=body.validated,
+        validated_by=body.validated_by,
+        note=body.note,
+    )
+    await session.commit()
+    return _bareme_payload(scale, val)
 
 
 # ---------------------------------------------------------------- DAS 1 (agrégation annuelle, PAIE-3)

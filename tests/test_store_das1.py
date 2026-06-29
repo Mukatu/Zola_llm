@@ -234,3 +234,47 @@ async def test_das1_rubriques_secondaires(tmp_path) -> None:  # type: ignore[no-
         assert "(j) INDEMNITÉS NON IMPOS." in entetes
         assert "(i) T.R." in entetes
         assert "TOL / CAMU" in entetes
+
+
+async def test_bareme_validation_leve_le_verrou(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    """PAIE-5 : le barème expose valeurs+sources et reste verrouillé tant qu'un
+    expert ne l'a pas validé ; la validation autorise l'émission définitive."""
+    async with _client(tmp_path) as ac:
+        b = (await ac.get("/v1/erp/payroll/bareme")).json()
+        assert b["valide_fichier"] is False
+        assert b["effectivement_valide"] is False
+        assert {"irpp", "its"} <= set(b["regimes"])
+        assert len(b["sources"]) >= 1 and "confiance" in b["sources"][0]
+        assert any(br["nom"] == "allocations_familiales" for br in b["cnss_branches"])
+
+        # verrou actif : émission définitive (sans allow_unvalidated) refusée
+        r = await ac.post(
+            "/v1/erp/payslips",
+            json={"employee_matricule": "X", "periode": "2026-01", "brut_mensuel_xaf": "300000"},
+        )
+        assert r.status_code == 409
+
+        # validation experte → lève le verrou (audité)
+        v = (
+            await ac.post(
+                "/v1/erp/payroll/bareme/validate",
+                json={"validated": True, "validated_by": "DRH", "note": "Conforme LF 2026"},
+            )
+        ).json()
+        assert v["effectivement_valide"] is True
+        assert v["validation"]["validated_by"] == "DRH"
+        assert v["validation"]["validated_at"] is not None
+
+        r2 = await ac.post(
+            "/v1/erp/payslips",
+            json={"employee_matricule": "X", "periode": "2026-01", "brut_mensuel_xaf": "300000"},
+        )
+        assert r2.status_code == 201
+
+        # révocation → le verrou se remet
+        await ac.post("/v1/erp/payroll/bareme/validate", json={"validated": False})
+        r3 = await ac.post(
+            "/v1/erp/payslips",
+            json={"employee_matricule": "Y", "periode": "2026-01", "brut_mensuel_xaf": "300000"},
+        )
+        assert r3.status_code == 409

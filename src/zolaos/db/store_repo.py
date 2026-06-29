@@ -6,6 +6,7 @@ Pattern repository sur AsyncSession : isole l'accès aux données. Multi-tenant
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any
 
@@ -36,6 +37,7 @@ from zolaos.db.store_models import (
     JournalEntryRecord,
     MarketingContactRecord,
     OpportunityRecord,
+    PayrollScaleValidationRecord,
     PayslipRecord,
     PurchaseBudgetRecord,
     PurchaseOrderRecord,
@@ -478,6 +480,47 @@ class PayslipRepository(_CrudRepo):
             return existing
         rec = PayslipRecord(**data)
         self._s.add(rec)
+        await self._s.flush()
+        return rec
+
+
+class PayrollValidationRepository:
+    """Validation experte d'un barème par (tenant, pays, version) — PAIE-5."""
+
+    def __init__(self, session: AsyncSession) -> None:
+        self._s = session
+
+    async def get(
+        self, *, tenant_id: str, country: str, version: str
+    ) -> PayrollScaleValidationRecord | None:
+        stmt = select(PayrollScaleValidationRecord).where(
+            PayrollScaleValidationRecord.tenant_id == tenant_id,
+            PayrollScaleValidationRecord.country == country,
+            PayrollScaleValidationRecord.version == version,
+        )
+        return (await self._s.scalars(stmt)).first()
+
+    async def set_validation(
+        self,
+        *,
+        tenant_id: str,
+        country: str,
+        version: str,
+        validated: bool,
+        validated_by: str,
+        note: str,
+    ) -> PayrollScaleValidationRecord:
+        rec = await self.get(tenant_id=tenant_id, country=country, version=version)
+        now = datetime.now(UTC) if validated else None
+        if rec is None:
+            rec = PayrollScaleValidationRecord(
+                tenant_id=tenant_id, country=country, version=version
+            )
+            self._s.add(rec)
+        rec.validated = validated
+        rec.validated_by = validated_by
+        rec.note = note
+        rec.validated_at = now
         await self._s.flush()
         return rec
 

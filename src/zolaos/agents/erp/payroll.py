@@ -23,6 +23,7 @@ import json
 from dataclasses import dataclass, field
 from decimal import ROUND_HALF_UP, Decimal
 from pathlib import Path
+from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -93,6 +94,8 @@ class PayrollScale(BaseModel):
     impot_minimum_annuel_xaf: Decimal = Field(default=_ZERO, ge=0)
     plafond_parts: Decimal = Field(default=Decimal("6.5"), gt=0)
     cnss_branches: list[CnssBranche] = Field(default_factory=list)
+    sources: list[dict[str, Any]] = Field(default_factory=list)
+    autres_charges_patronales_a_confirmer: list[dict[str, Any]] = Field(default_factory=list)
 
     def regime_pour_annee(self, annee: int) -> Regime | None:
         """Régime applicable à l'exercice (ITS dès `regime_its_depuis_annee`)."""
