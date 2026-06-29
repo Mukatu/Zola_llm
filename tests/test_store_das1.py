@@ -490,3 +490,49 @@ async def test_bulletin_modele_et_generation(tmp_path) -> None:  # type: ignore[
 
         # bulletin inexistant → 404
         assert (await ac.get("/v1/erp/payslips/inexistant/bulletin")).status_code == 404
+
+
+async def test_bulletin_gabarit_html(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    """PAIE-7b : gabarit HTML téléversé → placeholders remplis, script neutralisé."""
+    async with _client(tmp_path) as ac:
+        # placeholders disponibles
+        ph = (await ac.get("/v1/erp/payroll/bulletin-modele/placeholders")).json()
+        assert any(p["token"] == "{{bulletin.net}}" for p in ph["placeholders"])
+
+        gabarit = (
+            "<html><body><h1>{{modele.titre}}</h1>"
+            "<p>Salarié: {{salarie.matricule}} — Net: {{bulletin.net}}</p>"
+            "<table>{{table_cotisations}}</table>"
+            "<script>alert('xss')</script>"
+            '<a href="javascript:alert(1)">x</a></body></html>'
+        )
+        await ac.put(
+            "/v1/erp/payroll/bulletin-modele",
+            json={"titre": "PAIE SARL", "mode": "gabarit", "gabarit_html": gabarit},
+        )
+
+        r = await ac.post(
+            "/v1/erp/payslips",
+            json={
+                "employee_matricule": "E7",
+                "periode": "2026-04",
+                "brut_mensuel_xaf": "400000",
+                "allow_unvalidated": True,
+            },
+        )
+        pid = r.json()["id"]
+
+        g = await ac.get(f"/v1/erp/payslips/{pid}/bulletin/html")
+        assert g.status_code == 200
+        assert "text/html" in g.headers["content-type"]
+        body = g.text
+        assert "PAIE SARL" in body  # {{modele.titre}} remplacé
+        assert "E7" in body  # {{salarie.matricule}}
+        assert "<tr><td>" in body  # {{table_cotisations}} développé
+        # assainissement : plus de script ni de javascript:
+        assert "<script" not in body.lower()
+        assert "javascript:" not in body.lower()
+
+        # mode structuré sans gabarit → 400
+        await ac.put("/v1/erp/payroll/bulletin-modele", json={"titre": "X", "mode": "structure"})
+        assert (await ac.get(f"/v1/erp/payslips/{pid}/bulletin/html")).status_code == 400

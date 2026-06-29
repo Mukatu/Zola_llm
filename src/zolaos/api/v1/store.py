@@ -7,6 +7,8 @@ registre stocké (clôture continue). Multi-tenant via `tenant_id` (défaut loca
 
 from __future__ import annotations
 
+import html as _html
+import re
 from dataclasses import asdict
 from datetime import UTC, date, datetime
 from decimal import Decimal
@@ -2689,6 +2691,33 @@ _BULLETIN_MODELE_DEFAUT: dict[str, Any] = {
     "afficher_cotisations_patronales": False,
     "afficher_cout_employeur": True,
     "devise": "XAF",
+    "mode": "structure",  # "structure" (xlsx) | "gabarit" (HTML téléversé)
+    "gabarit_html": "",
+}
+
+# Placeholders autorisés dans un gabarit HTML (liste blanche — PAIE-7b)
+_BULLETIN_PLACEHOLDERS: dict[str, str] = {
+    "{{employeur.raison_sociale}}": "Raison sociale de l'employeur",
+    "{{employeur.bp}}": "Boîte postale",
+    "{{employeur.ville}}": "Ville",
+    "{{employeur.matricule_cnss}}": "Matricule CNSS employeur",
+    "{{employeur.n_contribuable}}": "N° contribuable employeur",
+    "{{salarie.matricule}}": "Matricule du salarié",
+    "{{salarie.nom}}": "Nom du salarié",
+    "{{salarie.poste}}": "Poste du salarié",
+    "{{bulletin.periode}}": "Période (AAAA-MM)",
+    "{{bulletin.brut}}": "Salaire brut",
+    "{{bulletin.base_imposable}}": "Base imposable",
+    "{{bulletin.irpp}}": "I.R.P.P.",
+    "{{bulletin.total_cotisations}}": "Total cotisations salariales",
+    "{{bulletin.net}}": "Net à payer",
+    "{{bulletin.cout_employeur}}": "Coût employeur",
+    "{{bulletin.devise}}": "Devise",
+    "{{modele.titre}}": "Titre du modèle",
+    "{{modele.mentions}}": "Mentions de bas de page",
+    "{{modele.logo_texte}}": "Texte du logo",
+    "{{table_rubriques}}": "Lignes <tr> des primes/retenues",
+    "{{table_cotisations}}": "Lignes <tr> des cotisations salariales",
 }
 
 
@@ -2700,6 +2729,8 @@ class BulletinModeleIn(BaseModel):
     afficher_cotisations_patronales: bool = False
     afficher_cout_employeur: bool = True
     devise: str = "XAF"
+    mode: str = "structure"
+    gabarit_html: str = ""
 
 
 async def _bulletin_modele(session: AsyncSession, tenant_id: str) -> dict[str, Any]:
@@ -2857,5 +2888,122 @@ async def download_bulletin(
     return Response(
         content=content,
         media_type=_XLSX_MEDIA,
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+# --------------------------------------------------- Gabarit HTML téléversable (PAIE-7b)
+
+_SCRIPT_RE = re.compile(r"<\s*script\b.*?<\s*/\s*script\s*>", re.IGNORECASE | re.DOTALL)
+_DANGER_TAGS_RE = re.compile(
+    r"<\s*/?\s*(iframe|object|embed|link|meta|base|form)\b[^>]*>", re.IGNORECASE
+)
+_ON_ATTR_RE = re.compile(r"""\s+on\w+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)""", re.IGNORECASE)
+_JS_URL_RE = re.compile(r"javascript:", re.IGNORECASE)
+
+
+def _sanitize_html(s: str) -> str:
+    """Neutralise l'exécutable d'un HTML téléversé (défense en profondeur).
+
+    La sûreté repose d'abord sur l'absence de moteur de template (simple
+    substitution de placeholders en liste blanche, jamais d'évaluation de code).
+    """
+    s = _SCRIPT_RE.sub("", s)
+    s = _DANGER_TAGS_RE.sub("", s)
+    s = _ON_ATTR_RE.sub("", s)
+    s = _JS_URL_RE.sub("", s)
+    return s
+
+
+def render_bulletin_html(
+    gabarit: str,
+    payslip: dict[str, Any],
+    employee: dict[str, Any] | None,
+    employeur: dict[str, str],
+    modele: dict[str, Any],
+    libelles: dict[str, str],
+) -> str:
+    """Remplit un gabarit HTML par substitution de placeholders en liste blanche."""
+    emp = employee or {}
+    valeurs = {
+        "{{employeur.raison_sociale}}": employeur.get("raison_sociale", ""),
+        "{{employeur.bp}}": employeur.get("bp", ""),
+        "{{employeur.ville}}": employeur.get("ville", ""),
+        "{{employeur.matricule_cnss}}": employeur.get("matricule_cnss", ""),
+        "{{employeur.n_contribuable}}": employeur.get("n_contribuable", ""),
+        "{{salarie.matricule}}": payslip.get("employee_matricule", ""),
+        "{{salarie.nom}}": emp.get("nom_complet", payslip.get("employee_matricule", "")),
+        "{{salarie.poste}}": emp.get("poste", ""),
+        "{{bulletin.periode}}": payslip.get("periode", ""),
+        "{{bulletin.brut}}": payslip.get("brut_xaf", ""),
+        "{{bulletin.base_imposable}}": payslip.get("base_imposable_xaf", ""),
+        "{{bulletin.irpp}}": payslip.get("irpp_xaf", ""),
+        "{{bulletin.total_cotisations}}": payslip.get("total_cotisations_salariales_xaf", ""),
+        "{{bulletin.net}}": payslip.get("net_a_payer_xaf", ""),
+        "{{bulletin.cout_employeur}}": payslip.get("cout_employeur_xaf", ""),
+        "{{bulletin.devise}}": modele.get("devise", "XAF"),
+        "{{modele.titre}}": modele.get("titre", ""),
+        "{{modele.mentions}}": modele.get("mentions", ""),
+        "{{modele.logo_texte}}": modele.get("logo_texte", ""),
+    }
+    out = _sanitize_html(gabarit)
+    for token, val in valeurs.items():
+        out = out.replace(token, _html.escape(str(val)))
+    # tables (cellules échappées)
+    rub_rows = "".join(
+        f"<tr><td>{_html.escape(libelles.get(code, code))}</td>"
+        f"<td>{_html.escape(str(montant))}</td></tr>"
+        for code, montant in (payslip.get("rubriques") or {}).items()
+    )
+    cot_rows = "".join(
+        f"<tr><td>{_html.escape(libelles.get(code, code))}</td>"
+        f"<td>{_html.escape(str(montant))}</td></tr>"
+        for code, montant in (payslip.get("cotisations_salariales") or {}).items()
+    )
+    out = out.replace("{{table_rubriques}}", rub_rows)
+    out = out.replace("{{table_cotisations}}", cot_rows)
+    return out
+
+
+@router.get(
+    "/payroll/bulletin-modele/placeholders", summary="Placeholders autorisés (gabarit HTML)"
+)
+async def bulletin_placeholders() -> dict[str, Any]:
+    return {
+        "placeholders": [{"token": k, "description": v} for k, v in _BULLETIN_PLACEHOLDERS.items()]
+    }
+
+
+@router.get("/payslips/{payslip_id}/bulletin/html", summary="Bulletin via gabarit HTML (.html)")
+async def download_bulletin_html(
+    payslip_id: str,
+    tenant_id: str = "local",
+    session: AsyncSession = Depends(get_session),
+    config_service: TenantConfigService = Depends(get_config_service),
+) -> Response:
+    p = await PayslipRepository(session).get(payslip_id, tenant_id=tenant_id)
+    if p is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="payslip_not_found")
+    modele = await _bulletin_modele(session, tenant_id)
+    gabarit = str(modele.get("gabarit_html") or "")
+    if not gabarit.strip():
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="aucun_gabarit")
+    emp = await EmployeeRepository(session).get_by_matricule(
+        p.employee_matricule, tenant_id=tenant_id
+    )
+    scale, _, _ = await _resolve_scale(session, tenant_id=tenant_id, country=p.country)
+    libelles = {r.code: r.libelle or r.code for r in scale.rubriques}
+    rendu = render_bulletin_html(
+        gabarit,
+        p.to_dict(),
+        emp.to_dict() if emp is not None else None,
+        _employeur(config_service, tenant_id),
+        modele,
+        libelles,
+    )
+    filename = f"bulletin_{p.employee_matricule}_{p.periode}.html"
+    return Response(
+        content=rendu,
+        media_type="text/html; charset=utf-8",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )

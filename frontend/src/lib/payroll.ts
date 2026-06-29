@@ -64,6 +64,8 @@ export interface BulletinModele {
   afficher_cotisations_patronales: boolean;
   afficher_cout_employeur: boolean;
   devise: string;
+  mode: "structure" | "gabarit";
+  gabarit_html: string;
 }
 export function getBulletinModele(): Promise<BulletinModele> {
   return api("/v1/erp/payroll/bulletin-modele");
@@ -71,19 +73,35 @@ export function getBulletinModele(): Promise<BulletinModele> {
 export function saveBulletinModele(b: BulletinModele): Promise<BulletinModele> {
   return api("/v1/erp/payroll/bulletin-modele", { method: "PUT", body: b });
 }
-export async function downloadBulletin(payslipId: string, label: string): Promise<void> {
+export function getBulletinPlaceholders(): Promise<{
+  placeholders: { token: string; description: string }[];
+}> {
+  return api("/v1/erp/payroll/bulletin-modele/placeholders");
+}
+async function _downloadBulletin(
+  payslipId: string,
+  label: string,
+  variante: "" | "/html",
+  ext: string,
+): Promise<void> {
   const base = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000";
   const token = getToken();
-  const r = await fetch(`${base}/v1/erp/payslips/${payslipId}/bulletin`, {
+  const r = await fetch(`${base}/v1/erp/payslips/${payslipId}/bulletin${variante}`, {
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   });
   if (!r.ok) throw new Error(`HTTP ${r.status}`);
   const url = URL.createObjectURL(await r.blob());
   const a = document.createElement("a");
   a.href = url;
-  a.download = `bulletin_${label}.xlsx`;
+  a.download = `bulletin_${label}.${ext}`;
   a.click();
   URL.revokeObjectURL(url);
+}
+export function downloadBulletin(payslipId: string, label: string): Promise<void> {
+  return _downloadBulletin(payslipId, label, "", "xlsx");
+}
+export function downloadBulletinHtml(payslipId: string, label: string): Promise<void> {
+  return _downloadBulletin(payslipId, label, "/html", "html");
 }
 
 // ----- DAS 1 / état annuel (PAIE-3) -----

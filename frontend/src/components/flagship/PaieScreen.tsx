@@ -17,6 +17,8 @@ import {
   payrollDas1,
   downloadDas1,
   downloadBulletin,
+  downloadBulletinHtml,
+  getBulletinModele,
   type PayslipRec,
   type PayrollDashboard,
   type Das1,
@@ -30,9 +32,16 @@ export function PaieScreen() {
   const [dash, setDash] = useState<PayrollDashboard | null>(null);
   const [form, setForm] = useState({ matricule: "", brut: "450000", sim: true });
   const [das1, setDas1] = useState<Das1 | null>(null);
+  const [gabaritActif, setGabaritActif] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
   const annee = periode.slice(0, 4);
+
+  useEffect(() => {
+    getBulletinModele()
+      .then((mo) => setGabaritActif(mo.mode === "gabarit" && !!mo.gabarit_html.trim()))
+      .catch(() => {});
+  }, [payslips]);
 
   const refresh = useCallback(async () => {
     try {
@@ -157,7 +166,10 @@ export function PaieScreen() {
                     </td>
                     <td className="pr-2">
                       <span className="flex items-center gap-2">
-                        <button onClick={() => downloadBulletin(p.id, `${p.employee_matricule}_${p.periode}`)} title="Télécharger le bulletin" className="text-primary hover:text-primary/80"><Download className="h-4 w-4" /></button>
+                        <button onClick={() => downloadBulletin(p.id, `${p.employee_matricule}_${p.periode}`)} title="Bulletin Excel" className="text-primary hover:text-primary/80"><Download className="h-4 w-4" /></button>
+                        {gabaritActif && (
+                          <button onClick={() => downloadBulletinHtml(p.id, `${p.employee_matricule}_${p.periode}`)} title="Bulletin HTML (gabarit)" className="text-xs font-semibold text-primary hover:text-primary/80">HTML</button>
+                        )}
                         {p.statut !== "valide" && (
                           <button onClick={() => pay(p.id)} title="Valider/payer" className="text-emerald-600 hover:text-emerald-800"><CheckCircle2 className="h-4 w-4" /></button>
                         )}
