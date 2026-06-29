@@ -40,6 +40,7 @@ from zolaos.db.store_models import (
     OpportunityRecord,
     PayrollScaleRecord,
     PayrollScaleValidationRecord,
+    PayrollVariableRecord,
     PayslipRecord,
     PayslipTemplateRecord,
     PurchaseBudgetRecord,
@@ -532,6 +533,38 @@ class EmployeeRubriqueRepository:
         await self._s.delete(rec)
         await self._s.flush()
         return True
+
+
+class PayrollVariableRepository:
+    """Variables de paie mensuelles par (tenant, matricule, période) — PAIE-8."""
+
+    def __init__(self, session: AsyncSession) -> None:
+        self._s = session
+
+    async def get(
+        self, *, tenant_id: str, employee_matricule: str, periode: str
+    ) -> PayrollVariableRecord | None:
+        stmt = select(PayrollVariableRecord).where(
+            PayrollVariableRecord.tenant_id == tenant_id,
+            PayrollVariableRecord.employee_matricule == employee_matricule,
+            PayrollVariableRecord.periode == periode,
+        )
+        return (await self._s.scalars(stmt)).first()
+
+    async def upsert(
+        self, *, tenant_id: str, employee_matricule: str, periode: str, payload: dict[str, Any]
+    ) -> PayrollVariableRecord:
+        rec = await self.get(
+            tenant_id=tenant_id, employee_matricule=employee_matricule, periode=periode
+        )
+        if rec is None:
+            rec = PayrollVariableRecord(
+                tenant_id=tenant_id, employee_matricule=employee_matricule, periode=periode
+            )
+            self._s.add(rec)
+        rec.payload = payload
+        await self._s.flush()
+        return rec
 
 
 class PayslipTemplateRepository:

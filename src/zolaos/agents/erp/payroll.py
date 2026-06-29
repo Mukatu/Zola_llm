@@ -112,6 +112,7 @@ class PayrollScale(BaseModel):
     regime_its_depuis_annee: int = 2026
     impot_minimum_annuel_xaf: Decimal = Field(default=_ZERO, ge=0)
     plafond_parts: Decimal = Field(default=Decimal("6.5"), gt=0)
+    heures_mensuelles: Decimal = Field(default=Decimal("173.33"), gt=0)  # base taux horaire
     cnss_branches: list[CnssBranche] = Field(default_factory=list)
     rubriques: list[Rubrique] = Field(default_factory=list)
     sources: list[dict[str, Any]] = Field(default_factory=list)

@@ -96,6 +96,7 @@ from zolaos.db.store_repo import (
     JournalRepository,
     PayrollScaleRepository,
     PayrollValidationRepository,
+    PayrollVariableRepository,
     PayslipRepository,
     PayslipTemplateRepository,
     PurchaseBudgetRepository,
@@ -2042,6 +2043,58 @@ async def _rubriques_effectives(
     return list(eff.values())
 
 
+def _variables_rubriques(
+    payload: dict[str, Any], *, brut: Decimal, heures_mensuelles: Decimal
+) -> list[Rubrique]:
+    """Convertit les variables du mois (heures sup, primes/retenues ponctuelles) en rubriques.
+
+    Heures sup : montant = heures × (brut / heures_mensuelles) × (1 + taux de majoration).
+    Imposables et soumises CNSS (rémunération du travail).
+    """
+    out: list[Rubrique] = []
+    taux_horaire = brut / heures_mensuelles if heures_mensuelles > 0 else Decimal("0")
+    for i, hs in enumerate(payload.get("heures_sup") or [], start=1):
+        heures = Decimal(str(hs.get("heures", "0")))
+        taux = Decimal(str(hs.get("taux", "0")))
+        if heures <= 0:
+            continue
+        montant = (taux_horaire * heures * (Decimal("1") + taux)).quantize(Decimal("1"))
+        out.append(
+            Rubrique(
+                code=f"hs_{i}",
+                libelle=f"Heures sup. +{(taux * 100).quantize(Decimal('1'))}%",
+                type="gain",
+                mode="fixe",
+                valeur=montant,
+                imposable=True,
+                soumis_cnss=True,
+            )
+        )
+    for i, p in enumerate(payload.get("primes") or [], start=1):
+        out.append(
+            Rubrique(
+                code=f"prime_ponct_{i}",
+                libelle=str(p.get("libelle") or f"Prime {i}"),
+                type="gain",
+                mode="fixe",
+                valeur=Decimal(str(p.get("montant", "0"))),
+                imposable=bool(p.get("imposable", False)),
+                soumis_cnss=bool(p.get("soumis_cnss", False)),
+            )
+        )
+    for i, r in enumerate(payload.get("retenues") or [], start=1):
+        out.append(
+            Rubrique(
+                code=f"retenue_ponct_{i}",
+                libelle=str(r.get("libelle") or f"Retenue {i}"),
+                type="retenue",
+                mode="fixe",
+                valeur=Decimal(str(r.get("montant", "0"))),
+            )
+        )
+    return out
+
+
 class PayslipIn(BaseModel):
     employee_matricule: str
     periode: str  # AAAA-MM
@@ -2084,6 +2137,13 @@ async def create_payslip(
     rubriques = await _rubriques_effectives(
         session, scale, tenant_id=tenant_id, matricule=body.employee_matricule
     )
+    var = await PayrollVariableRepository(session).get(
+        tenant_id=tenant_id, employee_matricule=body.employee_matricule, periode=body.periode
+    )
+    if var is not None:
+        rubriques = rubriques + _variables_rubriques(
+            var.payload, brut=body.brut_mensuel_xaf, heures_mensuelles=scale.heures_mensuelles
+        )
     try:
         result = _payroll_calc.compute(
             body.brut_mensuel_xaf,
@@ -2414,6 +2474,64 @@ async def delete_employee_rubrique(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="affectation_introuvable")
     await session.commit()
     return {"deleted": code}
+
+
+# ------------------------------------------------- Variables de paie mensuelles (PAIE-8)
+
+
+class HeureSupIn(BaseModel):
+    taux: Decimal = Decimal("0")  # majoration (0.10, 0.25, 0.50, 1.00)
+    heures: Decimal = Decimal("0")
+
+
+class PrimePonctIn(BaseModel):
+    libelle: str = ""
+    montant: Decimal = Decimal("0")
+    imposable: bool = False
+    soumis_cnss: bool = False
+
+
+class RetenuePonctIn(BaseModel):
+    libelle: str = ""
+    montant: Decimal = Decimal("0")
+
+
+class VariablesIn(BaseModel):
+    heures_sup: list[HeureSupIn] = Field(default_factory=list)
+    primes: list[PrimePonctIn] = Field(default_factory=list)
+    retenues: list[RetenuePonctIn] = Field(default_factory=list)
+
+
+@router.get("/employees/{matricule}/variables", summary="Variables de paie du mois d'un salarié")
+async def get_variables(
+    matricule: str,
+    periode: str,
+    tenant_id: str = "local",
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    rec = await PayrollVariableRepository(session).get(
+        tenant_id=tenant_id, employee_matricule=matricule, periode=periode
+    )
+    payload = rec.payload if rec is not None else {"heures_sup": [], "primes": [], "retenues": []}
+    return {"matricule": matricule, "periode": periode, **payload}
+
+
+@router.put("/employees/{matricule}/variables", summary="Enregistrer les variables du mois")
+async def set_variables(
+    matricule: str,
+    body: VariablesIn,
+    periode: str,
+    tenant_id: str = "local",
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    rec = await PayrollVariableRepository(session).upsert(
+        tenant_id=tenant_id,
+        employee_matricule=matricule,
+        periode=periode,
+        payload=body.model_dump(mode="json"),
+    )
+    await session.commit()
+    return {"matricule": matricule, "periode": periode, **rec.payload}
 
 
 # ---------------------------------------------------------------- DAS 1 (agrégation annuelle, PAIE-3)

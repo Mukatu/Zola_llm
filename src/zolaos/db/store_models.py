@@ -1366,6 +1366,33 @@ class PayslipRecord(StoreBase):
         }
 
 
+class PayrollVariableRecord(StoreBase):
+    """Variables de paie d'un salarié pour une période (PAIE-8).
+
+    `payload` : heures supplémentaires, primes et retenues ponctuelles du mois.
+    Converties en rubriques ad hoc à l'émission du bulletin de la période.
+    """
+
+    __tablename__ = "store_payroll_variables"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    tenant_id: Mapped[str] = mapped_column(String(64), index=True)
+    employee_matricule: Mapped[str] = mapped_column(String(32), index=True)
+    periode: Mapped[str] = mapped_column(String(7))  # AAAA-MM
+    payload: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_now, onupdate=_now
+    )
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "employee_matricule": self.employee_matricule,
+            "periode": self.periode,
+            "payload": self.payload,
+        }
+
+
 class PayslipTemplateRecord(StoreBase):
     """Modèle de bulletin de paie personnalisé par tenant (PAIE-7a).
 

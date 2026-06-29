@@ -536,3 +536,44 @@ async def test_bulletin_gabarit_html(tmp_path) -> None:  # type: ignore[no-untyp
         # mode structuré sans gabarit → 400
         await ac.put("/v1/erp/payroll/bulletin-modele", json={"titre": "X", "mode": "structure"})
         assert (await ac.get(f"/v1/erp/payslips/{pid}/bulletin/html")).status_code == 400
+
+
+async def test_variables_mensuelles(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    """PAIE-8 : heures sup + prime/retenue ponctuelles du mois alimentent le bulletin."""
+    async with _client(tmp_path) as ac:
+
+        async def emit() -> dict:  # type: ignore[type-arg]
+            r = await ac.post(
+                "/v1/erp/payslips",
+                json={
+                    "employee_matricule": "V1",
+                    "periode": "2026-06",
+                    "brut_mensuel_xaf": "400000",
+                    "allow_unvalidated": True,
+                },
+            )
+            assert r.status_code == 201
+            return r.json()
+
+        net0 = Decimal((await emit())["net_a_payer_xaf"])
+
+        # saisir les variables du mois
+        await ac.put(
+            "/v1/erp/employees/V1/variables?periode=2026-06",
+            json={
+                "heures_sup": [{"taux": "0.25", "heures": "10"}],
+                "primes": [{"libelle": "Prime expo", "montant": "50000", "imposable": False}],
+                "retenues": [{"libelle": "Avance", "montant": "15000"}],
+            },
+        )
+
+        bull = await emit()
+        rub = bull["rubriques"]
+        assert "hs_1" in rub and Decimal(rub["hs_1"]) > 0  # heures sup calculées
+        assert rub["prime_ponct_1"] == "50000"
+        assert rub["retenue_ponct_1"] == "-15000"
+        assert Decimal(bull["net_a_payer_xaf"]) > net0  # gains nets > retenue
+
+        v = (await ac.get("/v1/erp/employees/V1/variables?periode=2026-06")).json()
+        assert v["heures_sup"][0]["heures"] == "10"
+        assert v["primes"][0]["libelle"] == "Prime expo"

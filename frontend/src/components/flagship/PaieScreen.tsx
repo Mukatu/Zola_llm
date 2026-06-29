@@ -5,6 +5,7 @@ import { Wallet, AlertCircle, CheckCircle2, Trash2, FileSpreadsheet, Download, F
 import { Card, Button } from "../ui";
 import { BaremePanel } from "./BaremePanel";
 import { EmployeeRubriquesPanel } from "./EmployeeRubriquesPanel";
+import { VariablesMoisPanel } from "./VariablesMoisPanel";
 import { BulletinModelePanel } from "./BulletinModelePanel";
 import { ApiError } from "@/lib/api";
 import { fmt } from "@/lib/data";
@@ -243,6 +244,7 @@ export function PaieScreen() {
 
       <BaremePanel />
       <EmployeeRubriquesPanel />
+      <VariablesMoisPanel />
       <BulletinModelePanel />
     </div>
   );

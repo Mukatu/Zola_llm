@@ -78,6 +78,44 @@ export function getBulletinPlaceholders(): Promise<{
 }> {
   return api("/v1/erp/payroll/bulletin-modele/placeholders");
 }
+
+// ----- Variables de paie mensuelles (PAIE-8) -----
+export interface HeureSup {
+  taux: string;
+  heures: string;
+}
+export interface PrimePonct {
+  libelle: string;
+  montant: string;
+  imposable: boolean;
+  soumis_cnss: boolean;
+}
+export interface RetenuePonct {
+  libelle: string;
+  montant: string;
+}
+export interface VariablesMois {
+  matricule: string;
+  periode: string;
+  heures_sup: HeureSup[];
+  primes: PrimePonct[];
+  retenues: RetenuePonct[];
+}
+export function getVariables(matricule: string, periode: string): Promise<VariablesMois> {
+  return api(
+    `/v1/erp/employees/${encodeURIComponent(matricule)}/variables?periode=${encodeURIComponent(periode)}`,
+  );
+}
+export function saveVariables(
+  matricule: string,
+  periode: string,
+  body: { heures_sup: HeureSup[]; primes: PrimePonct[]; retenues: RetenuePonct[] },
+): Promise<VariablesMois> {
+  return api(
+    `/v1/erp/employees/${encodeURIComponent(matricule)}/variables?periode=${encodeURIComponent(periode)}`,
+    { method: "PUT", body },
+  );
+}
 async function _downloadBulletin(
   payslipId: string,
   label: string,
