@@ -33,14 +33,19 @@ _MOIS = (
 
 
 class LignePaie(BaseModel):
-    """Un bulletin mensuel agrégeable (extrait de `store_payslips`)."""
+    """Un bulletin mensuel agrégeable (extrait de `store_payslips`).
+
+    `cotisations_salariales_xaf` = cotisations salariales retenues (retraite CNSS),
+    déjà plafonnées au mois par le calculateur de paie ; la DAS 1 les déduit du
+    brut pour obtenir le **salaire plafonné** (brut net de retraite).
+    """
 
     model_config = {"extra": "forbid"}
 
     matricule: str
     mois: int = Field(..., ge=1, le=12)
     brut_xaf: Decimal = _ZERO
-    base_imposable_xaf: Decimal = _ZERO
+    cotisations_salariales_xaf: Decimal = _ZERO
     irpp_xaf: Decimal = _ZERO
 
 
@@ -111,31 +116,28 @@ def construire_das1(
     salaries: list[Salarie],
     *,
     exercice: str,
-    plafond_mensuel_xaf: Decimal | None = None,
+    abattement_taux: Decimal = Decimal("0.20"),
 ) -> Das1:
     """Consolide les bulletins mensuels en état annuel + DAS 1 (déterministe).
 
-    `plafond_mensuel_xaf` (barème CNSS) borne le salaire plafonné mensuel ;
-    None ⇒ pas de plafonnement.
+    Règles légales reproduites du formulaire DAS 1 / CNSS 1 (Congo) :
+    - **salaire plafonné** = brut annuel − cotisations salariales (retraite CNSS,
+      déjà plafonnées au mois) ;
+    - **base imposable** = (1 − `abattement_taux`) × salaire plafonné
+      (abattement de 20 % ⇒ 80 % du salaire net de retraite).
     """
     noms = {s.matricule: s.nom for s in salaries}
     par_sal = {s.matricule: s for s in salaries}
+    abattement = Decimal("1") - abattement_taux
 
     # agrégats par matricule
     mensuels: dict[str, list[Decimal]] = defaultdict(lambda: [_ZERO] * 12)
-    plafonne: dict[str, Decimal] = defaultdict(lambda: _ZERO)
-    base_imp: dict[str, Decimal] = defaultdict(lambda: _ZERO)
+    cotis: dict[str, Decimal] = defaultdict(lambda: _ZERO)
     irpp: dict[str, Decimal] = defaultdict(lambda: _ZERO)
     for lp in lignes_paie:
         mensuels[lp.matricule][lp.mois - 1] += lp.brut_xaf
-        base_imp[lp.matricule] += lp.base_imposable_xaf
+        cotis[lp.matricule] += lp.cotisations_salariales_xaf
         irpp[lp.matricule] += lp.irpp_xaf
-        plaf = (
-            min(lp.brut_xaf, plafond_mensuel_xaf)
-            if plafond_mensuel_xaf is not None
-            else lp.brut_xaf
-        )
-        plafonne[lp.matricule] += plaf
 
     matricules = sorted(set(mensuels) | {s.matricule for s in salaries})
 
@@ -157,8 +159,8 @@ def construire_das1(
         )
         s = par_sal.get(m)
         brut_a = total
-        plaf_a = _xaf(plafonne.get(m, _ZERO))
-        base_a = _xaf(base_imp.get(m, _ZERO))
+        plaf_a = brut_a - _xaf(cotis.get(m, _ZERO))  # salaire net de retraite
+        base_a = _xaf(abattement * plaf_a)  # 80 % du salaire plafonné
         das1_lignes.append(
             Das1Ligne(
                 matricule=m,

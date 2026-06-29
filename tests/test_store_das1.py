@@ -45,19 +45,32 @@ async def _client(tmp_path):  # type: ignore[no-untyped-def]
 
 
 def test_construire_das1_agrege() -> None:
+    # cotisations salariales (retraite 4 %) déjà calculées au mois : 4 % de 500k = 20 000
     lignes = [
         LignePaie(
-            matricule="E1", mois=1, brut_xaf="500000", base_imposable_xaf="400000", irpp_xaf="20000"
+            matricule="E1",
+            mois=1,
+            brut_xaf="500000",
+            cotisations_salariales_xaf="20000",
+            irpp_xaf="20000",
         ),
         LignePaie(
-            matricule="E1", mois=2, brut_xaf="500000", base_imposable_xaf="400000", irpp_xaf="20000"
+            matricule="E1",
+            mois=2,
+            brut_xaf="500000",
+            cotisations_salariales_xaf="20000",
+            irpp_xaf="20000",
         ),
         LignePaie(
-            matricule="E2", mois=1, brut_xaf="300000", base_imposable_xaf="240000", irpp_xaf="5000"
+            matricule="E2",
+            mois=1,
+            brut_xaf="300000",
+            cotisations_salariales_xaf="12000",
+            irpp_xaf="5000",
         ),
     ]
     salaries = [Salarie(matricule="E1", nom="AWA", sexe="F", profession="Cadre")]
-    das1 = construire_das1(lignes, salaries, exercice="2026", plafond_mensuel_xaf=Decimal("450000"))
+    das1 = construire_das1(lignes, salaries, exercice="2026")
     assert das1.nb_salaries == 2
     assert das1.total_brut_xaf == Decimal("1300000")  # 1M + 300k
     e1 = next(x for x in das1.etat_annuel if x.matricule == "E1")
@@ -65,9 +78,10 @@ def test_construire_das1_agrege() -> None:
     assert e1.total_xaf == Decimal("1000000")
     d1 = next(x for x in das1.lignes if x.matricule == "E1")
     assert d1.nom == "AWA"
-    # plafonné : min(500k, 450k) × 2 mois = 900k
-    assert d1.salaire_plafonne_xaf == Decimal("900000")
-    assert d1.base_imposable_xaf == Decimal("800000")  # 2 × 400k
+    # salaire plafonné = brut net de retraite : 1 000 000 − (2 × 20 000) = 960 000
+    assert d1.salaire_plafonne_xaf == Decimal("960000")
+    # base imposable = 80 % du salaire plafonné : 0,8 × 960 000 = 768 000
+    assert d1.base_imposable_xaf == Decimal("768000")
 
 
 async def test_das1_endpoints_and_export(tmp_path) -> None:  # type: ignore[no-untyped-def]
@@ -125,3 +139,61 @@ async def test_das1_endpoints_and_export(tmp_path) -> None:  # type: ignore[no-u
         assert "spreadsheetml" in r.headers["content-type"]
         wb = openpyxl.load_workbook(BytesIO(r.content))
         assert {"ETAT ANNUEL BRUT & IRPP", "DAS 1"} <= set(wb.sheetnames)
+
+
+# Points de référence relevés sur la DAS 1 réelle (CONGO TELECOM, exercice 2022) :
+# (brut annuel, salaire plafonné = brut net retraite, base imposable = 80 % plafonné).
+# Cf. règle légale : retraite CNSS 4 % plafonnée à 14 400 000/an, puis abattement 20 %.
+_REF_DAS1_2022 = [
+    (4550563, 4368541, 3494833),  # ABONDO
+    (4100866, 3936833, 3149466),  # ABOUMBA
+    (5085314, 4881905, 3905524),  # ADOUA
+    (2932425, 2815130, 2252104),  # AKA
+    (4617447, 4432749, 3546199),  # AKENZE
+]
+_TAUX_RETRAITE = Decimal("0.04")
+_PLAFOND_RETRAITE_ANNUEL = Decimal("14400000")
+_ABATTEMENT = Decimal("0.20")
+
+
+def _q(v: Decimal) -> Decimal:
+    return v.quantize(Decimal("1"), rounding="ROUND_HALF_UP")
+
+
+def test_regle_das1_reproduit_le_fichier_reel() -> None:
+    """La règle (retraite 4 % plafonnée puis base = 80 % du net) retombe sur les
+    chiffres réels de la DAS 1 VBA. Le fichier arrondit la retraite *au mois* ; en
+    repartant du brut annuel, l'écart résiduel reste du bruit d'arrondi (±10 XAF
+    sur des montants de ~5 M, soit < 0,001 %), ce qui confirme l'identité de règle."""
+    for brut, plafonne_ref, base_ref in _REF_DAS1_2022:
+        b = Decimal(brut)
+        retraite = _q(_TAUX_RETRAITE * min(b, _PLAFOND_RETRAITE_ANNUEL))
+        plafonne = b - retraite
+        base = _q((Decimal("1") - _ABATTEMENT) * plafonne)
+        assert abs(plafonne - Decimal(plafonne_ref)) <= 10, (brut, plafonne, plafonne_ref)
+        assert abs(base - Decimal(base_ref)) <= 10, (brut, base, base_ref)
+
+
+async def test_das1_chaine_reelle_plafonne_et_base(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    """Bout en bout : émission de bulletins via le calculateur de paie → la DAS 1
+    affiche salaire plafonné = brut net de retraite et base = 80 % du plafonné."""
+    async with _client(tmp_path) as ac:
+        # 12 mois à 400 000 : retraite 4 % = 16 000/mois (sous le plafond 1 200 000)
+        for mois in range(1, 13):
+            r = await ac.post(
+                "/v1/erp/payslips",
+                json={
+                    "employee_matricule": "E1",
+                    "periode": f"2026-{mois:02d}",
+                    "brut_mensuel_xaf": "400000",
+                    "allow_unvalidated": True,
+                },
+            )
+            assert r.status_code == 201
+
+        das1 = (await ac.get("/v1/erp/payroll/das1?annee=2026")).json()
+        e1 = next(x for x in das1["lignes"] if x["matricule"] == "E1")
+        # brut 4 800 000 − retraite 192 000 = 4 608 000 ; base = 80 % = 3 686 400
+        assert e1["brut_annuel_xaf"] == "4800000"
+        assert e1["salaire_plafonne_xaf"] == "4608000"
+        assert e1["base_imposable_xaf"] == "3686400"

@@ -2145,7 +2145,7 @@ async def _build_das1(session: AsyncSession, *, tenant_id: str, annee: str) -> D
             matricule=p.employee_matricule,
             mois=int(p.periode[5:7]),
             brut_xaf=p.brut_xaf,
-            base_imposable_xaf=p.base_imposable_xaf,
+            cotisations_salariales_xaf=p.total_cotisations_salariales_xaf,
             irpp_xaf=p.irpp_xaf,
         )
         for p in payslips
@@ -2170,7 +2170,7 @@ async def _build_das1(session: AsyncSession, *, tenant_id: str, annee: str) -> D
     ]
     scale = load_payroll_scale("cg")
     return construire_das1(
-        lignes, salaries, exercice=annee, plafond_mensuel_xaf=scale.cnss_plafond_xaf
+        lignes, salaries, exercice=annee, abattement_taux=scale.abattement_irpp_taux
     )
 
 
