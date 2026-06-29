@@ -201,6 +201,13 @@ class EmployeeRepository:
             return None
         return rec
 
+    async def get_by_matricule(self, matricule: str, *, tenant_id: str) -> EmployeeRecord | None:
+        stmt = select(EmployeeRecord).where(
+            EmployeeRecord.tenant_id == tenant_id,
+            EmployeeRecord.matricule == matricule,
+        )
+        return (await self._s.scalars(stmt)).first()
+
     async def list(self, *, tenant_id: str) -> list[EmployeeRecord]:
         stmt = (
             select(EmployeeRecord)

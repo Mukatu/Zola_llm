@@ -46,6 +46,23 @@ class IrppTranche(BaseModel):
     taux: Decimal = Field(..., ge=0, le=1)
 
 
+class Regime(BaseModel):
+    """Régime d'imposition des salaires (IRPP ≤2025, ITS ≥2026) — PAIE-4."""
+
+    label: str = ""
+    bareme: list[IrppTranche] = Field(default_factory=list)
+
+
+class CnssBranche(BaseModel):
+    """Branche de cotisation CNSS, avec assiette plafonnée propre — PAIE-4."""
+
+    nom: str
+    label: str = ""
+    taux_salarie: Decimal = Field(default=_ZERO, ge=0, le=1)
+    taux_employeur: Decimal = Field(default=_ZERO, ge=0, le=1)
+    plafond_mensuel_xaf: Decimal | None = None
+
+
 class PayrollScale(BaseModel):
     """Barème de paie paramétrable (ressource `ref`)."""
 
@@ -69,6 +86,33 @@ class PayrollScale(BaseModel):
     # Forfaits annuels DAS 1 par salarié (taxe régionale, TOL/CAMU) — 0 ⇒ à sourcer
     taxe_regionale_annuelle_xaf: Decimal = Field(default=_ZERO, ge=0)
     tol_camu_annuel_xaf: Decimal = Field(default=_ZERO, ge=0)
+
+    # --- structure sourcée PAIE-4 (optionnelle ; active le calcul régime + parts) ---
+    regimes: dict[str, Regime] = Field(default_factory=dict)
+    regime_its_depuis_annee: int = 2026
+    impot_minimum_annuel_xaf: Decimal = Field(default=_ZERO, ge=0)
+    plafond_parts: Decimal = Field(default=Decimal("6.5"), gt=0)
+    cnss_branches: list[CnssBranche] = Field(default_factory=list)
+
+    def regime_pour_annee(self, annee: int) -> Regime | None:
+        """Régime applicable à l'exercice (ITS dès `regime_its_depuis_annee`)."""
+        if not self.regimes:
+            return None
+        cle = "its" if annee >= self.regime_its_depuis_annee else "irpp"
+        return self.regimes.get(cle)
+
+
+def parts_fiscales(
+    situation_matrimoniale: str, nb_enfants: int, *, plafond: Decimal = Decimal("6.5")
+) -> Decimal:
+    """Quotient familial CG : 2 parts si marié sinon 1, +0,5 par enfant, plafonné.
+
+    Simplification documentée : la majoration « 1er enfant d'un parent isolé »
+    n'est pas distinguée (à affiner avec la convention applicable). PAIE-4.
+    """
+    base = Decimal("2") if situation_matrimoniale.strip().lower() == "marie" else Decimal("1")
+    parts = base + Decimal("0.5") * Decimal(max(0, nb_enfants))
+    return min(parts, plafond)
 
 
 @dataclass(frozen=True)
@@ -117,14 +161,56 @@ class PayrollCalculator:
 
     name = "erp.payroll"
 
+    @staticmethod
+    def _cotisations_par_branche(
+        brut: Decimal, branches: list[CnssBranche]
+    ) -> tuple[dict[str, Decimal], dict[str, Decimal]]:
+        """Cotisations salariales/patronales par branche CNSS (assiette plafonnée propre)."""
+        cot_sal: dict[str, Decimal] = {}
+        cot_pat: dict[str, Decimal] = {}
+        for br in branches:
+            assiette = _plafonne(brut, br.plafond_mensuel_xaf)
+            cot_sal[br.nom] = _xaf(assiette * br.taux_salarie)
+            cot_pat[br.nom] = _xaf(assiette * br.taux_employeur)
+        return cot_sal, cot_pat
+
+    @staticmethod
+    def _impot_avec_parts(
+        base_mensuelle: Decimal,
+        bareme: list[IrppTranche],
+        parts: Decimal,
+        minimum_annuel: Decimal,
+    ) -> Decimal:
+        """Impôt mensuel = barème annuel appliqué à la base par part × parts ÷ 12.
+
+        Séquence officielle CG : annualisation → quotient familial → barème
+        progressif par part → reconstitution → mensualisation.
+        """
+        parts = parts if parts > 0 else Decimal("1")
+        base_annuelle = base_mensuelle * 12
+        base_par_part = base_annuelle / parts
+        impot_par_part = _irpp(base_par_part, bareme)
+        impot_annuel = impot_par_part * parts
+        if base_annuelle > 0:
+            impot_annuel = max(impot_annuel, minimum_annuel)
+        return _xaf(impot_annuel / 12)
+
     def compute(
         self,
         brut_mensuel_xaf: Decimal,
         *,
         scale: PayrollScale,
         allow_unvalidated: bool = False,
+        parts: Decimal = Decimal("1"),
+        annee: int | None = None,
     ) -> PayrollResult:
-        """Calcule un bulletin. Lève `PayrollScaleNotValidated` si barème non validé."""
+        """Calcule un bulletin. Lève `PayrollScaleNotValidated` si barème non validé.
+
+        Si le barème porte des `cnss_branches` et/ou des `regimes` (PAIE-4), le
+        calcul utilise les branches CNSS plafonnées par assiette et l'impôt par
+        régime (IRPP/ITS selon `annee`) avec quotient familial (`parts`). Sinon il
+        retombe sur le calcul historique à barème plat (rétrocompatible).
+        """
         if not scale.validated and not allow_unvalidated:
             raise PayrollScaleNotValidated(
                 f"Barème {scale.country}/{scale.version} non validé : émission de bulletin "
@@ -134,32 +220,41 @@ class PayrollCalculator:
             raise ValueError("Le salaire brut ne peut être négatif.")
 
         brut = brut_mensuel_xaf
-        assiette_cnss = _plafonne(brut, scale.cnss_plafond_xaf)
 
-        # --- cotisations salariales ---
-        cot_sal: dict[str, Decimal] = {
-            "cnss": _xaf(assiette_cnss * scale.cnss_salarie_taux),
-            "cipres": _xaf(brut * scale.cipres_salarie_taux),
-        }
+        # --- cotisations salariales + patronales ---
+        if scale.cnss_branches:
+            cot_sal, cot_pat = self._cotisations_par_branche(brut, scale.cnss_branches)
+        else:
+            assiette_cnss = _plafonne(brut, scale.cnss_plafond_xaf)
+            cot_sal = {
+                "cnss": _xaf(assiette_cnss * scale.cnss_salarie_taux),
+                "cipres": _xaf(brut * scale.cipres_salarie_taux),
+            }
+            cot_pat = {
+                "cnss_employeur": _xaf(assiette_cnss * scale.cnss_employeur_taux),
+                "allocations_familiales": _xaf(brut * scale.allocations_familiales_taux),
+                "accident_travail": _xaf(brut * scale.accident_travail_taux),
+                "taxe_sur_salaires": _xaf(brut * scale.taxe_sur_salaires_taux),
+            }
         cot_sal = {k: v for k, v in cot_sal.items() if v > 0}
+        cot_pat = {k: v for k, v in cot_pat.items() if v > 0}
         total_cot_sal = sum(cot_sal.values(), _ZERO)
 
-        # --- base imposable IRPP ---
+        # --- base imposable ---
         base_brute = brut - total_cot_sal
         abattement = _xaf(base_brute * scale.abattement_irpp_taux)
         base_imposable = max(_ZERO, base_brute - abattement)
-        irpp = _xaf(_irpp(base_imposable, scale.irpp_bareme))
+
+        # --- impôt (IRPP/ITS) ---
+        regime = scale.regime_pour_annee(annee) if annee is not None else None
+        if regime is not None and regime.bareme:
+            irpp = self._impot_avec_parts(
+                base_imposable, regime.bareme, parts, scale.impot_minimum_annuel_xaf
+            )
+        else:
+            irpp = _xaf(_irpp(base_imposable, scale.irpp_bareme))
 
         net = brut - total_cot_sal - irpp
-
-        # --- cotisations patronales (coût employeur, non déduites du net) ---
-        cot_pat: dict[str, Decimal] = {
-            "cnss_employeur": _xaf(assiette_cnss * scale.cnss_employeur_taux),
-            "allocations_familiales": _xaf(brut * scale.allocations_familiales_taux),
-            "accident_travail": _xaf(brut * scale.accident_travail_taux),
-            "taxe_sur_salaires": _xaf(brut * scale.taxe_sur_salaires_taux),
-        }
-        cot_pat = {k: v for k, v in cot_pat.items() if v > 0}
         cout_employeur = brut + sum(cot_pat.values(), _ZERO)
 
         return PayrollResult(

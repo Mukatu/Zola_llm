@@ -57,6 +57,7 @@ from zolaos.agents.erp.payroll import (
     PayrollCalculator,
     PayrollScaleNotValidated,
     load_payroll_scale,
+    parts_fiscales,
 )
 from zolaos.agents.erp.reconciliation import reconcilier
 from zolaos.agents.erp.supply import StockItem, alertes_rupture, analyser_reappro
@@ -2028,9 +2029,23 @@ async def create_payslip(
     session: AsyncSession = Depends(get_session),
 ) -> dict[str, Any]:
     scale = load_payroll_scale(body.country)
+    # Quotient familial depuis le registre du personnel (si l'employé est connu)
+    emp = await EmployeeRepository(session).get_by_matricule(
+        body.employee_matricule, tenant_id=tenant_id
+    )
+    parts = (
+        parts_fiscales(emp.situation_matrimoniale, emp.nb_enfants, plafond=scale.plafond_parts)
+        if emp is not None
+        else Decimal("1")
+    )
+    annee = int(body.periode[:4]) if len(body.periode) >= 4 and body.periode[:4].isdigit() else None
     try:
         result = _payroll_calc.compute(
-            body.brut_mensuel_xaf, scale=scale, allow_unvalidated=body.allow_unvalidated
+            body.brut_mensuel_xaf,
+            scale=scale,
+            allow_unvalidated=body.allow_unvalidated,
+            parts=parts,
+            annee=annee,
         )
     except PayrollScaleNotValidated as exc:
         raise HTTPException(

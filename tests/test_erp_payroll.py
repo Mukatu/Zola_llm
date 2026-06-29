@@ -14,12 +14,15 @@ from decimal import Decimal
 import pytest
 
 from zolaos.agents.erp.payroll import (
+    CnssBranche,
     IrppTranche,
     PayrollCalculator,
     PayrollScale,
     PayrollScaleNotValidated,
+    Regime,
     _irpp,
     load_payroll_scale,
+    parts_fiscales,
 )
 
 
@@ -89,3 +92,99 @@ def test_cnss_plafond_caps_assiette() -> None:
 def test_negative_brut_rejected() -> None:
     with pytest.raises(ValueError):
         PayrollCalculator().compute(Decimal("-1"), scale=_simple_scale())
+
+
+# ---------------------------------------------------------------- PAIE-4 (barème sourcé)
+
+
+def test_seed_cg_structure_sourcee() -> None:
+    """Le barème cg embarque les deux régimes et les branches CNSS, et reste non validé."""
+    scale = load_payroll_scale("cg")
+    assert scale.validated is False
+    assert set(scale.regimes) == {"irpp", "its"}
+    assert scale.regime_its_depuis_annee == 2026
+    noms = {b.nom for b in scale.cnss_branches}
+    assert {"retraite_pvid", "allocations_familiales", "accidents_travail"} <= noms
+
+
+def test_parts_fiscales() -> None:
+    assert parts_fiscales("celibataire", 0) == Decimal("1")
+    assert parts_fiscales("marie", 0) == Decimal("2")
+    assert parts_fiscales("marie", 2) == Decimal("3")  # 2 + 0,5×2
+    assert parts_fiscales("marie", 20) == Decimal("6.5")  # plafonné
+
+
+def test_cnss_branches_assiettes_distinctes() -> None:
+    """Chaque branche CNSS a son propre plafond (retraite 1,2M, AF/AT 600k)."""
+    branches = [
+        CnssBranche(
+            nom="retraite_pvid",
+            taux_salarie="0.04",
+            taux_employeur="0.08",
+            plafond_mensuel_xaf="1200000",
+        ),
+        CnssBranche(
+            nom="allocations_familiales", taux_employeur="0.1003", plafond_mensuel_xaf="600000"
+        ),
+        CnssBranche(nom="accidents_travail", taux_employeur="0.0225", plafond_mensuel_xaf="600000"),
+    ]
+    scale = PayrollScale(validated=True, abattement_irpp_taux="0", cnss_branches=branches)
+    res = PayrollCalculator().compute(Decimal("1000000"), scale=scale)
+    # salarié : retraite 4 % sur 1 000 000 (< plafond) = 40 000
+    assert res.cotisations_salariales["retraite_pvid"] == Decimal("40000")
+    # patronal : 8 % sur 1M + 10,03 % sur 600k + 2,25 % sur 600k
+    assert res.cotisations_patronales["retraite_pvid"] == Decimal("80000")
+    assert res.cotisations_patronales["allocations_familiales"] == Decimal("60180")
+    assert res.cotisations_patronales["accidents_travail"] == Decimal("13500")
+
+
+def _regime_scale() -> PayrollScale:
+    irpp = Regime(
+        bareme=[
+            IrppTranche(plafond_xaf="464000", taux="0.01"),
+            IrppTranche(plafond_xaf="1000000", taux="0.10"),
+            IrppTranche(plafond_xaf="3000000", taux="0.25"),
+            IrppTranche(plafond_xaf=None, taux="0.40"),
+        ]
+    )
+    its = Regime(
+        bareme=[
+            IrppTranche(plafond_xaf="615000", taux="0.00"),
+            IrppTranche(plafond_xaf="1500000", taux="0.10"),
+            IrppTranche(plafond_xaf="3500000", taux="0.15"),
+            IrppTranche(plafond_xaf="5000000", taux="0.20"),
+            IrppTranche(plafond_xaf=None, taux="0.30"),
+        ]
+    )
+    return PayrollScale(
+        validated=True,
+        cnss_salarie_taux="0.04",
+        cnss_plafond_xaf="1200000",
+        abattement_irpp_taux="0.20",
+        regimes={"irpp": irpp, "its": its},
+        regime_its_depuis_annee=2026,
+        impot_minimum_annuel_xaf="1200",
+    )
+
+
+def test_regime_irpp_vs_its_par_annee() -> None:
+    """Même brut, l'exercice ≤2025 applique l'IRPP, ≥2026 l'ITS (impôt différent)."""
+    calc = PayrollCalculator()
+    scale = _regime_scale()
+    # base imposable mensuelle = (500000 − 20000) × 0,8 = 384 000 ; annuelle 4 608 000 ; 1 part
+    irpp = calc.compute(Decimal("500000"), scale=scale, parts=Decimal("1"), annee=2025)
+    its = calc.compute(Decimal("500000"), scale=scale, parts=Decimal("1"), annee=2026)
+    assert irpp.irpp_xaf == Decimal("100120")  # barème IRPP annualisé /12
+    assert its.irpp_xaf == Decimal("50842")  # barème ITS annualisé /12
+    assert its.irpp_xaf < irpp.irpp_xaf
+
+
+def test_quotient_familial_reduit_impot() -> None:
+    """Le quotient familial (parts) réduit l'impôt à brut égal."""
+    calc = PayrollCalculator()
+    scale = _regime_scale()
+    seul = calc.compute(Decimal("500000"), scale=scale, parts=Decimal("1"), annee=2026)
+    famille = calc.compute(Decimal("500000"), scale=scale, parts=Decimal("3"), annee=2026)
+    assert seul.irpp_xaf == Decimal("50842")
+    assert famille.irpp_xaf == Decimal("23475")  # base/part = 1 536 000
+    assert famille.irpp_xaf < seul.irpp_xaf
