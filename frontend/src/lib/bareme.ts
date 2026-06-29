@@ -37,6 +37,7 @@ export interface Rubrique {
   valeur: string;
   imposable: boolean;
   soumis_cnss: boolean;
+  applicable_a_tous: boolean;
 }
 export interface Bareme {
   country: string;
@@ -85,4 +86,45 @@ export function validateBareme(
   country = "cg",
 ): Promise<Bareme> {
   return api(`/v1/erp/payroll/bareme/validate?country=${encodeURIComponent(country)}`, { body: b });
+}
+
+// ----- Affectation des rubriques par salarié (PAIE-6c) -----
+export interface RubriqueAffectation {
+  employee_matricule: string;
+  code: string;
+  valeur: string | null;
+}
+export interface CatalogueRubrique {
+  code: string;
+  libelle: string;
+  type: "gain" | "retenue";
+  applicable_a_tous: boolean;
+  valeur: string;
+  mode: "fixe" | "pct_brut";
+}
+export interface EmployeeRubriques {
+  matricule: string;
+  affectations: RubriqueAffectation[];
+  catalogue: CatalogueRubrique[];
+}
+export function getEmployeeRubriques(matricule: string): Promise<EmployeeRubriques> {
+  return api(`/v1/erp/employees/${encodeURIComponent(matricule)}/rubriques`);
+}
+export function setEmployeeRubrique(
+  matricule: string,
+  code: string,
+  valeur?: string | null,
+): Promise<RubriqueAffectation> {
+  return api(`/v1/erp/employees/${encodeURIComponent(matricule)}/rubriques/${code}`, {
+    method: "PUT",
+    body: { valeur: valeur ?? null },
+  });
+}
+export function deleteEmployeeRubrique(
+  matricule: string,
+  code: string,
+): Promise<{ deleted: string }> {
+  return api(`/v1/erp/employees/${encodeURIComponent(matricule)}/rubriques/${code}`, {
+    method: "DELETE",
+  });
 }

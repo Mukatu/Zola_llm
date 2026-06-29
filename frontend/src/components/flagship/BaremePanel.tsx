@@ -467,6 +467,14 @@ function Editor({
               />
               CNSS
             </label>
+            <label className="flex items-center gap-1 text-xs text-muted" title="Appliquée à tous">
+              <input
+                type="checkbox"
+                checked={r.applicable_a_tous}
+                onChange={(e) => setRub(i, { applicable_a_tous: e.target.checked })}
+              />
+              tous
+            </label>
             <button
               className="rounded p-1 text-red-600 hover:bg-red-50"
               title="Supprimer"
@@ -490,6 +498,7 @@ function Editor({
                   valeur: "0",
                   imposable: false,
                   soumis_cnss: false,
+                  applicable_a_tous: true,
                 },
               ],
             })

@@ -1366,6 +1366,34 @@ class PayslipRecord(StoreBase):
         }
 
 
+class EmployeeRubriqueRecord(StoreBase):
+    """Affectation d'une rubrique de paie à un salarié (avec montant facultatif) — PAIE-6c.
+
+    Référence une rubrique du barème par son `code` ; `valeur` (si non nulle)
+    surcharge la valeur du barème pour ce salarié.
+    """
+
+    __tablename__ = "store_employee_rubriques"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    tenant_id: Mapped[str] = mapped_column(String(64), index=True)
+    employee_matricule: Mapped[str] = mapped_column(String(32), index=True)
+    code: Mapped[str] = mapped_column(String(40))
+    valeur: Mapped[Decimal | None] = mapped_column(Numeric(18, 2), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_now, onupdate=_now
+    )
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "employee_matricule": self.employee_matricule,
+            "code": self.code,
+            "valeur": str(self.valeur) if self.valeur is not None else None,
+        }
+
+
 class PayrollScaleRecord(StoreBase):
     """Barème de paie édité et persisté par tenant (override de la graine) — PAIE-6a.
 

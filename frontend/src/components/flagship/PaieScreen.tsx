@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Wallet, AlertCircle, CheckCircle2, Trash2, FileSpreadsheet, Download, FileText } from "lucide-react";
 import { Card, Button } from "../ui";
 import { BaremePanel } from "./BaremePanel";
+import { EmployeeRubriquesPanel } from "./EmployeeRubriquesPanel";
 import { ApiError } from "@/lib/api";
 import { fmt } from "@/lib/data";
 import {
@@ -226,6 +227,7 @@ export function PaieScreen() {
       </Card>
 
       <BaremePanel />
+      <EmployeeRubriquesPanel />
     </div>
   );
 }

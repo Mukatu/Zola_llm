@@ -26,6 +26,7 @@ from zolaos.db.store_models import (
     DocumentRecord,
     EcheanceRecord,
     EmployeeRecord,
+    EmployeeRubriqueRecord,
     EmployeeSkillRecord,
     EngagementRecord,
     EvaluationRecord,
@@ -483,6 +484,53 @@ class PayslipRepository(_CrudRepo):
         self._s.add(rec)
         await self._s.flush()
         return rec
+
+
+class EmployeeRubriqueRepository:
+    """Affectations de rubriques de paie par salarié — PAIE-6c."""
+
+    def __init__(self, session: AsyncSession) -> None:
+        self._s = session
+
+    async def list(
+        self, *, tenant_id: str, employee_matricule: str
+    ) -> list[EmployeeRubriqueRecord]:
+        stmt = select(EmployeeRubriqueRecord).where(
+            EmployeeRubriqueRecord.tenant_id == tenant_id,
+            EmployeeRubriqueRecord.employee_matricule == employee_matricule,
+        )
+        return list(await self._s.scalars(stmt))
+
+    async def upsert(
+        self, *, tenant_id: str, employee_matricule: str, code: str, valeur: Decimal | None
+    ) -> EmployeeRubriqueRecord:
+        stmt = select(EmployeeRubriqueRecord).where(
+            EmployeeRubriqueRecord.tenant_id == tenant_id,
+            EmployeeRubriqueRecord.employee_matricule == employee_matricule,
+            EmployeeRubriqueRecord.code == code,
+        )
+        rec = (await self._s.scalars(stmt)).first()
+        if rec is None:
+            rec = EmployeeRubriqueRecord(
+                tenant_id=tenant_id, employee_matricule=employee_matricule, code=code
+            )
+            self._s.add(rec)
+        rec.valeur = valeur
+        await self._s.flush()
+        return rec
+
+    async def delete(self, *, tenant_id: str, employee_matricule: str, code: str) -> bool:
+        stmt = select(EmployeeRubriqueRecord).where(
+            EmployeeRubriqueRecord.tenant_id == tenant_id,
+            EmployeeRubriqueRecord.employee_matricule == employee_matricule,
+            EmployeeRubriqueRecord.code == code,
+        )
+        rec = (await self._s.scalars(stmt)).first()
+        if rec is None:
+            return False
+        await self._s.delete(rec)
+        await self._s.flush()
+        return True
 
 
 class PayrollScaleRepository:

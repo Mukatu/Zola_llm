@@ -380,3 +380,71 @@ async def test_rubrique_personnalisee_no_code(tmp_path) -> None:  # type: ignore
 
         b = (await ac.get("/v1/erp/payroll/bareme")).json()
         assert any(r["code"] == "transport" for r in b["rubriques"])
+
+
+async def test_rubrique_affectee_par_employe(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    """PAIE-6c : une rubrique non globale ne s'applique qu'aux salariés affectés ;
+    l'affectation peut surcharger le montant."""
+    async with _client(tmp_path) as ac:
+
+        async def emit(m: str) -> dict:  # type: ignore[type-arg]
+            r = await ac.post(
+                "/v1/erp/payslips",
+                json={"employee_matricule": m, "periode": "2026-05", "brut_mensuel_xaf": "300000"},
+            )
+            assert r.status_code == 201
+            return r.json()
+
+        # prime de responsabilité NON globale (à affecter)
+        await ac.put(
+            "/v1/erp/payroll/bareme",
+            json={
+                "rubriques": [
+                    {
+                        "code": "responsabilite",
+                        "libelle": "Prime de responsabilité",
+                        "type": "gain",
+                        "mode": "fixe",
+                        "valeur": "30000",
+                        "imposable": False,
+                        "soumis_cnss": False,
+                        "applicable_a_tous": False,
+                    }
+                ],
+                "edited_by": "DRH",
+            },
+        )
+        await ac.post(
+            "/v1/erp/payroll/bareme/validate", json={"validated": True, "validated_by": "DRH"}
+        )
+
+        net_a0 = Decimal((await emit("A"))["net_a_payer_xaf"])
+        net_b0 = Decimal((await emit("B"))["net_a_payer_xaf"])
+        assert net_a0 == net_b0  # personne ne l'a encore
+
+        # affecter à A seulement
+        r = await ac.put("/v1/erp/employees/A/rubriques/responsabilite", json={})
+        assert r.status_code == 200
+        a1 = await emit("A")
+        b1 = await emit("B")
+        assert Decimal(a1["net_a_payer_xaf"]) - net_a0 == Decimal("30000")  # A : +30 000
+        assert Decimal(b1["net_a_payer_xaf"]) == net_b0  # B inchangé
+        assert a1["rubriques"]["responsabilite"] == "30000"
+
+        # surcharge du montant pour A
+        await ac.put("/v1/erp/employees/A/rubriques/responsabilite", json={"valeur": "50000"})
+        a2 = await emit("A")
+        assert a2["rubriques"]["responsabilite"] == "50000"
+
+        # liste + catalogue
+        lst = (await ac.get("/v1/erp/employees/A/rubriques")).json()
+        assert any(x["code"] == "responsabilite" for x in lst["affectations"])
+        assert any(c["code"] == "responsabilite" for c in lst["catalogue"])
+
+        # rubrique inconnue → 404
+        r404 = await ac.put("/v1/erp/employees/A/rubriques/inexistante", json={})
+        assert r404.status_code == 404
+
+        # retrait → A revient au net initial
+        await ac.delete("/v1/erp/employees/A/rubriques/responsabilite")
+        assert Decimal((await emit("A"))["net_a_payer_xaf"]) == net_a0

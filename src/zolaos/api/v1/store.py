@@ -57,6 +57,7 @@ from zolaos.agents.erp.payroll import (
     PayrollCalculator,
     PayrollScale,
     PayrollScaleNotValidated,
+    Rubrique,
     load_payroll_scale_dict,
     parts_fiscales,
 )
@@ -86,6 +87,7 @@ from zolaos.db.store_repo import (
     CashFlowRepository,
     EcheanceRepository,
     EmployeeRepository,
+    EmployeeRubriqueRepository,
     EngagementRepository,
     IncidentRepository,
     InvoiceRepository,
@@ -2017,6 +2019,26 @@ async def _resolve_scale(
     return PayrollScale.model_validate(raw), rec is not None, raw
 
 
+async def _rubriques_effectives(
+    session: AsyncSession, scale: PayrollScale, *, tenant_id: str, matricule: str
+) -> list[Rubrique]:
+    """Rubriques applicables à un salarié : celles « à tous » + ses affectations (PAIE-6c).
+
+    Une affectation peut surcharger le montant (`valeur`) de la rubrique du barème.
+    """
+    par_code = {r.code: r for r in scale.rubriques}
+    eff: dict[str, Rubrique] = {r.code: r for r in scale.rubriques if r.applicable_a_tous}
+    affectations = await EmployeeRubriqueRepository(session).list(
+        tenant_id=tenant_id, employee_matricule=matricule
+    )
+    for a in affectations:
+        base = par_code.get(a.code)
+        if base is None:
+            continue  # rubrique inconnue au barème (ignorée)
+        eff[a.code] = base.model_copy(update={"valeur": a.valeur} if a.valeur is not None else {})
+    return list(eff.values())
+
+
 class PayslipIn(BaseModel):
     employee_matricule: str
     periode: str  # AAAA-MM
@@ -2056,6 +2078,9 @@ async def create_payslip(
         tenant_id=tenant_id, country=body.country, version=scale.version
     )
     valide = scale.validated or bool(val and val.validated)
+    rubriques = await _rubriques_effectives(
+        session, scale, tenant_id=tenant_id, matricule=body.employee_matricule
+    )
     try:
         result = _payroll_calc.compute(
             body.brut_mensuel_xaf,
@@ -2063,6 +2088,7 @@ async def create_payslip(
             allow_unvalidated=body.allow_unvalidated or valide,
             parts=parts,
             annee=annee,
+            rubriques=rubriques,
         )
     except PayrollScaleNotValidated as exc:
         raise HTTPException(
@@ -2311,6 +2337,80 @@ async def validate_bareme(
     )
     await session.commit()
     return await _bareme_view(session, tenant_id=tenant_id, country=country)
+
+
+# ------------------------------------------------- Affectation rubriques par salarié (PAIE-6c)
+
+
+class RubriqueAffectationIn(BaseModel):
+    valeur: Decimal | None = None  # surcharge le montant du barème (None = valeur du barème)
+
+
+@router.get(
+    "/employees/{matricule}/rubriques", summary="Rubriques d'un salarié (affectées + barème)"
+)
+async def list_employee_rubriques(
+    matricule: str,
+    country: str = "cg",
+    tenant_id: str = "local",
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    scale, _, _ = await _resolve_scale(session, tenant_id=tenant_id, country=country)
+    affectations = await EmployeeRubriqueRepository(session).list(
+        tenant_id=tenant_id, employee_matricule=matricule
+    )
+    return {
+        "matricule": matricule,
+        "affectations": [a.to_dict() for a in affectations],
+        "catalogue": [
+            {
+                "code": r.code,
+                "libelle": r.libelle,
+                "type": r.type,
+                "applicable_a_tous": r.applicable_a_tous,
+                "valeur": str(r.valeur),
+                "mode": r.mode,
+            }
+            for r in scale.rubriques
+        ],
+    }
+
+
+@router.put("/employees/{matricule}/rubriques/{code}", summary="Affecter une rubrique à un salarié")
+async def set_employee_rubrique(
+    matricule: str,
+    code: str,
+    body: RubriqueAffectationIn,
+    country: str = "cg",
+    tenant_id: str = "local",
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    scale, _, _ = await _resolve_scale(session, tenant_id=tenant_id, country=country)
+    if code not in {r.code for r in scale.rubriques}:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="rubrique_inconnue")
+    rec = await EmployeeRubriqueRepository(session).upsert(
+        tenant_id=tenant_id, employee_matricule=matricule, code=code, valeur=body.valeur
+    )
+    await session.commit()
+    return rec.to_dict()
+
+
+@router.delete(
+    "/employees/{matricule}/rubriques/{code}", summary="Retirer une rubrique affectée à un salarié"
+)
+async def delete_employee_rubrique(
+    matricule: str,
+    code: str,
+    tenant_id: str = "local",
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    ok = await EmployeeRubriqueRepository(session).delete(
+        tenant_id=tenant_id, employee_matricule=matricule, code=code
+    )
+    if not ok:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="affectation_introuvable")
+    await session.commit()
+    return {"deleted": code}
 
 
 # ---------------------------------------------------------------- DAS 1 (agrégation annuelle, PAIE-3)

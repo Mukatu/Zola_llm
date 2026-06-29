@@ -79,6 +79,8 @@ class Rubrique(BaseModel):
     valeur: Decimal = _ZERO
     imposable: bool = False
     soumis_cnss: bool = False
+    # True : appliquée à tous les salariés. False : seulement aux salariés affectés (PAIE-6c).
+    applicable_a_tous: bool = True
 
 
 class PayrollScale(BaseModel):
@@ -253,6 +255,7 @@ class PayrollCalculator:
         allow_unvalidated: bool = False,
         parts: Decimal = Decimal("1"),
         annee: int | None = None,
+        rubriques: list[Rubrique] | None = None,
     ) -> PayrollResult:
         """Calcule un bulletin. Lève `PayrollScaleNotValidated` si barème non validé.
 
@@ -271,8 +274,9 @@ class PayrollCalculator:
 
         brut = brut_mensuel_xaf
 
-        # --- rubriques paramétrables (primes/retenues) — PAIE-6b ---
-        rub, g_total, g_imp, g_cnss, retenues = self._rubriques(brut, scale.rubriques)
+        # --- rubriques paramétrables (primes/retenues) — PAIE-6b/6c ---
+        rubs = rubriques if rubriques is not None else scale.rubriques
+        rub, g_total, g_imp, g_cnss, retenues = self._rubriques(brut, rubs)
         assiette = brut + g_cnss  # brut soumis à cotisation (+ gains soumis CNSS)
         brut_taxable = brut + g_imp  # brut imposable (+ gains imposables)
 
