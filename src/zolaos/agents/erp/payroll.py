@@ -23,7 +23,7 @@ import json
 from dataclasses import dataclass, field
 from decimal import ROUND_HALF_UP, Decimal
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -64,6 +64,23 @@ class CnssBranche(BaseModel):
     plafond_mensuel_xaf: Decimal | None = None
 
 
+class Rubrique(BaseModel):
+    """Rubrique de paie paramétrable (prime/retenue) — PAIE-6b.
+
+    `mode` : `fixe` (montant XAF) ou `pct_brut` (taux × brut de base).
+    Pour un gain : `imposable` l'ajoute à la base imposable, `soumis_cnss` à
+    l'assiette CNSS. Une retenue est déduite du net.
+    """
+
+    code: str
+    libelle: str = ""
+    type: Literal["gain", "retenue"] = "gain"
+    mode: Literal["fixe", "pct_brut"] = "fixe"
+    valeur: Decimal = _ZERO
+    imposable: bool = False
+    soumis_cnss: bool = False
+
+
 class PayrollScale(BaseModel):
     """Barème de paie paramétrable (ressource `ref`)."""
 
@@ -94,6 +111,7 @@ class PayrollScale(BaseModel):
     impot_minimum_annuel_xaf: Decimal = Field(default=_ZERO, ge=0)
     plafond_parts: Decimal = Field(default=Decimal("6.5"), gt=0)
     cnss_branches: list[CnssBranche] = Field(default_factory=list)
+    rubriques: list[Rubrique] = Field(default_factory=list)
     sources: list[dict[str, Any]] = Field(default_factory=list)
     autres_charges_patronales_a_confirmer: list[dict[str, Any]] = Field(default_factory=list)
 
@@ -129,6 +147,7 @@ class PayrollResult:
     cotisations_patronales: dict[str, Decimal]
     cout_employeur_xaf: Decimal
     barème_validé: bool = field(default=False)
+    rubriques: dict[str, Decimal] = field(default_factory=dict)
 
 
 def load_payroll_scale_dict(country: str = "cg") -> dict[str, Any]:
@@ -183,6 +202,29 @@ class PayrollCalculator:
         return cot_sal, cot_pat
 
     @staticmethod
+    def _rubriques(
+        brut: Decimal, rubriques: list[Rubrique]
+    ) -> tuple[dict[str, Decimal], Decimal, Decimal, Decimal, Decimal]:
+        """Montants des rubriques + agrégats (gains totaux, imposables, soumis CNSS, retenues)."""
+        montants: dict[str, Decimal] = {}
+        g_total = g_imp = g_cnss = retenues = _ZERO
+        for r in rubriques:
+            m = _xaf(r.valeur if r.mode == "fixe" else r.valeur * brut)
+            if m <= 0:
+                continue
+            if r.type == "retenue":
+                montants[r.code] = -m
+                retenues += m
+            else:
+                montants[r.code] = m
+                g_total += m
+                if r.imposable:
+                    g_imp += m
+                if r.soumis_cnss:
+                    g_cnss += m
+        return montants, g_total, g_imp, g_cnss, retenues
+
+    @staticmethod
     def _impot_avec_parts(
         base_mensuelle: Decimal,
         bareme: list[IrppTranche],
@@ -229,27 +271,32 @@ class PayrollCalculator:
 
         brut = brut_mensuel_xaf
 
+        # --- rubriques paramétrables (primes/retenues) — PAIE-6b ---
+        rub, g_total, g_imp, g_cnss, retenues = self._rubriques(brut, scale.rubriques)
+        assiette = brut + g_cnss  # brut soumis à cotisation (+ gains soumis CNSS)
+        brut_taxable = brut + g_imp  # brut imposable (+ gains imposables)
+
         # --- cotisations salariales + patronales ---
         if scale.cnss_branches:
-            cot_sal, cot_pat = self._cotisations_par_branche(brut, scale.cnss_branches)
+            cot_sal, cot_pat = self._cotisations_par_branche(assiette, scale.cnss_branches)
         else:
-            assiette_cnss = _plafonne(brut, scale.cnss_plafond_xaf)
+            assiette_cnss = _plafonne(assiette, scale.cnss_plafond_xaf)
             cot_sal = {
                 "cnss": _xaf(assiette_cnss * scale.cnss_salarie_taux),
-                "cipres": _xaf(brut * scale.cipres_salarie_taux),
+                "cipres": _xaf(assiette * scale.cipres_salarie_taux),
             }
             cot_pat = {
                 "cnss_employeur": _xaf(assiette_cnss * scale.cnss_employeur_taux),
-                "allocations_familiales": _xaf(brut * scale.allocations_familiales_taux),
-                "accident_travail": _xaf(brut * scale.accident_travail_taux),
-                "taxe_sur_salaires": _xaf(brut * scale.taxe_sur_salaires_taux),
+                "allocations_familiales": _xaf(assiette * scale.allocations_familiales_taux),
+                "accident_travail": _xaf(assiette * scale.accident_travail_taux),
+                "taxe_sur_salaires": _xaf(assiette * scale.taxe_sur_salaires_taux),
             }
         cot_sal = {k: v for k, v in cot_sal.items() if v > 0}
         cot_pat = {k: v for k, v in cot_pat.items() if v > 0}
         total_cot_sal = sum(cot_sal.values(), _ZERO)
 
         # --- base imposable ---
-        base_brute = brut - total_cot_sal
+        base_brute = brut_taxable - total_cot_sal
         abattement = _xaf(base_brute * scale.abattement_irpp_taux)
         base_imposable = max(_ZERO, base_brute - abattement)
 
@@ -262,11 +309,11 @@ class PayrollCalculator:
         else:
             irpp = _xaf(_irpp(base_imposable, scale.irpp_bareme))
 
-        net = brut - total_cot_sal - irpp
-        cout_employeur = brut + sum(cot_pat.values(), _ZERO)
+        net = brut + g_total - total_cot_sal - irpp - retenues
+        cout_employeur = brut + g_total + sum(cot_pat.values(), _ZERO)
 
         return PayrollResult(
-            brut_xaf=_xaf(brut),
+            brut_xaf=_xaf(brut_taxable),
             cotisations_salariales=cot_sal,
             total_cotisations_salariales_xaf=_xaf(total_cot_sal),
             base_imposable_xaf=_xaf(base_imposable),
@@ -275,4 +322,5 @@ class PayrollCalculator:
             cotisations_patronales=cot_pat,
             cout_employeur_xaf=_xaf(cout_employeur),
             barème_validé=scale.validated,
+            rubriques=rub,
         )

@@ -12,6 +12,7 @@ import {
   type Bareme,
   type CnssBranche,
   type BaremeRegime,
+  type Rubrique,
 } from "@/lib/bareme";
 
 function ConfBadge({ niveau }: { niveau: string }) {
@@ -36,6 +37,7 @@ interface Draft {
   regime_its_depuis_annee: number;
   regimes: Record<string, BaremeRegime>;
   cnss_branches: CnssBranche[];
+  rubriques: Rubrique[];
 }
 
 export function BaremePanel() {
@@ -81,6 +83,7 @@ export function BaremePanel() {
         regime_its_depuis_annee: b.regime_its_depuis_annee,
         regimes: b.regimes,
         cnss_branches: b.cnss_branches,
+        rubriques: b.rubriques,
       }),
     );
   }
@@ -209,6 +212,26 @@ export function BaremePanel() {
             </table>
           </div>
 
+          {b.rubriques.length > 0 && (
+            <div className="mb-3">
+              <div className="mb-1 text-xs font-medium text-muted">Primes & retenues</div>
+              <ul className="space-y-1 text-sm">
+                {b.rubriques.map((r) => (
+                  <li key={r.code} className="flex flex-wrap items-center gap-2">
+                    <span className={r.type === "gain" ? "text-green-700" : "text-red-700"}>
+                      {r.type === "gain" ? "+" : "−"} {r.libelle || r.code}
+                    </span>
+                    <span className="text-muted">
+                      {r.mode === "fixe" ? `${fmt(r.valeur)} XAF` : pct(r.valeur)}
+                    </span>
+                    {r.imposable && <span className="text-xs text-muted">imposable</span>}
+                    {r.soumis_cnss && <span className="text-xs text-muted">CNSS</span>}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
           <div className="mb-3">
             <div className="mb-1 text-xs font-medium text-muted">Sources</div>
             <ul className="space-y-1 text-sm">
@@ -285,6 +308,8 @@ function Editor({
   const patch = (p: Partial<Draft>) => setDraft({ ...draft, ...p });
   const setBranch = (i: number, p: Partial<CnssBranche>) =>
     patch({ cnss_branches: draft.cnss_branches.map((b, j) => (j === i ? { ...b, ...p } : b)) });
+  const setRub = (i: number, p: Partial<Rubrique>) =>
+    patch({ rubriques: draft.rubriques.map((r, j) => (j === i ? { ...r, ...p } : r)) });
 
   return (
     <div className="space-y-3">
@@ -384,6 +409,93 @@ function Editor({
           }
         >
           <Plus className="h-4 w-4" /> Ajouter une branche
+        </Button>
+      </div>
+
+      {/* Primes & retenues */}
+      <div>
+        <div className="mb-1 text-xs font-medium text-muted">Primes & retenues</div>
+        {draft.rubriques.map((r, i) => (
+          <div key={i} className="mb-1 flex flex-wrap items-center gap-1">
+            <input
+              className={`w-28 ${I}`}
+              placeholder="code"
+              value={r.code}
+              onChange={(e) => setRub(i, { code: e.target.value })}
+            />
+            <input
+              className={`w-40 ${I}`}
+              placeholder="libellé"
+              value={r.libelle}
+              onChange={(e) => setRub(i, { libelle: e.target.value })}
+            />
+            <select
+              className={I}
+              value={r.type}
+              onChange={(e) => setRub(i, { type: e.target.value as Rubrique["type"] })}
+            >
+              <option value="gain">gain</option>
+              <option value="retenue">retenue</option>
+            </select>
+            <select
+              className={I}
+              value={r.mode}
+              onChange={(e) => setRub(i, { mode: e.target.value as Rubrique["mode"] })}
+            >
+              <option value="fixe">fixe</option>
+              <option value="pct_brut">% brut</option>
+            </select>
+            <input
+              className={`w-24 ${I}`}
+              title="montant ou taux"
+              value={r.valeur}
+              onChange={(e) => setRub(i, { valeur: e.target.value })}
+            />
+            <label className="flex items-center gap-1 text-xs text-muted">
+              <input
+                type="checkbox"
+                checked={r.imposable}
+                onChange={(e) => setRub(i, { imposable: e.target.checked })}
+              />
+              imp.
+            </label>
+            <label className="flex items-center gap-1 text-xs text-muted">
+              <input
+                type="checkbox"
+                checked={r.soumis_cnss}
+                onChange={(e) => setRub(i, { soumis_cnss: e.target.checked })}
+              />
+              CNSS
+            </label>
+            <button
+              className="rounded p-1 text-red-600 hover:bg-red-50"
+              title="Supprimer"
+              onClick={() => patch({ rubriques: draft.rubriques.filter((_, j) => j !== i) })}
+            >
+              <Trash2 className="h-4 w-4" />
+            </button>
+          </div>
+        ))}
+        <Button
+          variant="ghost"
+          onClick={() =>
+            patch({
+              rubriques: [
+                ...draft.rubriques,
+                {
+                  code: `prime_${draft.rubriques.length + 1}`,
+                  libelle: "",
+                  type: "gain",
+                  mode: "fixe",
+                  valeur: "0",
+                  imposable: false,
+                  soumis_cnss: false,
+                },
+              ],
+            })
+          }
+        >
+          <Plus className="h-4 w-4" /> Ajouter une prime / retenue
         </Button>
       </div>
 

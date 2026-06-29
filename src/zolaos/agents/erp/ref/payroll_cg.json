@@ -49,6 +49,8 @@
   "impot_minimum_annuel_xaf": "1200",
   "plafond_parts": "6.5",
 
+  "rubriques": [],
+
   "cnss_branches": [
     {"nom": "retraite_pvid", "label": "Pensions-Vieillesse-Invalidité-Décès", "taux_salarie": "0.04", "taux_employeur": "0.08", "plafond_mensuel_xaf": "1200000"},
     {"nom": "allocations_familiales", "label": "Prestations familiales", "taux_salarie": "0", "taux_employeur": "0.1003", "plafond_mensuel_xaf": "600000"},

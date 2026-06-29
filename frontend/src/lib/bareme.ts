@@ -29,6 +29,15 @@ export interface BaremeValidation {
   note: string;
   validated_at: string | null;
 }
+export interface Rubrique {
+  code: string;
+  libelle: string;
+  type: "gain" | "retenue";
+  mode: "fixe" | "pct_brut";
+  valeur: string;
+  imposable: boolean;
+  soumis_cnss: boolean;
+}
 export interface Bareme {
   country: string;
   version: string;
@@ -45,6 +54,7 @@ export interface Bareme {
   regime_its_depuis_annee: number;
   regimes: Record<string, BaremeRegime>;
   cnss_branches: CnssBranche[];
+  rubriques: Rubrique[];
   autres_charges_a_confirmer: Record<string, unknown>[];
   sources: BaremeSource[];
 }
@@ -57,6 +67,7 @@ export interface BaremeEdit {
   regime_its_depuis_annee?: number;
   regimes?: Record<string, BaremeRegime>;
   cnss_branches?: CnssBranche[];
+  rubriques?: Rubrique[];
   edited_by?: string;
 }
 

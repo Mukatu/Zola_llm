@@ -2080,6 +2080,7 @@ async def create_payslip(
             "irpp_xaf": result.irpp_xaf,
             "avantages_nature_xaf": body.avantages_nature_xaf,
             "indemnites_non_imposables_xaf": body.indemnites_non_imposables_xaf,
+            "rubriques": {k: str(v) for k, v in result.rubriques.items()},
             "net_a_payer_xaf": result.net_a_payer_xaf,
             "cotisations_patronales": {k: str(v) for k, v in result.cotisations_patronales.items()},
             "cout_employeur_xaf": result.cout_employeur_xaf,
@@ -2179,6 +2180,7 @@ class BaremeEditIn(BaseModel):
     regime_its_depuis_annee: int | None = None
     regimes: dict[str, Any] | None = None
     cnss_branches: list[dict[str, Any]] | None = None
+    rubriques: list[dict[str, Any]] | None = None
     autres_charges_patronales_a_confirmer: list[dict[str, Any]] | None = None
     edited_by: str = ""
 
@@ -2227,6 +2229,18 @@ def _bareme_payload(scale: Any, val: Any, *, source_donnees: str = "defaut") -> 
                 ),
             }
             for b in scale.cnss_branches
+        ],
+        "rubriques": [
+            {
+                "code": r.code,
+                "libelle": r.libelle,
+                "type": r.type,
+                "mode": r.mode,
+                "valeur": str(r.valeur),
+                "imposable": r.imposable,
+                "soumis_cnss": r.soumis_cnss,
+            }
+            for r in scale.rubriques
         ],
         "autres_charges_a_confirmer": scale.autres_charges_patronales_a_confirmer,
         "sources": scale.sources,

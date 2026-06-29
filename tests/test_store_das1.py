@@ -325,3 +325,58 @@ async def test_bareme_editable_par_tenant(tmp_path) -> None:  # type: ignore[no-
         assert r2.status_code == 201
         # base = (300000 − 4% retraite) × (1 − 0,30) = 288000 × 0,70 = 201 600
         assert Decimal(r2.json()["base_imposable_xaf"]) == Decimal("201600")
+
+
+async def test_rubrique_personnalisee_no_code(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    """PAIE-6b : ajouter une prime (sans code) via l'édition du barème se reflète
+    sur le bulletin — la prime de transport (non imposable) augmente le net."""
+    async with _client(tmp_path) as ac:
+
+        async def emit() -> dict:  # type: ignore[type-arg]
+            r = await ac.post(
+                "/v1/erp/payslips",
+                json={
+                    "employee_matricule": "T",
+                    "periode": "2026-03",
+                    "brut_mensuel_xaf": "300000",
+                },
+            )
+            assert r.status_code == 201
+            return r.json()
+
+        await ac.post(
+            "/v1/erp/payroll/bareme/validate", json={"validated": True, "validated_by": "DRH"}
+        )
+        net0 = Decimal(emit_net := (await emit())["net_a_payer_xaf"])
+        assert emit_net  # bulletin de référence
+
+        # ajouter une prime de transport de 25 000 (non imposable) — sans code
+        await ac.put(
+            "/v1/erp/payroll/bareme",
+            json={
+                "rubriques": [
+                    {
+                        "code": "transport",
+                        "libelle": "Prime de transport",
+                        "type": "gain",
+                        "mode": "fixe",
+                        "valeur": "25000",
+                        "imposable": False,
+                        "soumis_cnss": False,
+                    }
+                ],
+                "edited_by": "DRH",
+            },
+        )
+        # nouvelle version ⇒ re-validation requise
+        await ac.post(
+            "/v1/erp/payroll/bareme/validate", json={"validated": True, "validated_by": "DRH"}
+        )
+
+        bull = await emit()
+        net1 = Decimal(bull["net_a_payer_xaf"])
+        assert net1 - net0 == Decimal("25000")  # la prime s'ajoute au net
+        assert bull["rubriques"]["transport"] == "25000"
+
+        b = (await ac.get("/v1/erp/payroll/bareme")).json()
+        assert any(r["code"] == "transport" for r in b["rubriques"])

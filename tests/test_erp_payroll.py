@@ -20,6 +20,7 @@ from zolaos.agents.erp.payroll import (
     PayrollScale,
     PayrollScaleNotValidated,
     Regime,
+    Rubrique,
     _irpp,
     load_payroll_scale,
     parts_fiscales,
@@ -188,3 +189,40 @@ def test_quotient_familial_reduit_impot() -> None:
     assert seul.irpp_xaf == Decimal("50842")
     assert famille.irpp_xaf == Decimal("23475")  # base/part = 1 536 000
     assert famille.irpp_xaf < seul.irpp_xaf
+
+
+def test_rubriques_gain_et_retenue() -> None:
+    """PAIE-6b : une prime imposable+CNSS et une retenue impactent base, cotis et net."""
+    calc = PayrollCalculator()
+    rubriques = [
+        Rubrique(
+            code="prime_rendement",
+            type="gain",
+            mode="fixe",
+            valeur="50000",
+            imposable=True,
+            soumis_cnss=True,
+        ),
+        Rubrique(code="prime_transport", type="gain", mode="fixe", valeur="20000"),  # non impos.
+        Rubrique(code="avance", type="retenue", mode="fixe", valeur="10000"),
+    ]
+    scale = _simple_scale(rubriques=rubriques)  # cnss 4 %, abattement 0, irpp 10 %
+    res = calc.compute(Decimal("100000"), scale=scale)
+    # CNSS sur brut + prime soumise = 150 000 × 4 % = 6 000
+    assert res.cotisations_salariales["cnss"] == Decimal("6000")
+    # brut imposable = 100 000 + 50 000 = 150 000 ; base = 150 000 − 6 000 = 144 000
+    assert res.brut_xaf == Decimal("150000")
+    assert res.base_imposable_xaf == Decimal("144000")
+    assert res.irpp_xaf == Decimal("14400")  # 144 000 × 10 %
+    # net = 100 000 + (50 000+20 000) − 6 000 − 14 400 − 10 000 = 139 600
+    assert res.net_a_payer_xaf == Decimal("139600")
+    assert res.rubriques["prime_transport"] == Decimal("20000")
+    assert res.rubriques["avance"] == Decimal("-10000")
+
+
+def test_sans_rubrique_calcul_inchange() -> None:
+    """Sans rubrique, le calcul reste identique à l'historique (rétrocompatible)."""
+    res = PayrollCalculator().compute(Decimal("100000"), scale=_simple_scale())
+    assert res.brut_xaf == Decimal("100000")
+    assert res.base_imposable_xaf == Decimal("96000")
+    assert res.rubriques == {}
