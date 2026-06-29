@@ -47,6 +47,8 @@ class LignePaie(BaseModel):
     brut_xaf: Decimal = _ZERO
     cotisations_salariales_xaf: Decimal = _ZERO
     irpp_xaf: Decimal = _ZERO
+    avantages_nature_xaf: Decimal = _ZERO
+    indemnites_non_imposables_xaf: Decimal = _ZERO
 
 
 class Salarie(BaseModel):
@@ -97,6 +99,10 @@ class Das1Ligne:
     salaire_plafonne_xaf: Decimal
     base_imposable_xaf: Decimal
     irpp_xaf: Decimal
+    avantages_nature_xaf: Decimal
+    indemnites_non_imposables_xaf: Decimal
+    taxe_regionale_xaf: Decimal
+    tol_camu_xaf: Decimal
 
 
 @dataclass(frozen=True)
@@ -107,6 +113,10 @@ class Das1:
     total_plafonne_xaf: Decimal
     total_base_imposable_xaf: Decimal
     total_irpp_xaf: Decimal
+    total_avantages_nature_xaf: Decimal = _ZERO
+    total_indemnites_non_imposables_xaf: Decimal = _ZERO
+    total_taxe_regionale_xaf: Decimal = _ZERO
+    total_tol_camu_xaf: Decimal = _ZERO
     etat_annuel: list[EtatAnnuelLigne] = field(default_factory=list)
     lignes: list[Das1Ligne] = field(default_factory=list)
 
@@ -117,6 +127,8 @@ def construire_das1(
     *,
     exercice: str,
     abattement_taux: Decimal = Decimal("0.20"),
+    taxe_regionale_xaf: Decimal = _ZERO,
+    tol_camu_xaf: Decimal = _ZERO,
 ) -> Das1:
     """Consolide les bulletins mensuels en état annuel + DAS 1 (déterministe).
 
@@ -125,6 +137,12 @@ def construire_das1(
       déjà plafonnées au mois) ;
     - **base imposable** = (1 − `abattement_taux`) × salaire plafonné
       (abattement de 20 % ⇒ 80 % du salaire net de retraite).
+
+    Rubriques secondaires (PAIE-3e) : **avantages en nature** et **indemnités non
+    imposables** sont des montants déclarés agrégés depuis les bulletins ; **T.R.**
+    (taxe régionale) et **TOL/CAMU** sont des montants forfaitaires annuels par
+    salarié actif (`taxe_regionale_xaf`, `tol_camu_xaf` ; 0 ⇒ colonnes vides tant
+    que le barème légal n'est pas paramétré).
     """
     noms = {s.matricule: s.nom for s in salaries}
     par_sal = {s.matricule: s for s in salaries}
@@ -134,16 +152,21 @@ def construire_das1(
     mensuels: dict[str, list[Decimal]] = defaultdict(lambda: [_ZERO] * 12)
     cotis: dict[str, Decimal] = defaultdict(lambda: _ZERO)
     irpp: dict[str, Decimal] = defaultdict(lambda: _ZERO)
+    avantages: dict[str, Decimal] = defaultdict(lambda: _ZERO)
+    indemnites: dict[str, Decimal] = defaultdict(lambda: _ZERO)
     for lp in lignes_paie:
         mensuels[lp.matricule][lp.mois - 1] += lp.brut_xaf
         cotis[lp.matricule] += lp.cotisations_salariales_xaf
         irpp[lp.matricule] += lp.irpp_xaf
+        avantages[lp.matricule] += lp.avantages_nature_xaf
+        indemnites[lp.matricule] += lp.indemnites_non_imposables_xaf
 
     matricules = sorted(set(mensuels) | {s.matricule for s in salaries})
 
     etat: list[EtatAnnuelLigne] = []
     das1_lignes: list[Das1Ligne] = []
     t_brut = t_plaf = t_base = t_irpp = _ZERO
+    t_avant = t_indem = t_tr = t_camu = _ZERO
     for m in matricules:
         cols = [_xaf(v) for v in mensuels.get(m, [_ZERO] * 12)]
         total = sum(cols, _ZERO)
@@ -161,6 +184,8 @@ def construire_das1(
         brut_a = total
         plaf_a = brut_a - _xaf(cotis.get(m, _ZERO))  # salaire net de retraite
         base_a = _xaf(abattement * plaf_a)  # 80 % du salaire plafonné
+        avant_a = _xaf(avantages.get(m, _ZERO))
+        indem_a = _xaf(indemnites.get(m, _ZERO))
         das1_lignes.append(
             Das1Ligne(
                 matricule=m,
@@ -178,12 +203,20 @@ def construire_das1(
                 salaire_plafonne_xaf=plaf_a,
                 base_imposable_xaf=base_a,
                 irpp_xaf=irpp_m,
+                avantages_nature_xaf=avant_a,
+                indemnites_non_imposables_xaf=indem_a,
+                taxe_regionale_xaf=taxe_regionale_xaf,
+                tol_camu_xaf=tol_camu_xaf,
             )
         )
         t_brut += brut_a
         t_plaf += plaf_a
         t_base += base_a
         t_irpp += irpp_m
+        t_avant += avant_a
+        t_indem += indem_a
+        t_tr += taxe_regionale_xaf
+        t_camu += tol_camu_xaf
 
     return Das1(
         exercice=exercice,
@@ -192,6 +225,10 @@ def construire_das1(
         total_plafonne_xaf=t_plaf,
         total_base_imposable_xaf=t_base,
         total_irpp_xaf=t_irpp,
+        total_avantages_nature_xaf=t_avant,
+        total_indemnites_non_imposables_xaf=t_indem,
+        total_taxe_regionale_xaf=t_tr,
+        total_tol_camu_xaf=t_camu,
         etat_annuel=etat,
         lignes=das1_lignes,
     )

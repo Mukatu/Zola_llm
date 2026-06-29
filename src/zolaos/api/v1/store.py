@@ -2008,6 +2008,8 @@ class PayslipIn(BaseModel):
     employee_matricule: str
     periode: str  # AAAA-MM
     brut_mensuel_xaf: Decimal = Field(..., ge=0)
+    avantages_nature_xaf: Decimal = Field(default=Decimal("0"), ge=0)
+    indemnites_non_imposables_xaf: Decimal = Field(default=Decimal("0"), ge=0)
     allow_unvalidated: bool = False
     country: str = "cg"
 
@@ -2044,6 +2046,8 @@ async def create_payslip(
             "total_cotisations_salariales_xaf": result.total_cotisations_salariales_xaf,
             "base_imposable_xaf": result.base_imposable_xaf,
             "irpp_xaf": result.irpp_xaf,
+            "avantages_nature_xaf": body.avantages_nature_xaf,
+            "indemnites_non_imposables_xaf": body.indemnites_non_imposables_xaf,
             "net_a_payer_xaf": result.net_a_payer_xaf,
             "cotisations_patronales": {k: str(v) for k, v in result.cotisations_patronales.items()},
             "cout_employeur_xaf": result.cout_employeur_xaf,
@@ -2147,6 +2151,8 @@ async def _build_das1(session: AsyncSession, *, tenant_id: str, annee: str) -> D
             brut_xaf=p.brut_xaf,
             cotisations_salariales_xaf=p.total_cotisations_salariales_xaf,
             irpp_xaf=p.irpp_xaf,
+            avantages_nature_xaf=p.avantages_nature_xaf,
+            indemnites_non_imposables_xaf=p.indemnites_non_imposables_xaf,
         )
         for p in payslips
         if p.periode[:4] == annee and len(p.periode) >= 7
@@ -2170,7 +2176,12 @@ async def _build_das1(session: AsyncSession, *, tenant_id: str, annee: str) -> D
     ]
     scale = load_payroll_scale("cg")
     return construire_das1(
-        lignes, salaries, exercice=annee, abattement_taux=scale.abattement_irpp_taux
+        lignes,
+        salaries,
+        exercice=annee,
+        abattement_taux=scale.abattement_irpp_taux,
+        taxe_regionale_xaf=scale.taxe_regionale_annuelle_xaf,
+        tol_camu_xaf=scale.tol_camu_annuel_xaf,
     )
 
 
@@ -2216,6 +2227,10 @@ async def payroll_das1(
             "plafonne_xaf": str(das1.total_plafonne_xaf),
             "base_imposable_xaf": str(das1.total_base_imposable_xaf),
             "irpp_xaf": str(das1.total_irpp_xaf),
+            "avantages_nature_xaf": str(das1.total_avantages_nature_xaf),
+            "indemnites_non_imposables_xaf": str(das1.total_indemnites_non_imposables_xaf),
+            "taxe_regionale_xaf": str(das1.total_taxe_regionale_xaf),
+            "tol_camu_xaf": str(das1.total_tol_camu_xaf),
         },
         "lignes": [asdict(line) for line in das1.lignes],
     }
@@ -2266,19 +2281,20 @@ def build_das1_xlsx(das1: Das1, employeur: dict[str, str]) -> bytes:
 
     # ---- Feuille 2 : DAS 1 (formulaire)
     d = wb.create_sheet("DAS 1")
-    d.merge_cells("A1:O1")
+    span = "A1:S1"
+    d.merge_cells(span)
     d["A1"] = "RÉPUBLIQUE DU CONGO — DAS 1 / CNSS 1"
     d["A1"].font = title
     d["A1"].alignment = center
-    d.merge_cells("A2:O2")
+    d.merge_cells("A2:S2")
     d["A2"] = "DÉCLARATION ANNUELLE DES SALAIRES ET AUTRES RÉMUNÉRATIONS VERSÉES"
     d["A2"].alignment = center
-    d.merge_cells("A3:O3")
+    d.merge_cells("A3:S3")
     d["A3"] = (
         f"EMPLOYEUR : {employeur['raison_sociale']}   ·   MATRICULE CNSS : "
         f"{employeur['matricule_cnss']}   ·   N° CONTRIBUABLE : {employeur['n_contribuable']}"
     )
-    d.merge_cells("A4:O4")
+    d.merge_cells("A4:S4")
     d["A4"] = f"B.P : {employeur['bp']}   ·   {employeur['ville']}   ·   EXERCICE : {das1.exercice}"
     d.append([])
     cols = [
@@ -2295,8 +2311,12 @@ def build_das1_xlsx(das1: Das1, employeur: dict[str, str]) -> bytes:
         "DÉPART",
         "(f) SALAIRE BRUT",
         "SALAIRE PLAFONNÉ",
+        "(e) AVANTAGES EN NATURE",
         "BASE IMPOSABLE (g=80%)",
         "(h) I.R.P.P.",
+        "(i) T.R.",
+        "TOL / CAMU",
+        "(j) INDEMNITÉS NON IMPOS.",
     ]
     d.append(cols)
     for c in d[d.max_row]:
@@ -2319,8 +2339,12 @@ def build_das1_xlsx(das1: Das1, employeur: dict[str, str]) -> bytes:
                 line.date_depart or "",
                 float(line.brut_annuel_xaf),
                 float(line.salaire_plafonne_xaf),
+                float(line.avantages_nature_xaf),
                 float(line.base_imposable_xaf),
                 float(line.irpp_xaf),
+                float(line.taxe_regionale_xaf),
+                float(line.tol_camu_xaf),
+                float(line.indemnites_non_imposables_xaf),
             ]
         )
         for c in d[d.max_row]:
@@ -2332,14 +2356,18 @@ def build_das1_xlsx(das1: Das1, employeur: dict[str, str]) -> bytes:
             *[""] * 9,
             float(das1.total_brut_xaf),
             float(das1.total_plafonne_xaf),
+            float(das1.total_avantages_nature_xaf),
             float(das1.total_base_imposable_xaf),
             float(das1.total_irpp_xaf),
+            float(das1.total_taxe_regionale_xaf),
+            float(das1.total_tol_camu_xaf),
+            float(das1.total_indemnites_non_imposables_xaf),
         ]
     )
     for c in d[d.max_row]:
         c.font = bold
-    widths = (6, 24, 6, 16, 14, 8, 16, 16, 20, 12, 12, 16, 16, 18, 14)
-    for col, w in zip("ABCDEFGHIJKLMNO", widths, strict=True):
+    widths = (6, 24, 6, 16, 14, 8, 16, 16, 20, 12, 12, 16, 16, 18, 18, 14, 10, 12, 20)
+    for col, w in zip("ABCDEFGHIJKLMNOPQRS", widths, strict=True):
         d.column_dimensions[col].width = w
 
     bio = BytesIO()

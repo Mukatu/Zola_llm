@@ -66,6 +66,9 @@ class PayrollScale(BaseModel):
     taxe_sur_salaires_taux: Decimal = Field(default=_ZERO, ge=0, le=1)
     abattement_irpp_taux: Decimal = Field(default=_ZERO, ge=0, le=1)
     irpp_bareme: list[IrppTranche] = Field(default_factory=list)
+    # Forfaits annuels DAS 1 par salarié (taxe régionale, TOL/CAMU) — 0 ⇒ à sourcer
+    taxe_regionale_annuelle_xaf: Decimal = Field(default=_ZERO, ge=0)
+    tol_camu_annuel_xaf: Decimal = Field(default=_ZERO, ge=0)
 
 
 @dataclass(frozen=True)

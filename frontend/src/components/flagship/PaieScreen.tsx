@@ -198,8 +198,10 @@ export function PaieScreen() {
                     <th className="pr-2">Nom</th>
                     <th className="pr-2 text-right">Brut</th>
                     <th className="pr-2 text-right">Plafonné</th>
+                    <th className="pr-2 text-right">Av. nature</th>
                     <th className="pr-2 text-right">Base imp.</th>
                     <th className="pr-2 text-right">IRPP</th>
+                    <th className="pr-2 text-right">Indem.</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -209,8 +211,10 @@ export function PaieScreen() {
                       <td className="pr-2">{l.nom || "—"}</td>
                       <td className="pr-2 text-right">{fmt(l.brut_annuel_xaf)}</td>
                       <td className="pr-2 text-right text-muted">{fmt(l.salaire_plafonne_xaf)}</td>
+                      <td className="pr-2 text-right text-muted">{fmt(l.avantages_nature_xaf)}</td>
                       <td className="pr-2 text-right text-muted">{fmt(l.base_imposable_xaf)}</td>
                       <td className="pr-2 text-right">{fmt(l.irpp_xaf)}</td>
+                      <td className="pr-2 text-right text-muted">{fmt(l.indemnites_non_imposables_xaf)}</td>
                     </tr>
                   ))}
                 </tbody>

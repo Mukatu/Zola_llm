@@ -1325,6 +1325,11 @@ class PayslipRecord(StoreBase):
     )
     base_imposable_xaf: Mapped[Decimal] = mapped_column(Numeric(18, 2), default=Decimal("0"))
     irpp_xaf: Mapped[Decimal] = mapped_column(Numeric(18, 2), default=Decimal("0"))
+    # Rubriques déclaratives DAS 1 (PAIE-3e) — montants déclarés, défaut 0
+    avantages_nature_xaf: Mapped[Decimal] = mapped_column(Numeric(18, 2), default=Decimal("0"))
+    indemnites_non_imposables_xaf: Mapped[Decimal] = mapped_column(
+        Numeric(18, 2), default=Decimal("0")
+    )
     net_a_payer_xaf: Mapped[Decimal] = mapped_column(Numeric(18, 2), default=Decimal("0"))
     cotisations_patronales: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
     cout_employeur_xaf: Mapped[Decimal] = mapped_column(Numeric(18, 2), default=Decimal("0"))
@@ -1347,6 +1352,8 @@ class PayslipRecord(StoreBase):
             "total_cotisations_salariales_xaf": str(self.total_cotisations_salariales_xaf),
             "base_imposable_xaf": str(self.base_imposable_xaf),
             "irpp_xaf": str(self.irpp_xaf),
+            "avantages_nature_xaf": str(self.avantages_nature_xaf),
+            "indemnites_non_imposables_xaf": str(self.indemnites_non_imposables_xaf),
             "net_a_payer_xaf": str(self.net_a_payer_xaf),
             "cotisations_patronales": self.cotisations_patronales,
             "cout_employeur_xaf": str(self.cout_employeur_xaf),

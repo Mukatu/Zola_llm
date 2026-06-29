@@ -197,3 +197,40 @@ async def test_das1_chaine_reelle_plafonne_et_base(tmp_path) -> None:  # type: i
         assert e1["brut_annuel_xaf"] == "4800000"
         assert e1["salaire_plafonne_xaf"] == "4608000"
         assert e1["base_imposable_xaf"] == "3686400"
+
+
+async def test_das1_rubriques_secondaires(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    """PAIE-3e : avantages en nature + indemnités non imposables déclarés sur les
+    bulletins sont agrégés annuellement et exposés dans la DAS 1 + l'export."""
+    async with _client(tmp_path) as ac:
+        for mois in (1, 2):
+            r = await ac.post(
+                "/v1/erp/payslips",
+                json={
+                    "employee_matricule": "E9",
+                    "periode": f"2026-{mois:02d}",
+                    "brut_mensuel_xaf": "300000",
+                    "avantages_nature_xaf": "25000",
+                    "indemnites_non_imposables_xaf": "40000",
+                    "allow_unvalidated": True,
+                },
+            )
+            assert r.status_code == 201
+
+        das1 = (await ac.get("/v1/erp/payroll/das1?annee=2026")).json()
+        e9 = next(x for x in das1["lignes"] if x["matricule"] == "E9")
+        assert e9["avantages_nature_xaf"] == "50000"  # 2 × 25 000
+        assert e9["indemnites_non_imposables_xaf"] == "80000"  # 2 × 40 000
+        # forfaits T.R. / TOL-CAMU non sourcés (barème par défaut) ⇒ 0
+        assert e9["taxe_regionale_xaf"] == "0"
+        assert e9["tol_camu_xaf"] == "0"
+        assert das1["totaux"]["avantages_nature_xaf"] == "50000"
+        assert das1["totaux"]["indemnites_non_imposables_xaf"] == "80000"
+
+        r = await ac.get("/v1/erp/payroll/das1/export?annee=2026")
+        wb = openpyxl.load_workbook(BytesIO(r.content))
+        entetes = [c.value for c in wb["DAS 1"][6]]
+        assert "(e) AVANTAGES EN NATURE" in entetes
+        assert "(j) INDEMNITÉS NON IMPOS." in entetes
+        assert "(i) T.R." in entetes
+        assert "TOL / CAMU" in entetes

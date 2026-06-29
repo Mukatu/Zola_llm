@@ -31,6 +31,8 @@ export function createPayslip(b: {
   employee_matricule: string;
   periode: string;
   brut_mensuel_xaf: string;
+  avantages_nature_xaf?: string;
+  indemnites_non_imposables_xaf?: string;
   allow_unvalidated?: boolean;
 }): Promise<PayslipRec> {
   return api("/v1/erp/payslips", { body: b });
@@ -79,12 +81,25 @@ export interface Das1Ligne {
   salaire_plafonne_xaf: number;
   base_imposable_xaf: number;
   irpp_xaf: number;
+  avantages_nature_xaf: number;
+  indemnites_non_imposables_xaf: number;
+  taxe_regionale_xaf: number;
+  tol_camu_xaf: number;
 }
 export interface Das1 {
   exercice: string;
   employeur: Record<string, string>;
   nb_salaries: number;
-  totaux: { brut_xaf: string; plafonne_xaf: string; base_imposable_xaf: string; irpp_xaf: string };
+  totaux: {
+    brut_xaf: string;
+    plafonne_xaf: string;
+    base_imposable_xaf: string;
+    irpp_xaf: string;
+    avantages_nature_xaf: string;
+    indemnites_non_imposables_xaf: string;
+    taxe_regionale_xaf: string;
+    tol_camu_xaf: string;
+  };
   lignes: Das1Ligne[];
 }
 
