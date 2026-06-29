@@ -37,6 +37,7 @@ from zolaos.db.store_models import (
     JournalEntryRecord,
     MarketingContactRecord,
     OpportunityRecord,
+    PayrollScaleRecord,
     PayrollScaleValidationRecord,
     PayslipRecord,
     PurchaseBudgetRecord,
@@ -480,6 +481,32 @@ class PayslipRepository(_CrudRepo):
             return existing
         rec = PayslipRecord(**data)
         self._s.add(rec)
+        await self._s.flush()
+        return rec
+
+
+class PayrollScaleRepository:
+    """Barème de paie persisté (override) par (tenant, pays) — PAIE-6a."""
+
+    def __init__(self, session: AsyncSession) -> None:
+        self._s = session
+
+    async def get(self, *, tenant_id: str, country: str) -> PayrollScaleRecord | None:
+        stmt = select(PayrollScaleRecord).where(
+            PayrollScaleRecord.tenant_id == tenant_id,
+            PayrollScaleRecord.country == country,
+        )
+        return (await self._s.scalars(stmt)).first()
+
+    async def upsert(
+        self, *, tenant_id: str, country: str, version: str, payload: dict[str, Any]
+    ) -> PayrollScaleRecord:
+        rec = await self.get(tenant_id=tenant_id, country=country)
+        if rec is None:
+            rec = PayrollScaleRecord(tenant_id=tenant_id, country=country)
+            self._s.add(rec)
+        rec.version = version
+        rec.payload = payload
         await self._s.flush()
         return rec
 

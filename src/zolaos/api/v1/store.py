@@ -8,14 +8,14 @@ registre stocké (clôture continue). Multi-tenant via `tenant_id` (défaut loca
 from __future__ import annotations
 
 from dataclasses import asdict
-from datetime import date
+from datetime import UTC, date, datetime
 from decimal import Decimal
 from io import BytesIO
 from typing import Any
 
 import openpyxl
 from fastapi import APIRouter, Depends, HTTPException, Response, status
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from zolaos.agents.erp.achats import (
@@ -55,8 +55,9 @@ from zolaos.agents.erp.inventory import (
 )
 from zolaos.agents.erp.payroll import (
     PayrollCalculator,
+    PayrollScale,
     PayrollScaleNotValidated,
-    load_payroll_scale,
+    load_payroll_scale_dict,
     parts_fiscales,
 )
 from zolaos.agents.erp.reconciliation import reconcilier
@@ -89,6 +90,7 @@ from zolaos.db.store_repo import (
     IncidentRepository,
     InvoiceRepository,
     JournalRepository,
+    PayrollScaleRepository,
     PayrollValidationRepository,
     PayslipRepository,
     PurchaseBudgetRepository,
@@ -2006,6 +2008,15 @@ async def hse_indicators_store(
 _payroll_calc = PayrollCalculator()
 
 
+async def _resolve_scale(
+    session: AsyncSession, *, tenant_id: str, country: str
+) -> tuple[PayrollScale, bool, dict[str, Any]]:
+    """Barème effectif : override édité par le tenant (PAIE-6a), sinon graine fichier."""
+    rec = await PayrollScaleRepository(session).get(tenant_id=tenant_id, country=country)
+    raw = rec.payload if rec is not None else load_payroll_scale_dict(country)
+    return PayrollScale.model_validate(raw), rec is not None, raw
+
+
 class PayslipIn(BaseModel):
     employee_matricule: str
     periode: str  # AAAA-MM
@@ -2029,7 +2040,7 @@ async def create_payslip(
     tenant_id: str = "local",
     session: AsyncSession = Depends(get_session),
 ) -> dict[str, Any]:
-    scale = load_payroll_scale(body.country)
+    scale, _, _ = await _resolve_scale(session, tenant_id=tenant_id, country=body.country)
     # Quotient familial depuis le registre du personnel (si l'employé est connu)
     emp = await EmployeeRepository(session).get_by_matricule(
         body.employee_matricule, tenant_id=tenant_id
@@ -2156,12 +2167,30 @@ class BaremeValidationIn(BaseModel):
     note: str = ""
 
 
-def _bareme_payload(scale: Any, val: Any) -> dict[str, Any]:
+class BaremeEditIn(BaseModel):
+    """Champs éditables du barème (PAIE-6a) — fusionnés sur le barème effectif."""
+
+    model_config = {"extra": "forbid"}
+
+    smig_xaf: Decimal | None = None
+    abattement_irpp_taux: Decimal | None = None
+    plafond_parts: Decimal | None = None
+    impot_minimum_annuel_xaf: Decimal | None = None
+    regime_its_depuis_annee: int | None = None
+    regimes: dict[str, Any] | None = None
+    cnss_branches: list[dict[str, Any]] | None = None
+    autres_charges_patronales_a_confirmer: list[dict[str, Any]] | None = None
+    edited_by: str = ""
+
+
+def _bareme_payload(scale: Any, val: Any, *, source_donnees: str = "defaut") -> dict[str, Any]:
     """Vue du barème (valeurs + sources + confiance) + statut de validation."""
     return {
         "country": scale.country,
         "version": scale.version,
         "source": scale.source,
+        "source_donnees": source_donnees,
+        "editable": True,
         "valide_fichier": scale.validated,
         "validation": (
             val.to_dict()
@@ -2172,6 +2201,7 @@ def _bareme_payload(scale: Any, val: Any) -> dict[str, Any]:
         "smig_xaf": str(scale.smig_xaf),
         "abattement_irpp_taux": str(scale.abattement_irpp_taux),
         "plafond_parts": str(scale.plafond_parts),
+        "impot_minimum_annuel_xaf": str(scale.impot_minimum_annuel_xaf),
         "regime_its_depuis_annee": scale.regime_its_depuis_annee,
         "regimes": {
             cle: {
@@ -2203,17 +2233,50 @@ def _bareme_payload(scale: Any, val: Any) -> dict[str, Any]:
     }
 
 
+async def _bareme_view(session: AsyncSession, *, tenant_id: str, country: str) -> dict[str, Any]:
+    scale, is_override, _ = await _resolve_scale(session, tenant_id=tenant_id, country=country)
+    val = await PayrollValidationRepository(session).get(
+        tenant_id=tenant_id, country=country, version=scale.version
+    )
+    return _bareme_payload(scale, val, source_donnees="tenant" if is_override else "defaut")
+
+
 @router.get("/payroll/bareme", summary="Barème de paie : valeurs + sources + statut de validation")
 async def get_bareme(
     country: str = "cg",
     tenant_id: str = "local",
     session: AsyncSession = Depends(get_session),
 ) -> dict[str, Any]:
-    scale = load_payroll_scale(country)
-    val = await PayrollValidationRepository(session).get(
-        tenant_id=tenant_id, country=country, version=scale.version
+    return await _bareme_view(session, tenant_id=tenant_id, country=country)
+
+
+@router.put("/payroll/bareme", summary="Éditer le barème (override tenant) — re-validation requise")
+async def edit_bareme(
+    body: BaremeEditIn,
+    country: str = "cg",
+    tenant_id: str = "local",
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    _, _, raw = await _resolve_scale(session, tenant_id=tenant_id, country=country)
+    merged = dict(raw)
+    patch = body.model_dump(exclude_none=True, mode="json")
+    patch.pop("edited_by", None)
+    merged.update(patch)
+    # Toute édition crée une nouvelle version ⇒ la validation experte retombe ;
+    # on force validated=false (le verrou ne se lève que via l'écran de validation).
+    merged["validated"] = False
+    merged["version"] = f"custom-{datetime.now(UTC):%Y%m%dT%H%M%S}"
+    try:
+        PayrollScale.model_validate(merged)  # garde-fou : structure valide
+    except ValidationError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="bareme_invalide"
+        ) from exc
+    await PayrollScaleRepository(session).upsert(
+        tenant_id=tenant_id, country=country, version=merged["version"], payload=merged
     )
-    return _bareme_payload(scale, val)
+    await session.commit()
+    return await _bareme_view(session, tenant_id=tenant_id, country=country)
 
 
 @router.post("/payroll/bareme/validate", summary="Valider / révoquer un barème (lève le verrou)")
@@ -2223,8 +2286,8 @@ async def validate_bareme(
     tenant_id: str = "local",
     session: AsyncSession = Depends(get_session),
 ) -> dict[str, Any]:
-    scale = load_payroll_scale(country)
-    val = await PayrollValidationRepository(session).set_validation(
+    scale, _, _ = await _resolve_scale(session, tenant_id=tenant_id, country=country)
+    await PayrollValidationRepository(session).set_validation(
         tenant_id=tenant_id,
         country=country,
         version=scale.version,
@@ -2233,7 +2296,7 @@ async def validate_bareme(
         note=body.note,
     )
     await session.commit()
-    return _bareme_payload(scale, val)
+    return await _bareme_view(session, tenant_id=tenant_id, country=country)
 
 
 # ---------------------------------------------------------------- DAS 1 (agrégation annuelle, PAIE-3)
@@ -2284,7 +2347,7 @@ async def _build_das1(session: AsyncSession, *, tenant_id: str, annee: str) -> D
         )
         for e in employees
     ]
-    scale = load_payroll_scale("cg")
+    scale, _, _ = await _resolve_scale(session, tenant_id=tenant_id, country="cg")
     return construire_das1(
         lignes,
         salaries,

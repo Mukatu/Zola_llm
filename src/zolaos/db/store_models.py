@@ -1363,6 +1363,36 @@ class PayslipRecord(StoreBase):
         }
 
 
+class PayrollScaleRecord(StoreBase):
+    """Barème de paie édité et persisté par tenant (override de la graine) — PAIE-6a.
+
+    Le fichier `ref/payroll_<pays>.json` reste la graine par défaut ; dès qu'un
+    tenant édite son barème, le `payload` (structure complète du barème) prévaut.
+    Chaque édition porte une nouvelle `version` ⇒ la validation experte retombe.
+    """
+
+    __tablename__ = "store_payroll_scales"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    tenant_id: Mapped[str] = mapped_column(String(64), index=True)
+    country: Mapped[str] = mapped_column(String(2), default="cg")
+    version: Mapped[str] = mapped_column(String(64))
+    payload: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_now, onupdate=_now
+    )
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "tenant_id": self.tenant_id,
+            "country": self.country,
+            "version": self.version,
+            "payload": self.payload,
+        }
+
+
 class PayrollScaleValidationRecord(StoreBase):
     """Validation experte d'un barème de paie (lève le verrou) — PAIE-5.
 

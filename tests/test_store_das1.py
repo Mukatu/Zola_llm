@@ -278,3 +278,50 @@ async def test_bareme_validation_leve_le_verrou(tmp_path) -> None:  # type: igno
             json={"employee_matricule": "Y", "periode": "2026-01", "brut_mensuel_xaf": "300000"},
         )
         assert r3.status_code == 409
+
+
+async def test_bareme_editable_par_tenant(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    """PAIE-6a : éditer le barème (sans code) crée un override versionné, refait
+    tomber la validation, et le nouveau taux s'applique à l'émission."""
+    async with _client(tmp_path) as ac:
+        b0 = (await ac.get("/v1/erp/payroll/bareme")).json()
+        assert b0["source_donnees"] == "defaut"
+        assert b0["abattement_irpp_taux"] == "0.20"
+
+        # valider la graine
+        await ac.post(
+            "/v1/erp/payroll/bareme/validate",
+            json={"validated": True, "validated_by": "DRH"},
+        )
+
+        # éditer l'abattement → 30 % (sans toucher au code)
+        b1 = (
+            await ac.put(
+                "/v1/erp/payroll/bareme", json={"abattement_irpp_taux": "0.30", "edited_by": "DRH"}
+            )
+        ).json()
+        assert b1["source_donnees"] == "tenant"
+        assert b1["abattement_irpp_taux"] == "0.30"
+        assert b1["version"].startswith("custom-")
+        # nouvelle version ⇒ la validation est retombée
+        assert b1["effectivement_valide"] is False
+
+        # émission re-verrouillée tant que non re-validée
+        r = await ac.post(
+            "/v1/erp/payslips",
+            json={"employee_matricule": "Z", "periode": "2026-01", "brut_mensuel_xaf": "300000"},
+        )
+        assert r.status_code == 409
+
+        # re-valider la nouvelle version → émission OK + nouveau taux appliqué
+        await ac.post(
+            "/v1/erp/payroll/bareme/validate",
+            json={"validated": True, "validated_by": "DRH"},
+        )
+        r2 = await ac.post(
+            "/v1/erp/payslips",
+            json={"employee_matricule": "Z", "periode": "2026-01", "brut_mensuel_xaf": "300000"},
+        )
+        assert r2.status_code == 201
+        # base = (300000 − 4% retraite) × (1 − 0,30) = 288000 × 0,70 = 201 600
+        assert Decimal(r2.json()["base_imposable_xaf"]) == Decimal("201600")

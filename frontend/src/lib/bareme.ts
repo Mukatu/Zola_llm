@@ -33,12 +33,15 @@ export interface Bareme {
   country: string;
   version: string;
   source: string;
+  source_donnees: "tenant" | "defaut";
+  editable: boolean;
   valide_fichier: boolean;
   effectivement_valide: boolean;
   validation: BaremeValidation;
   smig_xaf: string;
   abattement_irpp_taux: string;
   plafond_parts: string;
+  impot_minimum_annuel_xaf: string;
   regime_its_depuis_annee: number;
   regimes: Record<string, BaremeRegime>;
   cnss_branches: CnssBranche[];
@@ -46,8 +49,25 @@ export interface Bareme {
   sources: BaremeSource[];
 }
 
+export interface BaremeEdit {
+  smig_xaf?: string;
+  abattement_irpp_taux?: string;
+  plafond_parts?: string;
+  impot_minimum_annuel_xaf?: string;
+  regime_its_depuis_annee?: number;
+  regimes?: Record<string, BaremeRegime>;
+  cnss_branches?: CnssBranche[];
+  edited_by?: string;
+}
+
 export function getBareme(country = "cg"): Promise<Bareme> {
   return api(`/v1/erp/payroll/bareme?country=${encodeURIComponent(country)}`);
+}
+export function editBareme(b: BaremeEdit, country = "cg"): Promise<Bareme> {
+  return api(`/v1/erp/payroll/bareme?country=${encodeURIComponent(country)}`, {
+    method: "PUT",
+    body: b,
+  });
 }
 export function validateBareme(
   b: { validated: boolean; validated_by?: string; note?: string },

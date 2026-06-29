@@ -131,13 +131,18 @@ class PayrollResult:
     barème_validé: bool = field(default=False)
 
 
-def load_payroll_scale(country: str = "cg") -> PayrollScale:
-    """Charge le barème depuis `ref/payroll_<country>.json`."""
+def load_payroll_scale_dict(country: str = "cg") -> dict[str, Any]:
+    """Charge le barème brut (graine) depuis `ref/payroll_<country>.json`."""
     path = _REF_DIR / f"payroll_{country}.json"
     if not path.is_file():
         raise FileNotFoundError(f"Barème de paie introuvable pour {country!r} : {path}")
-    data = json.loads(path.read_text(encoding="utf-8"))
-    return PayrollScale.model_validate(data)
+    data: dict[str, Any] = json.loads(path.read_text(encoding="utf-8"))
+    return data
+
+
+def load_payroll_scale(country: str = "cg") -> PayrollScale:
+    """Charge le barème (graine) depuis `ref/payroll_<country>.json`."""
+    return PayrollScale.model_validate(load_payroll_scale_dict(country))
 
 
 def _plafonne(base: Decimal, plafond: Decimal | None) -> Decimal:
