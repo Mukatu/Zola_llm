@@ -13,6 +13,7 @@ import {
   type CnssBranche,
   type BaremeRegime,
   type Rubrique,
+  type PrimeAnciennete,
 } from "@/lib/bareme";
 
 function ConfBadge({ niveau }: { niveau: string }) {
@@ -38,6 +39,7 @@ interface Draft {
   regimes: Record<string, BaremeRegime>;
   cnss_branches: CnssBranche[];
   rubriques: Rubrique[];
+  prime_anciennete: PrimeAnciennete;
 }
 
 export function BaremePanel() {
@@ -84,6 +86,7 @@ export function BaremePanel() {
         regimes: b.regimes,
         cnss_branches: b.cnss_branches,
         rubriques: b.rubriques,
+        prime_anciennete: b.prime_anciennete,
       }),
     );
   }
@@ -211,6 +214,15 @@ export function BaremePanel() {
               </tbody>
             </table>
           </div>
+
+          {b.prime_anciennete.actif && b.prime_anciennete.paliers.length > 0 && (
+            <div className="mb-3 text-sm">
+              <span className="text-xs font-medium text-muted">Prime d&apos;ancienneté : </span>
+              {b.prime_anciennete.paliers
+                .map((p) => `${p.annees} ans → ${pct(p.taux)}`)
+                .join(" · ")}
+            </div>
+          )}
 
           {b.rubriques.length > 0 && (
             <div className="mb-3">
@@ -506,6 +518,86 @@ function Editor({
         >
           <Plus className="h-4 w-4" /> Ajouter une prime / retenue
         </Button>
+      </div>
+
+      {/* Prime d'ancienneté */}
+      <div>
+        <label className="mb-1 flex items-center gap-1 text-xs font-medium text-muted">
+          <input
+            type="checkbox"
+            checked={draft.prime_anciennete.actif}
+            onChange={(e) =>
+              patch({ prime_anciennete: { ...draft.prime_anciennete, actif: e.target.checked } })
+            }
+          />
+          Prime d&apos;ancienneté (paliers conventionnels)
+        </label>
+        {draft.prime_anciennete.actif && (
+          <div className="space-y-1">
+            {draft.prime_anciennete.paliers.map((p, i) => (
+              <div key={i} className="flex items-center gap-1 text-sm">
+                <span className="text-muted">à partir de</span>
+                <input
+                  className={`w-16 ${I}`}
+                  value={String(p.annees)}
+                  onChange={(e) =>
+                    patch({
+                      prime_anciennete: {
+                        ...draft.prime_anciennete,
+                        paliers: draft.prime_anciennete.paliers.map((x, j) =>
+                          j === i ? { ...x, annees: parseInt(e.target.value) || 0 } : x,
+                        ),
+                      },
+                    })
+                  }
+                />
+                <span className="text-muted">ans →</span>
+                <input
+                  className={`w-20 ${I}`}
+                  title="taux décimal (0.05 = 5%)"
+                  value={p.taux}
+                  onChange={(e) =>
+                    patch({
+                      prime_anciennete: {
+                        ...draft.prime_anciennete,
+                        paliers: draft.prime_anciennete.paliers.map((x, j) =>
+                          j === i ? { ...x, taux: e.target.value } : x,
+                        ),
+                      },
+                    })
+                  }
+                />
+                <button
+                  className="rounded p-1 text-red-600 hover:bg-red-50"
+                  title="Supprimer"
+                  onClick={() =>
+                    patch({
+                      prime_anciennete: {
+                        ...draft.prime_anciennete,
+                        paliers: draft.prime_anciennete.paliers.filter((_, j) => j !== i),
+                      },
+                    })
+                  }
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </div>
+            ))}
+            <Button
+              variant="ghost"
+              onClick={() =>
+                patch({
+                  prime_anciennete: {
+                    ...draft.prime_anciennete,
+                    paliers: [...draft.prime_anciennete.paliers, { annees: 2, taux: "0.02" }],
+                  },
+                })
+              }
+            >
+              <Plus className="h-4 w-4" /> Ajouter un palier
+            </Button>
+          </div>
+        )}
       </div>
 
       <div className="flex items-center gap-2">

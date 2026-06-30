@@ -16,6 +16,7 @@ import pytest
 from zolaos.agents.erp.payroll import (
     CnssBranche,
     IrppTranche,
+    PalierAnciennete,
     PayrollCalculator,
     PayrollScale,
     PayrollScaleNotValidated,
@@ -24,6 +25,7 @@ from zolaos.agents.erp.payroll import (
     _irpp,
     load_payroll_scale,
     parts_fiscales,
+    taux_anciennete,
 )
 
 
@@ -226,3 +228,15 @@ def test_sans_rubrique_calcul_inchange() -> None:
     assert res.brut_xaf == Decimal("100000")
     assert res.base_imposable_xaf == Decimal("96000")
     assert res.rubriques == {}
+
+
+def test_taux_anciennete_paliers() -> None:
+    paliers = [
+        PalierAnciennete(annees=2, taux=Decimal("0.02")),
+        PalierAnciennete(annees=5, taux=Decimal("0.05")),
+        PalierAnciennete(annees=10, taux=Decimal("0.10")),
+    ]
+    assert taux_anciennete(paliers, 1) == Decimal("0")  # avant le 1er palier
+    assert taux_anciennete(paliers, 2) == Decimal("0.02")
+    assert taux_anciennete(paliers, 6) == Decimal("0.05")
+    assert taux_anciennete(paliers, 30) == Decimal("0.10")  # plafonné au dernier palier

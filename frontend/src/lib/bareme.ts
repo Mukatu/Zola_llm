@@ -39,6 +39,14 @@ export interface Rubrique {
   soumis_cnss: boolean;
   applicable_a_tous: boolean;
 }
+export interface PalierAnciennete {
+  annees: number;
+  taux: string;
+}
+export interface PrimeAnciennete {
+  actif: boolean;
+  paliers: PalierAnciennete[];
+}
 export interface Bareme {
   country: string;
   version: string;
@@ -52,10 +60,12 @@ export interface Bareme {
   abattement_irpp_taux: string;
   plafond_parts: string;
   impot_minimum_annuel_xaf: string;
+  heures_mensuelles: string;
   regime_its_depuis_annee: number;
   regimes: Record<string, BaremeRegime>;
   cnss_branches: CnssBranche[];
   rubriques: Rubrique[];
+  prime_anciennete: PrimeAnciennete;
   autres_charges_a_confirmer: Record<string, unknown>[];
   sources: BaremeSource[];
 }
@@ -69,6 +79,7 @@ export interface BaremeEdit {
   regimes?: Record<string, BaremeRegime>;
   cnss_branches?: CnssBranche[];
   rubriques?: Rubrique[];
+  prime_anciennete?: PrimeAnciennete;
   edited_by?: string;
 }
 

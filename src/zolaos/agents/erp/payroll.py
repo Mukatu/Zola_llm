@@ -64,6 +64,30 @@ class CnssBranche(BaseModel):
     plafond_mensuel_xaf: Decimal | None = None
 
 
+class PalierAnciennete(BaseModel):
+    """Palier de prime d'ancienneté : taux appliqué à partir de `annees` d'ancienneté."""
+
+    annees: int = Field(..., ge=0)
+    taux: Decimal = Field(..., ge=0, le=1)
+
+
+class PrimeAnciennete(BaseModel):
+    """Prime d'ancienneté conventionnelle (paramétrable par tenant) — PAIE-9."""
+
+    actif: bool = False
+    paliers: list[PalierAnciennete] = Field(default_factory=list)
+
+
+def taux_anciennete(paliers: list[PalierAnciennete], annees: int) -> Decimal:
+    """Taux applicable : celui du palier de plus grande ancienneté requise atteint."""
+    taux = _ZERO
+    seuil = -1
+    for p in paliers:
+        if p.annees <= annees and p.annees > seuil:
+            seuil, taux = p.annees, p.taux
+    return taux
+
+
 class Rubrique(BaseModel):
     """Rubrique de paie paramétrable (prime/retenue) — PAIE-6b.
 
@@ -115,6 +139,7 @@ class PayrollScale(BaseModel):
     heures_mensuelles: Decimal = Field(default=Decimal("173.33"), gt=0)  # base taux horaire
     cnss_branches: list[CnssBranche] = Field(default_factory=list)
     rubriques: list[Rubrique] = Field(default_factory=list)
+    prime_anciennete: PrimeAnciennete = Field(default_factory=PrimeAnciennete)
     sources: list[dict[str, Any]] = Field(default_factory=list)
     autres_charges_patronales_a_confirmer: list[dict[str, Any]] = Field(default_factory=list)
 

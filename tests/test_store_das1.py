@@ -577,3 +577,51 @@ async def test_variables_mensuelles(tmp_path) -> None:  # type: ignore[no-untype
         v = (await ac.get("/v1/erp/employees/V1/variables?periode=2026-06")).json()
         assert v["heures_sup"][0]["heures"] == "10"
         assert v["primes"][0]["libelle"] == "Prime expo"
+
+
+async def test_prime_anciennete(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    """PAIE-9 : prime d'ancienneté calculée depuis la date d'embauche, par paliers."""
+    async with _client(tmp_path) as ac:
+        # employé embauché en 2020 (6 ans d'ancienneté au 2026-06)
+        await ac.post(
+            "/v1/erp/employees",
+            json={"matricule": "AN1", "nom_complet": "Jean Senior", "date_embauche": "2020-01-01"},
+        )
+        # activer la prime d'ancienneté (paliers conventionnels) — sans code
+        await ac.put(
+            "/v1/erp/payroll/bareme",
+            json={
+                "prime_anciennete": {
+                    "actif": True,
+                    "paliers": [
+                        {"annees": 2, "taux": "0.02"},
+                        {"annees": 5, "taux": "0.05"},
+                    ],
+                },
+                "edited_by": "DRH",
+            },
+        )
+        b = (await ac.get("/v1/erp/payroll/bareme")).json()
+        assert b["prime_anciennete"]["actif"] is True
+        await ac.post(
+            "/v1/erp/payroll/bareme/validate", json={"validated": True, "validated_by": "DRH"}
+        )
+
+        r = await ac.post(
+            "/v1/erp/payslips",
+            json={"employee_matricule": "AN1", "periode": "2026-06", "brut_mensuel_xaf": "400000"},
+        )
+        assert r.status_code == 201
+        # 6 ans → palier 5 ans → 5 % × 400 000 = 20 000
+        assert r.json()["rubriques"]["anciennete"] == "20000"
+
+        # un nouvel embauché (< 2 ans) n'a pas de prime
+        await ac.post(
+            "/v1/erp/employees",
+            json={"matricule": "AN2", "nom_complet": "Junior", "date_embauche": "2025-06-01"},
+        )
+        r2 = await ac.post(
+            "/v1/erp/payslips",
+            json={"employee_matricule": "AN2", "periode": "2026-06", "brut_mensuel_xaf": "400000"},
+        )
+        assert "anciennete" not in r2.json()["rubriques"]

@@ -62,6 +62,7 @@ from zolaos.agents.erp.payroll import (
     Rubrique,
     load_payroll_scale_dict,
     parts_fiscales,
+    taux_anciennete,
 )
 from zolaos.agents.erp.reconciliation import reconcilier
 from zolaos.agents.erp.supply import StockItem, alertes_rupture, analyser_reappro
@@ -2095,6 +2096,40 @@ def _variables_rubriques(
     return out
 
 
+def _anciennete_annees(date_embauche: date, ref: date) -> int:
+    """Nombre d'années entières d'ancienneté entre l'embauche et la date de référence."""
+    ans = ref.year - date_embauche.year
+    if (ref.month, ref.day) < (date_embauche.month, date_embauche.day):
+        ans -= 1
+    return max(0, ans)
+
+
+def _rubrique_anciennete(
+    scale: PayrollScale, emp: Any, *, periode: str, brut: Decimal
+) -> Rubrique | None:
+    """Prime d'ancienneté (PAIE-9) : taux du palier atteint × brut, si activée."""
+    prime = scale.prime_anciennete
+    if not prime.actif or not prime.paliers or emp is None or emp.date_embauche is None:
+        return None
+    if len(periode) < 7 or not periode[:4].isdigit() or not periode[5:7].isdigit():
+        return None
+    ref = date(int(periode[:4]), int(periode[5:7]), 1)
+    annees = _anciennete_annees(emp.date_embauche, ref)
+    taux = taux_anciennete(prime.paliers, annees)
+    if taux <= 0:
+        return None
+    montant = (taux * brut).quantize(Decimal("1"))
+    return Rubrique(
+        code="anciennete",
+        libelle=f"Prime d'ancienneté {(taux * 100).quantize(Decimal('1'))}% ({annees} ans)",
+        type="gain",
+        mode="fixe",
+        valeur=montant,
+        imposable=True,
+        soumis_cnss=True,
+    )
+
+
 class PayslipIn(BaseModel):
     employee_matricule: str
     periode: str  # AAAA-MM
@@ -2144,6 +2179,9 @@ async def create_payslip(
         rubriques = rubriques + _variables_rubriques(
             var.payload, brut=body.brut_mensuel_xaf, heures_mensuelles=scale.heures_mensuelles
         )
+    anciennete = _rubrique_anciennete(scale, emp, periode=body.periode, brut=body.brut_mensuel_xaf)
+    if anciennete is not None:
+        rubriques = [*rubriques, anciennete]
     try:
         result = _payroll_calc.compute(
             body.brut_mensuel_xaf,
@@ -2270,6 +2308,8 @@ class BaremeEditIn(BaseModel):
     regimes: dict[str, Any] | None = None
     cnss_branches: list[dict[str, Any]] | None = None
     rubriques: list[dict[str, Any]] | None = None
+    prime_anciennete: dict[str, Any] | None = None
+    heures_mensuelles: Decimal | None = None
     autres_charges_patronales_a_confirmer: list[dict[str, Any]] | None = None
     edited_by: str = ""
 
@@ -2319,6 +2359,7 @@ def _bareme_payload(scale: Any, val: Any, *, source_donnees: str = "defaut") -> 
             }
             for b in scale.cnss_branches
         ],
+        "heures_mensuelles": str(scale.heures_mensuelles),
         "rubriques": [
             {
                 "code": r.code,
@@ -2328,9 +2369,16 @@ def _bareme_payload(scale: Any, val: Any, *, source_donnees: str = "defaut") -> 
                 "valeur": str(r.valeur),
                 "imposable": r.imposable,
                 "soumis_cnss": r.soumis_cnss,
+                "applicable_a_tous": r.applicable_a_tous,
             }
             for r in scale.rubriques
         ],
+        "prime_anciennete": {
+            "actif": scale.prime_anciennete.actif,
+            "paliers": [
+                {"annees": p.annees, "taux": str(p.taux)} for p in scale.prime_anciennete.paliers
+            ],
+        },
         "autres_charges_a_confirmer": scale.autres_charges_patronales_a_confirmer,
         "sources": scale.sources,
     }
