@@ -1366,6 +1366,29 @@ class PayslipRecord(StoreBase):
         }
 
 
+class PayslipArchiveRecord(StoreBase):
+    """Bulletin archivé (coffre-fort) — instantané immuable + rendu HTML (PAIE-10)."""
+
+    __tablename__ = "store_payslip_archives"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    tenant_id: Mapped[str] = mapped_column(String(64), index=True)
+    employee_matricule: Mapped[str] = mapped_column(String(32), index=True)
+    periode: Mapped[str] = mapped_column(String(7), index=True)
+    snapshot: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    html: Mapped[str] = mapped_column(Text, default="")
+    archived_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "employee_matricule": self.employee_matricule,
+            "periode": self.periode,
+            "net_a_payer_xaf": self.snapshot.get("net_a_payer_xaf"),
+            "archived_at": self.archived_at.isoformat() if self.archived_at else None,
+        }
+
+
 class PayrollVariableRecord(StoreBase):
     """Variables de paie d'un salarié pour une période (PAIE-8).
 

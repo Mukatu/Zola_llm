@@ -116,6 +116,69 @@ export function saveVariables(
     { method: "PUT", body },
   );
 }
+
+// ----- Journal de paie + archivage (PAIE-10) -----
+export interface JournalLigne {
+  matricule: string;
+  nom: string;
+  brut_xaf: string;
+  cotisations_salariales_xaf: string;
+  cotisations_patronales_xaf: string;
+  irpp_xaf: string;
+  net_a_payer_xaf: string;
+  cout_employeur_xaf: string;
+  statut: string;
+}
+export interface Journal {
+  periode: string;
+  nb_bulletins: number;
+  lignes: JournalLigne[];
+  totaux: Record<string, string>;
+}
+export interface Archive {
+  id: string;
+  employee_matricule: string;
+  periode: string;
+  net_a_payer_xaf: string | null;
+  archived_at: string | null;
+}
+export function payrollJournal(periode: string): Promise<Journal> {
+  return api(`/v1/erp/payroll/journal?periode=${encodeURIComponent(periode)}`);
+}
+export function archiverBulletin(payslipId: string): Promise<Archive> {
+  return api(`/v1/erp/payslips/${payslipId}/archiver`, { method: "POST", body: {} });
+}
+export function listArchives(periode: string): Promise<{ archives: Archive[] }> {
+  return api(`/v1/erp/payroll/archives?periode=${encodeURIComponent(periode)}`);
+}
+export async function downloadJournal(periode: string): Promise<void> {
+  const base = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000";
+  const token = getToken();
+  const r = await fetch(`${base}/v1/erp/payroll/journal/export?periode=${encodeURIComponent(periode)}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  if (!r.ok) throw new Error(`HTTP ${r.status}`);
+  const url = URL.createObjectURL(await r.blob());
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `journal_paie_${periode}.xlsx`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+export async function downloadArchive(archiveId: string, label: string): Promise<void> {
+  const base = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000";
+  const token = getToken();
+  const r = await fetch(`${base}/v1/erp/payroll/archives/${archiveId}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  if (!r.ok) throw new Error(`HTTP ${r.status}`);
+  const url = URL.createObjectURL(await r.blob());
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `bulletin_${label}.html`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
 async function _downloadBulletin(
   payslipId: string,
   label: string,

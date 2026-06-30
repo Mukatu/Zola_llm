@@ -41,6 +41,7 @@ from zolaos.db.store_models import (
     PayrollScaleRecord,
     PayrollScaleValidationRecord,
     PayrollVariableRecord,
+    PayslipArchiveRecord,
     PayslipRecord,
     PayslipTemplateRecord,
     PurchaseBudgetRecord,
@@ -565,6 +566,40 @@ class PayrollVariableRepository:
         rec.payload = payload
         await self._s.flush()
         return rec
+
+
+class PayslipArchiveRepository:
+    """Coffre-fort des bulletins archivés — PAIE-10."""
+
+    def __init__(self, session: AsyncSession) -> None:
+        self._s = session
+
+    async def create(self, data: dict[str, Any]) -> PayslipArchiveRecord:
+        rec = PayslipArchiveRecord(**data)
+        self._s.add(rec)
+        await self._s.flush()
+        return rec
+
+    async def get(self, archive_id: str, *, tenant_id: str) -> PayslipArchiveRecord | None:
+        rec = await self._s.get(PayslipArchiveRecord, archive_id)
+        if rec is None or rec.tenant_id != tenant_id:
+            return None
+        return rec
+
+    async def list(
+        self,
+        *,
+        tenant_id: str,
+        periode: str | None = None,
+        employee_matricule: str | None = None,
+    ) -> list[PayslipArchiveRecord]:
+        stmt = select(PayslipArchiveRecord).where(PayslipArchiveRecord.tenant_id == tenant_id)
+        if periode is not None:
+            stmt = stmt.where(PayslipArchiveRecord.periode == periode)
+        if employee_matricule is not None:
+            stmt = stmt.where(PayslipArchiveRecord.employee_matricule == employee_matricule)
+        stmt = stmt.order_by(PayslipArchiveRecord.archived_at.desc())
+        return list(await self._s.scalars(stmt))
 
 
 class PayslipTemplateRepository:

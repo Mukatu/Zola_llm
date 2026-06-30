@@ -1,12 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Wallet, AlertCircle, CheckCircle2, Trash2, FileSpreadsheet, Download, FileText } from "lucide-react";
+import { Wallet, AlertCircle, CheckCircle2, Trash2, FileSpreadsheet, Download, FileText, Archive } from "lucide-react";
 import { Card, Button } from "../ui";
 import { BaremePanel } from "./BaremePanel";
 import { EmployeeRubriquesPanel } from "./EmployeeRubriquesPanel";
 import { VariablesMoisPanel } from "./VariablesMoisPanel";
 import { BulletinModelePanel } from "./BulletinModelePanel";
+import { JournalPaiePanel } from "./JournalPaiePanel";
 import { ApiError } from "@/lib/api";
 import { fmt } from "@/lib/data";
 import {
@@ -19,6 +20,7 @@ import {
   downloadDas1,
   downloadBulletin,
   downloadBulletinHtml,
+  archiverBulletin,
   getBulletinModele,
   type PayslipRec,
   type PayrollDashboard,
@@ -171,6 +173,7 @@ export function PaieScreen() {
                         {gabaritActif && (
                           <button onClick={() => downloadBulletinHtml(p.id, `${p.employee_matricule}_${p.periode}`)} title="Bulletin HTML (gabarit)" className="text-xs font-semibold text-primary hover:text-primary/80">HTML</button>
                         )}
+                        <button onClick={() => archiverBulletin(p.id)} title="Archiver (coffre-fort)" className="text-muted hover:text-primary"><Archive className="h-4 w-4" /></button>
                         {p.statut !== "valide" && (
                           <button onClick={() => pay(p.id)} title="Valider/payer" className="text-emerald-600 hover:text-emerald-800"><CheckCircle2 className="h-4 w-4" /></button>
                         )}
@@ -242,6 +245,7 @@ export function PaieScreen() {
         )}
       </Card>
 
+      <JournalPaiePanel />
       <BaremePanel />
       <EmployeeRubriquesPanel />
       <VariablesMoisPanel />

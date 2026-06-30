@@ -98,6 +98,7 @@ from zolaos.db.store_repo import (
     PayrollScaleRepository,
     PayrollValidationRepository,
     PayrollVariableRepository,
+    PayslipArchiveRepository,
     PayslipRepository,
     PayslipTemplateRepository,
     PurchaseBudgetRepository,
@@ -2286,6 +2287,117 @@ async def payroll_dashboard(
     }
 
 
+# ---------------------------------------------------------------- Journal de paie (PAIE-10)
+
+
+async def _journal(session: AsyncSession, *, tenant_id: str, periode: str) -> dict[str, Any]:
+    rows = await PayslipRepository(session).list(tenant_id=tenant_id, periode=periode)
+    emps = await EmployeeRepository(session).list(tenant_id=tenant_id)
+    noms = {e.matricule: e.nom_complet for e in emps}
+    z = Decimal("0")
+    lignes = []
+    tot = {"brut": z, "cot_sal": z, "cot_pat": z, "irpp": z, "net": z, "cout": z}
+    for p in sorted(rows, key=lambda r: r.employee_matricule):
+        cot_pat = sum((Decimal(v) for v in p.cotisations_patronales.values()), z)
+        lignes.append(
+            {
+                "matricule": p.employee_matricule,
+                "nom": noms.get(p.employee_matricule, ""),
+                "brut_xaf": str(p.brut_xaf),
+                "cotisations_salariales_xaf": str(p.total_cotisations_salariales_xaf),
+                "cotisations_patronales_xaf": str(cot_pat),
+                "irpp_xaf": str(p.irpp_xaf),
+                "net_a_payer_xaf": str(p.net_a_payer_xaf),
+                "cout_employeur_xaf": str(p.cout_employeur_xaf),
+                "statut": p.statut,
+            }
+        )
+        tot["brut"] += p.brut_xaf
+        tot["cot_sal"] += p.total_cotisations_salariales_xaf
+        tot["cot_pat"] += cot_pat
+        tot["irpp"] += p.irpp_xaf
+        tot["net"] += p.net_a_payer_xaf
+        tot["cout"] += p.cout_employeur_xaf
+    return {
+        "periode": periode,
+        "nb_bulletins": len(lignes),
+        "lignes": lignes,
+        "totaux": {k: str(v) for k, v in tot.items()},
+    }
+
+
+@router.get("/payroll/journal", summary="Journal de paie d'une période (registre + totaux)")
+async def payroll_journal(
+    periode: str,
+    tenant_id: str = "local",
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    return await _journal(session, tenant_id=tenant_id, periode=periode)
+
+
+@router.get("/payroll/journal/export", summary="Exporter le journal de paie (.xlsx)")
+async def export_journal(
+    periode: str,
+    tenant_id: str = "local",
+    session: AsyncSession = Depends(get_session),
+) -> Response:
+    j = await _journal(session, tenant_id=tenant_id, periode=periode)
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Journal de paie"
+    ws.append([f"JOURNAL DE PAIE — {periode}"])
+    ws.append([])
+    cols = [
+        "Matricule",
+        "Nom",
+        "Brut",
+        "Cotis. salariales",
+        "Cotis. patronales",
+        "IRPP",
+        "Net à payer",
+        "Coût employeur",
+        "Statut",
+    ]
+    ws.append(cols)
+    for l in j["lignes"]:
+        ws.append(
+            [
+                l["matricule"],
+                l["nom"],
+                float(Decimal(l["brut_xaf"])),
+                float(Decimal(l["cotisations_salariales_xaf"])),
+                float(Decimal(l["cotisations_patronales_xaf"])),
+                float(Decimal(l["irpp_xaf"])),
+                float(Decimal(l["net_a_payer_xaf"])),
+                float(Decimal(l["cout_employeur_xaf"])),
+                l["statut"],
+            ]
+        )
+    t = j["totaux"]
+    ws.append(
+        [
+            "",
+            "TOTAUX",
+            float(Decimal(t["brut"])),
+            float(Decimal(t["cot_sal"])),
+            float(Decimal(t["cot_pat"])),
+            float(Decimal(t["irpp"])),
+            float(Decimal(t["net"])),
+            float(Decimal(t["cout"])),
+            "",
+        ]
+    )
+    for col, w in zip("ABCDEFGHI", (12, 22, 14, 16, 16, 14, 14, 16, 10), strict=True):
+        ws.column_dimensions[col].width = w
+    bio = BytesIO()
+    wb.save(bio)
+    return Response(
+        content=bio.getvalue(),
+        media_type=_XLSX_MEDIA,
+        headers={"Content-Disposition": f'attachment; filename="journal_paie_{periode}.xlsx"'},
+    )
+
+
 # ---------------------------------------------------------------- Barème de paie (validation, PAIE-5)
 
 
@@ -3170,6 +3282,112 @@ async def download_bulletin_html(
     filename = f"bulletin_{p.employee_matricule}_{p.periode}.html"
     return Response(
         content=rendu,
+        media_type="text/html; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+# --------------------------------------------------- Archivage / coffre-fort (PAIE-10)
+
+
+def _bulletin_html_defaut(
+    payslip: dict[str, Any],
+    employee: dict[str, Any] | None,
+    employeur: dict[str, str],
+    modele: dict[str, Any],
+    libelles: dict[str, str],
+) -> str:
+    """Rendu HTML autonome d'un bulletin (utilisé pour l'archive sans gabarit)."""
+    e = _html.escape
+    nom = (employee or {}).get("nom_complet", payslip.get("employee_matricule", ""))
+    lignes = [("Salaire brut", payslip.get("brut_xaf", ""))]
+    for code, montant in (payslip.get("rubriques") or {}).items():
+        lignes.append((libelles.get(code, code), str(montant)))
+    for code, montant in (payslip.get("cotisations_salariales") or {}).items():
+        lignes.append((f"Cotisation {libelles.get(code, code)}", f"-{montant}"))
+    lignes.append(("I.R.P.P.", f"-{payslip.get('irpp_xaf', '')}"))
+    rows = "".join(f"<tr><td>{e(lib)}</td><td class='m'>{e(str(v))}</td></tr>" for lib, v in lignes)
+    accent = e(str(modele.get("couleur", "1F4E79")))
+    return (
+        "<!doctype html><html><head><meta charset='utf-8'><style>"
+        f"body{{font-family:sans-serif;font-size:13px}}h1{{background:#{accent};color:#fff;"
+        "padding:8px}table{border-collapse:collapse;width:100%}td{border:1px solid #ddd;padding:4px}"
+        ".m{text-align:right}.net{font-weight:bold;background:#" + accent + ";color:#fff}"
+        "</style></head><body>"
+        f"<h1>{e(str(modele.get('titre') or 'BULLETIN DE PAIE'))}</h1>"
+        f"<p><b>{e(employeur.get('raison_sociale', ''))}</b> — "
+        f"Période {e(payslip.get('periode', ''))}<br>"
+        f"Salarié : {e(nom)} ({e(payslip.get('employee_matricule', ''))})</p>"
+        f"<table>{rows}"
+        f"<tr class='net'><td>NET À PAYER ({e(modele.get('devise', 'XAF'))})</td>"
+        f"<td class='m'>{e(payslip.get('net_a_payer_xaf', ''))}</td></tr></table>"
+        f"<p style='font-size:9px;font-style:italic'>{e(str(modele.get('mentions', '')))}</p>"
+        "</body></html>"
+    )
+
+
+@router.post("/payslips/{payslip_id}/archiver", summary="Archiver un bulletin (coffre-fort)")
+async def archiver_bulletin(
+    payslip_id: str,
+    tenant_id: str = "local",
+    session: AsyncSession = Depends(get_session),
+    config_service: TenantConfigService = Depends(get_config_service),
+) -> dict[str, Any]:
+    p = await PayslipRepository(session).get(payslip_id, tenant_id=tenant_id)
+    if p is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="payslip_not_found")
+    emp = await EmployeeRepository(session).get_by_matricule(
+        p.employee_matricule, tenant_id=tenant_id
+    )
+    employee = emp.to_dict() if emp is not None else None
+    employeur = _employeur(config_service, tenant_id)
+    modele = await _bulletin_modele(session, tenant_id)
+    scale, _, _ = await _resolve_scale(session, tenant_id=tenant_id, country=p.country)
+    libelles = {r.code: r.libelle or r.code for r in scale.rubriques}
+    snapshot = p.to_dict()
+    gabarit = str(modele.get("gabarit_html") or "")
+    if modele.get("mode") == "gabarit" and gabarit.strip():
+        html = render_bulletin_html(gabarit, snapshot, employee, employeur, modele, libelles)
+    else:
+        html = _bulletin_html_defaut(snapshot, employee, employeur, modele, libelles)
+    rec = await PayslipArchiveRepository(session).create(
+        {
+            "tenant_id": tenant_id,
+            "employee_matricule": p.employee_matricule,
+            "periode": p.periode,
+            "snapshot": snapshot,
+            "html": html,
+        }
+    )
+    await session.commit()
+    return rec.to_dict()
+
+
+@router.get("/payroll/archives", summary="Lister les bulletins archivés (coffre-fort)")
+async def list_archives(
+    tenant_id: str = "local",
+    periode: str | None = None,
+    employee_matricule: str | None = None,
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    rows = await PayslipArchiveRepository(session).list(
+        tenant_id=tenant_id, periode=periode, employee_matricule=employee_matricule
+    )
+    return {"archives": [r.to_dict() for r in rows]}
+
+
+@router.get("/payroll/archives/{archive_id}", summary="Télécharger un bulletin archivé (.html)")
+async def get_archive(
+    archive_id: str,
+    tenant_id: str = "local",
+    session: AsyncSession = Depends(get_session),
+) -> Response:
+    rec = await PayslipArchiveRepository(session).get(archive_id, tenant_id=tenant_id)
+    if rec is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="archive_not_found")
+    filename = f"bulletin_{rec.employee_matricule}_{rec.periode}.html"
+    return Response(
+        content=rec.html,
         media_type="text/html; charset=utf-8",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )

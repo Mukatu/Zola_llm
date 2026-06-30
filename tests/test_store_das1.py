@@ -625,3 +625,46 @@ async def test_prime_anciennete(tmp_path) -> None:  # type: ignore[no-untyped-de
             json={"employee_matricule": "AN2", "periode": "2026-06", "brut_mensuel_xaf": "400000"},
         )
         assert "anciennete" not in r2.json()["rubriques"]
+
+
+async def test_journal_et_archivage(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    """PAIE-10 : journal de paie (registre + totaux + export) et coffre-fort."""
+    async with _client(tmp_path) as ac:
+        for m, brut in (("J1", "400000"), ("J2", "300000")):
+            r = await ac.post(
+                "/v1/erp/payslips",
+                json={
+                    "employee_matricule": m,
+                    "periode": "2026-07",
+                    "brut_mensuel_xaf": brut,
+                    "allow_unvalidated": True,
+                },
+            )
+            assert r.status_code == 201
+        pid = r.json()["id"]  # J2
+
+        # journal : 2 lignes + totaux
+        j = (await ac.get("/v1/erp/payroll/journal?periode=2026-07")).json()
+        assert j["nb_bulletins"] == 2
+        assert Decimal(j["totaux"]["brut"]) == Decimal("700000")
+        assert {x["matricule"] for x in j["lignes"]} == {"J1", "J2"}
+
+        # export xlsx
+        e = await ac.get("/v1/erp/payroll/journal/export?periode=2026-07")
+        assert e.status_code == 200
+        wb = openpyxl.load_workbook(BytesIO(e.content))
+        vals = [c.value for row in wb["Journal de paie"].iter_rows() for c in row if c.value]
+        assert any(isinstance(v, str) and v.startswith("JOURNAL DE PAIE") for v in vals)
+
+        # archivage (coffre-fort)
+        a = (await ac.post(f"/v1/erp/payslips/{pid}/archiver")).json()
+        assert a["periode"] == "2026-07" and a["employee_matricule"] == "J2"
+        arch = (await ac.get("/v1/erp/payroll/archives?periode=2026-07")).json()
+        assert len(arch["archives"]) == 1
+        aid = arch["archives"][0]["id"]
+        dl = await ac.get(f"/v1/erp/payroll/archives/{aid}")
+        assert dl.status_code == 200
+        assert "text/html" in dl.headers["content-type"]
+        assert "NET À PAYER" in dl.text  # bulletin archivé rendu
+
+        assert (await ac.get("/v1/erp/payroll/archives/inexistant")).status_code == 404
