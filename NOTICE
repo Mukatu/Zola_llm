@@ -46,10 +46,11 @@ We thank these projects and their maintainers.
 Data corpora (RAG)
 ==============================================================================
 
-The `rag_erp` knowledge base includes the AUDCIF (OHADA Uniform Act on
-accounting and financial reporting), sourced from the HuggingFace dataset
-"Maathis-com/ohada-actes-uniformes", licensed under CC-BY-4.0
-(https://creativecommons.org/licenses/by/4.0/).
+The RAG knowledge bases include the nine OHADA Uniform Acts (3,126 articles),
+sourced from the HuggingFace dataset "Maathis-com/ohada-actes-uniformes",
+licensed under CC-BY-4.0 (https://creativecommons.org/licenses/by/4.0/).
+The AUDCIF (accounting law) is routed to the `rag_erp` schema; the eight other
+acts to `rag_legal`.
 
-Modifications: filtered to the AUDCIF act, reformatted per article, chunked and
-embedded for retrieval. See scripts/ingest_audcif.py and THIRD_PARTY_LICENSES.md.
+Modifications: routed per act, reformatted per article, chunked and embedded for
+retrieval. See scripts/ingest_ohada.py and THIRD_PARTY_LICENSES.md.

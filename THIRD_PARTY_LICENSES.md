@@ -117,12 +117,13 @@ Dernière mise à jour : 2026-05-19.
 
 | Corpus | Source | Licence | Obligation |
 |---|---|---|---|
-| **AUDCIF** — Acte uniforme relatif au droit comptable et à l'information financière (120 articles, corpus `rag_erp`) | Dataset HuggingFace `Maathis-com/ohada-actes-uniformes` (`nodes/articles.csv`) | **CC-BY-4.0** | ⚠️ **Attribution obligatoire** : créditer la source + la licence, et indiquer les modifications apportées. |
+| **Actes uniformes OHADA** — les 9 Actes (3 126 articles), dont l'**AUDCIF** (droit comptable) → `rag_erp` et les 8 autres → `rag_legal` | Dataset HuggingFace `Maathis-com/ohada-actes-uniformes` (`nodes/articles.csv`) | **CC-BY-4.0** | ⚠️ **Attribution obligatoire** : créditer la source + la licence, et indiquer les modifications apportées. |
 
-> **Modifications apportées** au corpus AUDCIF : filtrage sur `acte_code = 'AUDCIF'`,
-> reformatage par article (entête « AUDCIF — Article N — Titre »), découpage en
-> chunks et vectorisation (bge-m3) pour l'indexation RAG dans le schéma `rag_erp`.
-> Script d'ingestion reproductible : `scripts/ingest_audcif.py`.
+> **Modifications apportées** au corpus OHADA : filtrage/routage par `acte_code`,
+> reformatage par article (entête « CODE (nom) — Article N — Titre »), découpage
+> en chunks et vectorisation (bge-m3) pour l'indexation RAG. L'AUDCIF est routé
+> vers `rag_erp` (agent Compta), les 8 autres actes vers `rag_legal` (agent `ohada`).
+> Script d'ingestion reproductible : `scripts/ingest_ohada.py`.
 > Le texte des Actes uniformes OHADA est par ailleurs une norme réglementaire
 > publique ; l'obligation CC-BY porte sur la *compilation* du dataset source.
 
