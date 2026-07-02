@@ -141,6 +141,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     app.include_router(config_router)
 
+    # Feedback agents (transverse box + cortex) : capture du retour utilisateur
+    # (verdict ✓/✗ + correction experte) — socle de l'auto-amélioration.
+    from zolaos.api.v1.feedback import router as feedback_router
+
+    app.include_router(feedback_router)
+
     # Routes Zolabox (Polaris-8) : exposées uniquement en profil `box`. En
     # profil `cortex`, le router n'est pas monté → 404 sur /v1/box/* (préférable
     # à un 500 ProfileError qui révélerait l'existence des routes).

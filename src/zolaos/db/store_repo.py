@@ -10,11 +10,12 @@ from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from zolaos.db.store_models import (
     AbsenceRecord,
+    AgentFeedbackRecord,
     ApplicationRecord,
     AssetRecord,
     BankAccountRecord,
@@ -810,3 +811,65 @@ class EmployeeSkillRepository(_SimpleRepo):
         self._s.add(rec)
         await self._s.flush()
         return rec
+
+
+class AgentFeedbackRepository:
+    """Retour utilisateur sur les réponses d'agents (pouce ✓/✗ + correction)."""
+
+    def __init__(self, session: AsyncSession) -> None:
+        self._s = session
+
+    async def create(self, data: dict[str, Any]) -> AgentFeedbackRecord:
+        """Persiste un nouveau feedback."""
+        data.setdefault("created_at", datetime.now(UTC))
+        rec = AgentFeedbackRecord(**data)
+        self._s.add(rec)
+        await self._s.flush()
+        return rec
+
+    async def list(
+        self,
+        *,
+        tenant_id: str,
+        agent: str | None = None,
+        verdict: str | None = None,
+        request_id: str | None = None,
+    ) -> list[AgentFeedbackRecord]:
+        """Liste les feedbacks avec filtres optionnels."""
+        stmt = (
+            select(AgentFeedbackRecord)
+            .where(AgentFeedbackRecord.tenant_id == tenant_id)
+            .order_by(AgentFeedbackRecord.created_at.desc())
+        )
+        if agent is not None:
+            stmt = stmt.where(AgentFeedbackRecord.agent == agent)
+        if verdict is not None:
+            stmt = stmt.where(AgentFeedbackRecord.verdict == verdict)
+        if request_id is not None:
+            stmt = stmt.where(AgentFeedbackRecord.request_id == request_id)
+        return list(await self._s.scalars(stmt))
+
+    async def count_by_verdict(
+        self,
+        *,
+        tenant_id: str,
+        agent: str | None = None,
+    ) -> dict[str, dict[str, int]]:
+        """Compte le nombre de 'up' et 'down' par agent (stats).
+
+        Retourne un dict ``{ agent: { "up": N, "down": N } }``.
+        """
+        stmt = (
+            select(AgentFeedbackRecord.agent, AgentFeedbackRecord.verdict, func.count())
+            .where(AgentFeedbackRecord.tenant_id == tenant_id)
+            .group_by(AgentFeedbackRecord.agent, AgentFeedbackRecord.verdict)
+        )
+        if agent is not None:
+            stmt = stmt.where(AgentFeedbackRecord.agent == agent)
+        rows = (await self._s.execute(stmt)).all()
+        stats: dict[str, dict[str, int]] = {}
+        for ag, vd, cnt in rows:
+            stats.setdefault(ag, {"up": 0, "down": 0})
+            if vd in ("up", "down"):
+                stats[ag][vd] = cnt
+        return stats
