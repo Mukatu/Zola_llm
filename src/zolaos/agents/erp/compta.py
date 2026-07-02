@@ -156,9 +156,13 @@ class JournalValidator:
 
 class ComptaAgent(RAGAgent):
     name = "erp.compta"
-    rag_schema = "rag_legal"  # placeholder — rag_erp (AUDCIF/CGI) futur
+    rag_schema = "rag_erp"  # corpus comptable/fiscal ERP (AUDCIF ; CGI à venir)
     prompt_file = "erp/compta.md"
-    default_tags = ("country:cg", "module:compta")
+    # Consomme le corpus AUDCIF (droit comptable OHADA) ingéré dans rag_erp
+    # (cf. scripts/ingest_ohada.py). Même convention que RhAgent → module:travail_cg.
+    # NB : un futur corpus fiscal (CGI) dans rag_erp devra porter un tag consommé
+    # ici (ex. `module:cgi`) ou un tag partagé, sinon il ne sera pas retrouvé.
+    default_tags = ("country:cg", "module:audcif")
     requires_citation = True
     min_confidence = 0.50
     top_k = 6
