@@ -159,9 +159,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         from zolaos.api.v1.erp import router as erp_router
         from zolaos.api.v1.evaluation import router as evaluation_router
         from zolaos.api.v1.formation import router as formation_router
-        from zolaos.api.v1.imports import router as imports_router
         from zolaos.api.v1.gpec import router as gpec_router
         from zolaos.api.v1.hr import router as hr_router
+        from zolaos.api.v1.imports import router as imports_router
         from zolaos.api.v1.mkt import router as mkt_router
         from zolaos.api.v1.recrutement import router as recrutement_router
         from zolaos.api.v1.store import router as store_router

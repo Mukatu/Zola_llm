@@ -31,14 +31,14 @@ def _postgres_disponible() -> bool:
     d'échec (DB absente, pgvector non installé, etc.).
     """
     try:
-        import asyncpg  # noqa: F401
+        import asyncpg
 
         from zolaos.core.settings import get_settings
 
         settings = get_settings()
-        dsn = settings.postgres_dsn_migrations.replace(
-            "postgresql+psycopg", "postgresql"
-        ).replace("postgresql+asyncpg", "postgresql")
+        dsn = settings.postgres_dsn_migrations.replace("postgresql+psycopg", "postgresql").replace(
+            "postgresql+asyncpg", "postgresql"
+        )
 
         async def _ping() -> bool:
             conn = await asyncio.wait_for(asyncpg.connect(dsn), timeout=1.0)
@@ -60,16 +60,14 @@ _DB_DISPO = _postgres_disponible()
 
 def test_rag_erp_dans_rag_models() -> None:
     """rag_erp doit être un schéma RAG de première classe (aucune DB requise)."""
-    assert "rag_erp" in RAG_MODELS, (
-        f"rag_erp absent de RAG_MODELS. Schémas enregistrés : {list(RAG_MODELS)}"
-    )
+    assert (
+        "rag_erp" in RAG_MODELS
+    ), f"rag_erp absent de RAG_MODELS. Schémas enregistrés : {list(RAG_MODELS)}"
     # Le modèle doit posséder les colonnes standard RAG
     model = RAG_MODELS["rag_erp"]
     colonnes = {c.key for c in model.__table__.columns}
     for col_attendue in ("id", "source_uri", "chunk_index", "content", "embedding", "tags"):
-        assert col_attendue in colonnes, (
-            f"Colonne {col_attendue!r} manquante dans RagErpDocument"
-        )
+        assert col_attendue in colonnes, f"Colonne {col_attendue!r} manquante dans RagErpDocument"
     # Le schéma PostgreSQL déclaré doit être rag_erp
     assert model.__table__.schema == "rag_erp"
 
@@ -102,15 +100,42 @@ def test_require_policy_accepte_policy_fiscal() -> None:
 # ---------------------------------------------------------------------------
 
 
+class _FakeEmbeddings:
+    """Service d'embeddings déterministe (1024d) — évite de charger bge-m3.
+
+    Toute la stack RAG du repo mocke les embeddings dans les tests (cf.
+    `test_erp_rh.py`). Ici on injecte un faux service directement (ingest_text et
+    retrieve acceptent tous deux `embeddings=`), ce qui exerce le VRAI pgvector
+    sur `rag_erp.documents` sans dépendre du modèle lourd.
+    """
+
+    _DIM = 1024
+
+    async def aencode(self, texts: list[str]) -> list[list[float]]:
+        return [[0.1] * self._DIM for _ in texts]
+
+    async def aencode_one(self, text: str) -> list[float]:
+        _ = text
+        return [0.1] * self._DIM
+
+
 @pytest.mark.integration
-@pytest.mark.skipif(not _DB_DISPO, reason="Postgres/pgvector indisponible dans ce contexte")
+@pytest.mark.skipif(
+    not (_DB_DISPO and os.getenv("ZOLAOS_RUN_RAG_INTEGRATION") == "1"),
+    reason=(
+        "Intégration RAG lourde : nécessite pgvector ET une stack RAG provisionnée "
+        "(rôle d'ingestion avec INSERT sur rag_*, service d'embeddings). "
+        "Activer avec ZOLAOS_RUN_RAG_INTEGRATION=1."
+    ),
+)
 @pytest.mark.asyncio
 async def test_ingest_puis_retrieve_rag_erp() -> None:
-    """Injecte un chunk ERP et vérifie qu'on le retrouve par similarité cosine."""
+    """Injecte un chunk ERP et vérifie qu'on le retrouve via pgvector (embeddings mockés)."""
     from zolaos.db.session import reset_engine_cache
     from zolaos.rag.ingest import ingest_text
     from zolaos.rag.retrieval import retrieve
 
+    fake = _FakeEmbeddings()
     reset_engine_cache()
     try:
         # Texte fictif AUDCIF — suffisamment long pour être chunké
@@ -133,6 +158,7 @@ async def test_ingest_puis_retrieve_rag_erp() -> None:
             schema="rag_erp",
             tags=tags,
             pii_policy=PIIRedactionPolicy.FISCAL,
+            embeddings=fake,  # type: ignore[arg-type]
         )
         # Au moins un chunk doit avoir été inséré (ou déjà présent si idempotent)
         assert n_inseres >= 0, "ingest_text a retourné une valeur négative"
@@ -143,10 +169,9 @@ async def test_ingest_puis_retrieve_rag_erp() -> None:
             schema="rag_erp",
             required_tags=["country:cg"],
             k=5,
+            embeddings=fake,  # type: ignore[arg-type]
         )
-        assert len(matches) >= 1, (
-            "retrieve n'a retourné aucun résultat sur rag_erp après ingestion"
-        )
+        assert len(matches) >= 1, "retrieve n'a retourné aucun résultat sur rag_erp après ingestion"
         # Le meilleur match doit contenir du contenu ERP
         contenus = " ".join(m.content for m in matches)
         assert any(

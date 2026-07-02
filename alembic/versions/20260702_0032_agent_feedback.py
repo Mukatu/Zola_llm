@@ -37,12 +37,8 @@ def upgrade() -> None:
             server_default=sa.func.now(),
         ),
     )
-    op.create_index(
-        "ix_store_agent_feedback_tenant_id", "store_agent_feedback", ["tenant_id"]
-    )
-    op.create_index(
-        "ix_store_agent_feedback_request_id", "store_agent_feedback", ["request_id"]
-    )
+    op.create_index("ix_store_agent_feedback_tenant_id", "store_agent_feedback", ["tenant_id"])
+    op.create_index("ix_store_agent_feedback_request_id", "store_agent_feedback", ["request_id"])
 
 
 def downgrade() -> None:

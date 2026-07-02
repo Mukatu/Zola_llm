@@ -1,7 +1,7 @@
 """rag_erp : schéma + table documents + index vectoriel (corpus ERP — AUDCIF, CGI, SYSCOHADA)
 
 Revision ID: 20260702_0033
-Revises: 20260701_0031
+Revises: 20260702_0032
 Create Date: 2026-07-02
 
 Décision design : même patron que rag_health / rag_legal (migration 20260517_0002).
@@ -10,7 +10,7 @@ Décision design : même patron que rag_health / rag_legal (migration 20260517_0
   tag `module:<name>` à l'ingestion.
 - Schéma déclaré sensible (SENSITIVE_SCHEMAS dans pii.py) : politique PII
   obligatoire à l'ingestion, PIIRedactionPolicy.FISCAL recommandée.
-- Index HNSW ivfflat cosine identique aux autres schémas RAG (bge-m3, 1024d).
+- Index HNSW cosine identique aux autres schémas RAG (bge-m3, 1024d).
 """
 
 from __future__ import annotations
@@ -23,7 +23,7 @@ from pgvector.sqlalchemy import Vector
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 
 revision: str = "20260702_0033"
-down_revision: str | None = "20260701_0031"
+down_revision: str | None = "20260702_0032"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
@@ -32,7 +32,8 @@ SCHEMA = "rag_erp"
 
 
 def upgrade() -> None:
-    op.execute(f"CREATE SCHEMA IF NOT EXISTS {SCHEMA}")
+    # Le schéma `rag_erp` est créé par le bootstrap (infra/postgres/01_init_schemas.sql).
+    # Alembic ne gère que les tables à l'intérieur (cf. alembic/env.py).
     op.create_table(
         "documents",
         sa.Column("id", sa.BigInteger, primary_key=True, autoincrement=True),
@@ -50,12 +51,8 @@ def upgrade() -> None:
             nullable=False,
             server_default=sa.func.now(),
         ),
-        sa.CheckConstraint(
-            "char_length(content) > 0", name=f"ck_{SCHEMA}_doc_content"
-        ),
-        sa.UniqueConstraint(
-            "source_uri", "chunk_index", name=f"uq_{SCHEMA}_doc_chunk"
-        ),
+        sa.CheckConstraint("char_length(content) > 0", name=f"ck_{SCHEMA}_doc_content"),
+        sa.UniqueConstraint("source_uri", "chunk_index", name=f"uq_{SCHEMA}_doc_chunk"),
         schema=SCHEMA,
     )
     op.create_index(
@@ -90,17 +87,9 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.drop_index(
-        f"ix_{SCHEMA}_doc_embedding_hnsw", table_name="documents", schema=SCHEMA
-    )
-    op.drop_index(
-        f"ix_{SCHEMA}_doc_source", table_name="documents", schema=SCHEMA
-    )
-    op.drop_index(
-        f"ix_{SCHEMA}_doc_metadata_gin", table_name="documents", schema=SCHEMA
-    )
-    op.drop_index(
-        f"ix_{SCHEMA}_doc_tags_gin", table_name="documents", schema=SCHEMA
-    )
+    op.drop_index(f"ix_{SCHEMA}_doc_embedding_hnsw", table_name="documents", schema=SCHEMA)
+    op.drop_index(f"ix_{SCHEMA}_doc_source", table_name="documents", schema=SCHEMA)
+    op.drop_index(f"ix_{SCHEMA}_doc_metadata_gin", table_name="documents", schema=SCHEMA)
+    op.drop_index(f"ix_{SCHEMA}_doc_tags_gin", table_name="documents", schema=SCHEMA)
     op.drop_table("documents", schema=SCHEMA)
-    op.execute(f"DROP SCHEMA IF EXISTS {SCHEMA}")
+    # Le schéma `rag_erp` est géré par le bootstrap : on ne le supprime pas ici.

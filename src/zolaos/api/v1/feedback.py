@@ -93,9 +93,7 @@ async def lister_feedbacks(
             detail=f"verdict invalide : doit être 'up' ou 'down', reçu : {verdict!r}",
         )
     repo = AgentFeedbackRepository(session)
-    rows = await repo.list(
-        tenant_id=tenant_id, agent=agent, verdict=verdict, request_id=request_id
-    )
+    rows = await repo.list(tenant_id=tenant_id, agent=agent, verdict=verdict, request_id=request_id)
     return {"feedbacks": [r.to_dict() for r in rows], "total": len(rows)}
 
 
