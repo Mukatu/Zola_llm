@@ -44,6 +44,7 @@ def test_agent_instantiates_and_loads_prompt(agent_cls, settings) -> None:
         assert agent.rag_schema in (
             "rag_legal",
             "rag_health",
+            "rag_erp",
         ), f"{agent_cls.__name__} doit utiliser un schéma RAG existant"
         assert agent.prompt_file, f"{agent_cls.__name__} sans prompt_file"
         prompt = agent._system_prompt

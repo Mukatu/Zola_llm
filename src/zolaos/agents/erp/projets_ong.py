@@ -16,8 +16,10 @@ from zolaos.agents.rag_agent import RAGAgent
 
 class ProjetsOngAgent(RAGAgent):
     name = "erp.projets_ong"
-    rag_schema = "rag_legal"  # placeholder — rag_erp futur Phase 4
+    rag_schema = "rag_erp"  # corpus ERP/ONG (SYSCOHADA-ONG, cadres bailleurs)
     prompt_file = "erp/projets_ong.md"
+    # Corpus `module:projets_ong` à ingérer dans rag_erp (non encore sourcé) —
+    # tant qu'il est vide, l'agent refuse faute de contexte (requires_citation).
     default_tags = ("country:cg", "module:projets_ong")
     requires_citation = True
     min_confidence = 0.50
