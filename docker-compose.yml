@@ -137,6 +137,11 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        # Token HF optionnel pour le pré-embarquement de bge-m3 au build
+        # (évite le bridage des téléchargements anonymes). Ex :
+        #   HF_TOKEN=hf_xxx docker compose build app
+        HF_TOKEN: ${HF_TOKEN:-}
     image: zolaos:dev
     container_name: zolaos-app
     restart: unless-stopped

@@ -46,12 +46,17 @@ FROM python:3.12-slim AS runtime
 #   - cortex : tous les actifs présents. Réservé au déploiement chez Polaris.
 ARG ZOLAOS_PROFILE=box
 
+# Token HF optionnel pour le pré-embarquement du modèle (voir plus bas). Les
+# téléchargements anonymes du Hub sont fortement bridés sur les gros fichiers ;
+# passer --build-arg HF_TOKEN=hf_xxx rend le build fiable et rapide.
+ARG HF_TOKEN=""
+
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PATH="/install/bin:$PATH" \
     PYTHONPATH="/install/lib/python3.12/site-packages" \
     ZOLAOS_PROMPTS_DIR="/app/agents/prompts" \
-    HF_HOME="/tmp/hf_cache" \
+    HF_HOME="/opt/hf_cache" \
     XDG_CACHE_HOME="/tmp/.cache" \
     ZOLAOS_PROFILE=${ZOLAOS_PROFILE}
 
@@ -66,6 +71,20 @@ RUN groupadd -r zolaos && useradd -r -g zolaos -d /app -s /sbin/nologin zolaos
 WORKDIR /app
 
 COPY --from=builder /install /install
+
+# ----- Pré-embarquement du modèle d'embeddings bge-m3 (offline-first) -----
+# Le modèle (~2,3 Go) est téléchargé au BUILD et baké dans l'image (/opt/hf_cache),
+# pour que l'ingestion RAG (scripts/ingest_ohada.py) et le retrieval fonctionnent
+# SANS accès réseau au Hub au runtime — cohérent avec la souveraineté local-first.
+# `hf_xet` accélère le transfert ; fournir --build-arg HF_TOKEN=hf_xxx évite le
+# bridage des requêtes anonymes (sinon le build peut être très lent ou bloquer).
+RUN mkdir -p /opt/hf_cache && \
+    (pip install --no-cache-dir --prefix=/install hf_xet || true) && \
+    HF_TOKEN="${HF_TOKEN}" HF_HOME=/opt/hf_cache HF_XET_HIGH_PERFORMANCE=1 \
+      python -c "from huggingface_hub import snapshot_download; \
+        snapshot_download('BAAI/bge-m3', allow_patterns=['*.json','*.model','*.safetensors','*.txt'])" && \
+    chown -R zolaos:zolaos /opt/hf_cache
+
 COPY --chown=zolaos:zolaos src/ ./src/
 COPY --chown=zolaos:zolaos agents/ ./agents/
 COPY --chown=zolaos:zolaos infra/postgres/ ./infra/postgres/
