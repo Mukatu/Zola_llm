@@ -72,6 +72,19 @@ ALTER SCHEMA rag_code   OWNER TO zolaos_migrator;
 ALTER SCHEMA audit      OWNER TO zolaos_migrator;
 
 -- =========================================================================
+-- 4bis. search_path des rôles applicatifs
+-- =========================================================================
+-- Les tables du système de référence léger (store_*) et du cœur sont créées
+-- SANS qualification de schéma par les migrations Alembic ; elles doivent donc
+-- atterrir dans `core` (dont `migrator` est propriétaire et sur lequel `app` a
+-- les privilèges par défaut). Sans ce search_path, `migrator` tenterait de
+-- créer dans `public` (permission refusée) et `app` n'y trouverait pas les
+-- tables. Les schémas RAG (rag_*) et `memory` restent qualifiés explicitement
+-- par les modèles, donc `core, public` suffit ici.
+ALTER ROLE zolaos_migrator SET search_path = core, public;
+ALTER ROLE zolaos_app      SET search_path = core, public;
+
+-- =========================================================================
 -- 5. Révocation par défaut (zero-trust)
 -- =========================================================================
 REVOKE ALL ON SCHEMA core, memory, rag_health, rag_legal, rag_erp, rag_code, audit FROM PUBLIC;
