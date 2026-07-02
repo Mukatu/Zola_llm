@@ -288,8 +288,21 @@ class RagLegalDocument(_RagDocumentMixin, Base):
     __table_args__ = _rag_doc_table_args("rag_legal")
 
 
+class RagErpDocument(_RagDocumentMixin, Base):
+    """Corpus RAG ERP : textes réglementaires comptables et fiscaux (AUDCIF, CGI, SYSCOHADA…).
+
+    Schéma sensible (déclaré dans SENSITIVE_SCHEMAS) : la politique PII est
+    obligatoire à l'ingestion (PIIRedactionPolicy.FISCAL recommandée pour les
+    documents contenant des données de tiers comptables).
+    """
+
+    __tablename__ = "documents"
+    __table_args__ = _rag_doc_table_args("rag_erp")
+
+
 # Lookup pour code générique (pipeline ingest/retrieve qui prend un schéma).
 RAG_MODELS: dict[str, type[Base]] = {
     "rag_health": RagHealthDocument,
     "rag_legal": RagLegalDocument,
+    "rag_erp": RagErpDocument,
 }
