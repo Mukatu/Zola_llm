@@ -10,15 +10,15 @@
 
 | Terme | Ce que c'est | Nature |
 |-------|--------------|--------|
-| **Le moteur** | Orchestrateur + routeur + agents métier + clients LLM | **Un composant logiciel** (le cœur) |
-| **La Zolabox** | Conditionnement de déploiement **chez le client** : moteur + modules + données du client (actifs publics V2.2) | **Une topologie de déploiement** |
-| **Zolacortex** | Conditionnement de déploiement **chez le cabinet** (Polaris) : le **même moteur** + prompts confidentiels de mission + inférence LLM des missions d'audit | **Une topologie de déploiement** |
+| **ZolaOS** | Le **moteur** : IA souveraine = orchestrateur + routeur + agents métier + clients LLM | **Un composant logiciel** (le cœur) |
+| **La Zolabox** | Déploiement de ZolaOS **chez le client** : moteur + modules + données du client (actifs publics V2.2) | **Une topologie de déploiement** |
+| **Zolacortex** | Déploiement de ZolaOS **chez le cabinet** (Polaris) : le **même moteur** + prompts confidentiels de mission + inférence LLM des missions d'audit | **Une topologie de déploiement** |
 
-> Le moteur est un **sous-ensemble** de la Zolabox et de Zolacortex, pas un produit distinct. « Zolabox » et « Zolacortex » = **deux façons de déployer le même moteur**, avec des périmètres de données et de confidentialité différents.
+> **Convention de nommage.** *ZolaOS* désigne le **moteur** (l'IA souveraine / orchestrateur), en complément des deux déploiements *Zolabox* (client) et *Zolacortex* (cabinet). Le moteur ZolaOS est un **sous-ensemble** de la Zolabox et de Zolacortex, pas un produit distinct : « Zolabox » et « Zolacortex » = **deux façons de déployer le même moteur ZolaOS**, avec des périmètres de données et de confidentialité différents.
 
 ---
 
-## 2. Le moteur — anatomie (fichiers réels)
+## 2. ZolaOS (le moteur) — anatomie (fichiers réels)
 
 Pipeline : **Router → (Planning) → Agent(s) → réponse fusionnée**.
 
@@ -128,7 +128,7 @@ Point clé pour la stratégie : **chaque module qu'on construit produit deux mat
 
 ## 7. Synthèse en une phrase
 
-Le **moteur** (orchestrateur + agents + Llama-3 souverain) est un composant **autonome et découplé**, déployé tel quel dans la **Zolabox** (client, données publiques) et dans **Zolacortex** (cabinet, missions confidentielles) ; toute l'intelligence *locale* vit dans les **données** (RAG + référence structurée + store + mémoire), jamais dans les poids du modèle ; il peut donc devenir une **API générique de référence nationale** sans ré-architecture — et il se rend **perpétuellement plus expert** en accumulant, module après module, des références structurées gouvernées et des cas réels validés.
+**ZolaOS** — le **moteur** (orchestrateur + agents + Llama-3 souverain) — est un composant **autonome et découplé**, déployé tel quel dans la **Zolabox** (client, données publiques) et dans **Zolacortex** (cabinet, missions confidentielles) ; toute l'intelligence *locale* vit dans les **données** (RAG + référence structurée + store + mémoire), jamais dans les poids du modèle ; il peut donc devenir une **API générique de référence nationale** sans ré-architecture — et il se rend **perpétuellement plus expert** en accumulant, module après module, des références structurées gouvernées et des cas réels validés.
 
 ---
 
