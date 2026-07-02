@@ -41,3 +41,15 @@ Notable upstream projects:
   - openpyxl (MIT), python-docx (MIT), pypdf (BSD), Jinja2 (BSD) — documents
 
 We thank these projects and their maintainers.
+
+==============================================================================
+Data corpora (RAG)
+==============================================================================
+
+The `rag_erp` knowledge base includes the AUDCIF (OHADA Uniform Act on
+accounting and financial reporting), sourced from the HuggingFace dataset
+"Maathis-com/ohada-actes-uniformes", licensed under CC-BY-4.0
+(https://creativecommons.org/licenses/by/4.0/).
+
+Modifications: filtered to the AUDCIF act, reformatted per article, chunked and
+embedded for retrieval. See scripts/ingest_audcif.py and THIRD_PARTY_LICENSES.md.

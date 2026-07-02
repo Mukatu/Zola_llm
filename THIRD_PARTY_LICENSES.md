@@ -113,6 +113,19 @@ Dernière mise à jour : 2026-05-19.
 |---|---|---|
 | ruff, black, mypy, pytest, pytest-asyncio, pytest-cov, pytest-mock, respx, freezegun | MIT / Apache 2.0 | Pas distribués (deps `[dev]` uniquement) |
 
+## Corpus de données (RAG)
+
+| Corpus | Source | Licence | Obligation |
+|---|---|---|---|
+| **AUDCIF** — Acte uniforme relatif au droit comptable et à l'information financière (120 articles, corpus `rag_erp`) | Dataset HuggingFace `Maathis-com/ohada-actes-uniformes` (`nodes/articles.csv`) | **CC-BY-4.0** | ⚠️ **Attribution obligatoire** : créditer la source + la licence, et indiquer les modifications apportées. |
+
+> **Modifications apportées** au corpus AUDCIF : filtrage sur `acte_code = 'AUDCIF'`,
+> reformatage par article (entête « AUDCIF — Article N — Titre »), découpage en
+> chunks et vectorisation (bge-m3) pour l'indexation RAG dans le schéma `rag_erp`.
+> Script d'ingestion reproductible : `scripts/ingest_audcif.py`.
+> Le texte des Actes uniformes OHADA est par ailleurs une norme réglementaire
+> publique ; l'obligation CC-BY porte sur la *compilation* du dataset source.
+
 ---
 
 ## Synthèse des obligations pour Polaris
