@@ -4,10 +4,18 @@ import { useState } from "react";
 import { Send, Sparkles } from "lucide-react";
 import { useZola } from "@/components/ConfigProvider";
 import { Card, Button } from "@/components/ui";
+import { FeedbackBar } from "@/components/FeedbackBar";
 import { ApiError } from "@/lib/api";
 import { runQuery } from "@/lib/query";
 
-interface Msg { role: "user" | "assistant"; content: string }
+interface Msg {
+  role: "user" | "assistant";
+  content: string;
+  query?: string; // (assistant) requête ayant produit la réponse
+  pole?: string; // (assistant) agent/pôle ayant répondu
+  requestId?: string; // (assistant) identifiant de la requête
+  error?: boolean; // (assistant) réponse d'erreur → pas de feedback
+}
 
 export default function AssistantPage() {
   const { t } = useZola();
@@ -22,10 +30,13 @@ export default function AssistantPage() {
     setInput(""); setBusy(true);
     try {
       const r = await runQuery(q);
-      setMsgs((m) => [...m, { role: "assistant", content: r.content }]);
+      setMsgs((m) => [
+        ...m,
+        { role: "assistant", content: r.content, query: q, pole: r.pole, requestId: r.requestId },
+      ]);
     } catch (e) {
       const msg = e instanceof ApiError ? e.message : "Service indisponible (LLM/auth requis ou hors-ligne).";
-      setMsgs((m) => [...m, { role: "assistant", content: "⚠️ " + msg }]);
+      setMsgs((m) => [...m, { role: "assistant", content: "⚠️ " + msg, error: true }]);
     } finally {
       setBusy(false);
     }
@@ -43,13 +54,24 @@ export default function AssistantPage() {
           <Card className="text-sm text-muted">{t("assistant.placeholder")}</Card>
         )}
         {msgs.map((m, i) => (
-          <div key={i} className={m.role === "user" ? "flex justify-end" : "flex justify-start"}>
+          <div
+            key={i}
+            className={m.role === "user" ? "flex justify-end" : "flex flex-col items-start gap-1.5"}
+          >
             <div className={
               "max-w-[85%] rounded-2xl px-4 py-2 text-sm " +
               (m.role === "user" ? "bg-primary text-white" : "bg-surface ring-1 ring-black/5")
             }>
               <pre className="whitespace-pre-wrap font-sans">{m.content}</pre>
             </div>
+            {m.role === "assistant" && !m.error && (
+              <FeedbackBar
+                agent={m.pole ?? "general"}
+                query={m.query ?? ""}
+                response={m.content}
+                requestId={m.requestId}
+              />
+            )}
           </div>
         ))}
       </div>
