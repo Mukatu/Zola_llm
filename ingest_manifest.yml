@@ -1,0 +1,157 @@
+# Manifeste d'ingestion RAG — ZolaOS
+# =====================================================================
+# Liste les corpus à charger dans les bases de connaissance RAG. Sources
+# qualifiées par le sourcing du 2026-07-03 (voir docs/sourcing/*.md).
+#
+# Exécution : scripts/ingest_from_manifest.py  (nécessite bge-m3 baké —
+# cf. docs/RAG_INGESTION.md). Toujours tester en --dry-run d'abord.
+#
+# Champs :
+#   id       identifiant stable (= source_id pour les PDF)
+#   method   hf_dataset | pdf
+#   status   ready   = URL directe vérifiée, licence OK → ingérable
+#            pending = à confirmer/contacter/négocier (licence, accès, décision)
+#   verify   true si l'URL doit être re-testée avant ingestion (flag du sourcing)
+#   license  licence / conditions de réutilisation
+#   schema/tags/pii  paramètres d'ingestion (PDF)
+# =====================================================================
+
+defaults:
+  pii: none # texte réglementaire public par défaut
+
+corpora:
+  # ---- OHADA (dataset HuggingFace) -------------------------------------
+  - id: ohada_actes
+    method: hf_dataset
+    dataset: Maathis-com/ohada-actes-uniformes
+    license: CC-BY-4.0
+    status: ready
+    note: >-
+      Routage automatique par ingest_ohada.py — AUDCIF→rag_erp,
+      8 autres actes→rag_legal. Nécessite HF_TOKEN au build/exécution.
+
+  # ---- Comptabilité ONG / OSBL (SYCEBNL) — projets_ong -----------------
+  - id: sycebnl_acte
+    method: pdf
+    url: https://www.sgg.cg/txts-droit-reg/OHADA-Acte-Uniforme-2022-entites-but-non-lucratif.pdf
+    schema: rag_erp
+    tags: [country:cg, module:projets_ong, type:texte_legal, source:ohada]
+    license: norme OHADA (public)
+    status: ready
+  - id: sycebnl_guide
+    method: pdf
+    url: https://www.ohada.org/wp-content/uploads/2023/04/SYCEBNL-GUIDE-D-APPLICATION.pdf
+    schema: rag_erp
+    tags: [country:cg, module:projets_ong, type:doctrine, source:ohada]
+    license: OHADA (public)
+    status: ready
+
+  # ---- Fiscal (CGI + Loi de Finances) — fiscal_cg ----------------------
+  - id: cgi_cg_tome1
+    method: pdf
+    url: https://www.finances.gouv.cg/sites/default/files/documents/CGI%20Tome%20I.pdf
+    schema: rag_legal
+    tags: [country:cg, module:fiscal_cg, type:texte_legal]
+    license: texte officiel CG (public)
+    status: ready
+  - id: cgi_cg_tome2
+    method: pdf
+    url: https://www.finances.gouv.cg/sites/default/files/documents/CGI%20Tome%20II.pdf
+    schema: rag_legal
+    tags: [country:cg, module:fiscal_cg, type:texte_legal]
+    license: texte officiel CG (public)
+    status: ready
+  - id: recueil_fiscal_unicongo_lf2023
+    method: pdf
+    url: https://www.unicongo.cg/wp-content/uploads/2023/10/Recueil-des-textes-fiscaux-a-jour-avec-LF-2023.pdf
+    schema: rag_legal
+    tags: [country:cg, module:fiscal_cg, type:texte_legal]
+    license: compilation UNICONGO (réutilisation à confirmer)
+    status: ready
+    verify: true
+
+  # ---- Droit du travail — travail_cg (réutilisé par rh) ----------------
+  - id: code_travail_cg
+    method: pdf
+    url: https://natlex.ilo.org/dyn/natlex2/natlex2/files/download/14546/COG-14546.pdf
+    schema: rag_legal
+    tags: [country:cg, module:travail_cg, type:texte_legal]
+    license: OIT/NATLEX (texte officiel, réutilisation à confirmer)
+    status: ready
+    verify: true
+  - id: convention_collective_petrole
+    method: pdf
+    url: https://www.oarh.cg/wp-content/uploads/2022/07/Convention-collective-des-Entreprises-de-Services-Petroliers.pdf
+    schema: rag_legal
+    tags: [country:cg, module:travail_cg, type:convention_collective]
+    license: convention sectorielle (public)
+    status: ready
+  - id: convention_collective_btp
+    method: pdf
+    url: https://www.oarh.cg/wp-content/uploads/2022/07/Convention-Collecticve-de-Batiment-Travaux-Publics-et-des-Activites-Connexes.pdf
+    schema: rag_legal
+    tags: [country:cg, module:travail_cg, type:convention_collective]
+    license: convention sectorielle (public)
+    status: ready
+
+  # ---- Marchés publics / administratif — admin_cg ----------------------
+  - id: code_marches_publics_cg
+    method: pdf
+    url: https://www.sgg.cg/codes/congo-code-2009-marches-publics.pdf
+    schema: rag_legal
+    tags: [country:cg, module:admin_cg, type:texte_legal]
+    license: texte officiel CG (public)
+    status: ready
+
+  # ---- Bailleurs / redevabilité — reporting_bailleurs ------------------
+  - id: eprag_fr
+    method: pdf
+    url: https://intpa-econtent-public.s3.eu-west-1.amazonaws.com/ePrag/2021.0/ePRAG_public_full_fr.pdf
+    schema: rag_legal
+    tags: [country:cg, module:reporting_bailleurs, type:procedure, scope:international]
+    license: UE / EuropeAid (réutilisation à confirmer)
+    status: ready
+    verify: true
+  - id: ocde_cad_glossaire_ebr
+    method: pdf
+    url: https://www.oecd.org/content/dam/oecd/en/publications/reports/2023/06/glossary-of-key-terms-in-evaluation-and-results-based-management-for-sustainable-development-second-edition_2767e14e/632da462-en-fr-es.pdf
+    schema: rag_legal
+    tags: [country:cg, module:reporting_bailleurs, type:glossaire, scope:international]
+    license: OCDE (réutilisation à confirmer)
+    status: ready
+    verify: true
+
+  # ---- Santé — pharmacology --------------------------------------------
+  - id: lnme_cg_2016
+    method: pdf
+    url: https://cdn.who.int/media/docs/default-source/essential-medicines/national-essential-medicines-lists-(neml)/afro_neml/congo_neml_2016.pdf
+    schema: rag_health
+    tags: [country:cg, module:pharmacology, type:formulaire, edition:2016]
+    license: document gouvernemental CG (public, via WHO AFRO)
+    status: ready
+    verify: true
+    note: 7e édition 2016 — potentiellement obsolète ; contacter DPM/CAMEPS pour une version récente.
+
+  # ---- EN ATTENTE (licence / accès / décision) -------------------------
+  - id: ohada_ccja_jurisprudence
+    method: hf_dataset
+    dataset: Maathis-com/ohada-ccja-corpus
+    schema: rag_legal
+    tags: [country:cg, module:ohada, type:jurisprudence]
+    license: à confirmer sur la fiche du dataset
+    status: pending
+    note: jurisprudence ≠ norme ; validation juriste OHADA + confirmation licence avant ingestion. Pas géré par ingest_ohada.py (schéma dataset différent).
+  - id: cim
+    method: pdf
+    schema: rag_health
+    tags: [country:cg, module:pharmacology, type:classification]
+    license: "CIM-10 API OMS = NON-COMMERCIALE (bloquant SaaS) ; CIM-11 = CC-BY-ND 3.0 IGO"
+    status: pending
+    note: DÉCISION PRODUIT requise — basculer sur CIM-11 (commercial OK) plutôt que CIM-10. Accès via API (pas un simple PDF).
+  - id: iati_standard
+    method: pdf
+    schema: rag_legal
+    tags: [country:cg, module:reporting_bailleurs, type:standard, scope:international]
+    license: IATI (ouvert)
+    status: pending
+    note: standard XML/schémas — nécessite un extracteur dédié (pas un PDF unique).

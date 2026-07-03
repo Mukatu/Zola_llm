@@ -131,6 +131,22 @@ docker exec zolaos-app python scripts/ingest_pdf.py \
 
 > Sources qualifiées (URL, format, licence) par domaine : voir `docs/sourcing/*.md`.
 
+### Tout ingérer via le manifeste
+
+`ingest_manifest.yml` (racine) liste tous les corpus (voie, source, schéma, tags,
+PII, statut). `scripts/ingest_from_manifest.py` les charge d'un coup en dispatchant
+vers `ingest_ohada.py` / `ingest_pdf.py`. Ne traite que `status: ready` par défaut.
+
+```bash
+docker exec zolaos-app python scripts/ingest_from_manifest.py --dry-run          # aperçu de tout
+docker exec zolaos-app python scripts/ingest_from_manifest.py                     # ingère les 'ready'
+docker exec zolaos-app python scripts/ingest_from_manifest.py --only sycebnl_acte # un corpus
+```
+
+Les entrées `status: pending` (CIM licence, jurisprudence CCJA, IATI) sont
+listées mais **ignorées** — à débloquer (décision/licence/extracteur) puis passer
+en `ready`.
+
 ---
 
 ## 4. Vérification
