@@ -35,6 +35,7 @@ os.environ.setdefault("TRANSFORMERS_OFFLINE", "1")
 import argparse
 import asyncio
 import tempfile
+import time
 import urllib.request
 from pathlib import Path
 
@@ -53,15 +54,25 @@ def _dsn_async_migrator(settings: Settings) -> str:
     return settings.postgres_dsn_migrations.replace("+psycopg", "+asyncpg")
 
 
-def _telecharger(url: str) -> Path:
-    """Télécharge l'URL vers un fichier temporaire (suffixe déduit de l'URL)."""
+def _telecharger(url: str, tentatives: int = 3) -> Path:
+    """Télécharge l'URL vers un fichier temporaire (suffixe déduit de l'URL).
+
+    Réessaie sur erreur réseau/DNS transitoire (backoff simple).
+    """
     suffixe = Path(url.split("?", 1)[0]).suffix or ".pdf"
     req = urllib.request.Request(url, headers={"User-Agent": _UA})  # noqa: S310
-    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=suffixe)
-    with urllib.request.urlopen(req, timeout=60) as r:  # noqa: S310 (URL admin)
-        tmp.write(r.read())
-    tmp.close()
-    return Path(tmp.name)
+    dernier: OSError | None = None
+    for essai in range(tentatives):
+        try:
+            tmp = tempfile.NamedTemporaryFile(delete=False, suffix=suffixe)
+            with urllib.request.urlopen(req, timeout=60) as r:  # noqa: S310 (URL admin)
+                tmp.write(r.read())
+            tmp.close()
+            return Path(tmp.name)
+        except OSError as e:  # URLError et socket.gaierror héritent d'OSError
+            dernier = e
+            time.sleep(2 * (essai + 1))
+    raise RuntimeError(f"Téléchargement échoué après {tentatives} tentatives : {url}") from dernier
 
 
 def _resoudre_source(url: str | None, fichier: str | None) -> tuple[Path, str]:
