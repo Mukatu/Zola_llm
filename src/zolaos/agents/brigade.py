@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from zolaos.agents.rag_agent import Citation
 from zolaos.agents.router import Pole
 from zolaos.core.logging import get_logger
 from zolaos.core.metrics import AGENT_INVOCATIONS_TOTAL
@@ -24,6 +25,7 @@ class AgentResponse:
     content: str
     model: str
     duration_seconds: float
+    citations: tuple[Citation, ...] = ()  # non vide quand la réponse est ancrée RAG
 
 
 # Map pôle → libellé court pour le prompt système.
@@ -49,6 +51,11 @@ class SimulatedAgent:
     def __init__(self, client: LLMClient, settings: Settings) -> None:
         self._client = client
         self._settings = settings
+
+    @property
+    def client(self) -> LLMClient:
+        """Client LLM (8B) — réutilisé par l'orchestrateur pour les agents RAG."""
+        return self._client
 
     async def answer(self, pole: Pole, user_query: str) -> AgentResponse:
         label = POLE_LABELS.get(pole, "Assistance générale")

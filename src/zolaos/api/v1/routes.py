@@ -13,6 +13,7 @@ from zolaos.api.schemas import (
     AgentInfo,
     AgentResponseOut,
     AgentsListResponse,
+    CitationOut,
     PlanOut,
     PlanStepOut,
     QueryRequest,
@@ -70,6 +71,15 @@ async def query(
                 content=r.content,
                 model=r.model,
                 duration_seconds=r.duration_seconds,
+                citations=[
+                    CitationOut(
+                        index=c.index,
+                        source_uri=c.source_uri,
+                        source_id=c.source_id,
+                        similarity=c.similarity,
+                    )
+                    for c in r.citations
+                ],
             )
             for r in result.responses
         ],

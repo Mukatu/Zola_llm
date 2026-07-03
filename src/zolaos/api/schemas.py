@@ -40,11 +40,19 @@ class PlanOut(BaseModel):
     steps: list[PlanStepOut]
 
 
+class CitationOut(BaseModel):
+    index: int
+    source_uri: str
+    source_id: str | None = None
+    similarity: float
+
+
 class AgentResponseOut(BaseModel):
     pole: Pole
     content: str
     model: str
     duration_seconds: float
+    citations: list[CitationOut] = []
 
 
 class QueryResponse(BaseModel):

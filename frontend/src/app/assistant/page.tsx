@@ -6,7 +6,7 @@ import { useZola } from "@/components/ConfigProvider";
 import { Card, Button } from "@/components/ui";
 import { FeedbackBar } from "@/components/FeedbackBar";
 import { ApiError } from "@/lib/api";
-import { runQuery } from "@/lib/query";
+import { runQuery, type Citation } from "@/lib/query";
 
 interface Msg {
   role: "user" | "assistant";
@@ -14,7 +14,12 @@ interface Msg {
   query?: string; // (assistant) requête ayant produit la réponse
   pole?: string; // (assistant) agent/pôle ayant répondu
   requestId?: string; // (assistant) identifiant de la requête
+  citations?: Citation[]; // (assistant) sources RAG citées
   error?: boolean; // (assistant) réponse d'erreur → pas de feedback
+}
+
+function sourceLabel(c: Citation): string {
+  return c.source_id || c.source_uri.split("/").pop() || c.source_uri;
 }
 
 export default function AssistantPage() {
@@ -32,7 +37,14 @@ export default function AssistantPage() {
       const r = await runQuery(q);
       setMsgs((m) => [
         ...m,
-        { role: "assistant", content: r.content, query: q, pole: r.pole, requestId: r.requestId },
+        {
+          role: "assistant",
+          content: r.content,
+          query: q,
+          pole: r.pole,
+          requestId: r.requestId,
+          citations: r.citations,
+        },
       ]);
     } catch (e) {
       const msg = e instanceof ApiError ? e.message : "Service indisponible (LLM/auth requis ou hors-ligne).";
@@ -64,6 +76,20 @@ export default function AssistantPage() {
             }>
               <pre className="whitespace-pre-wrap font-sans">{m.content}</pre>
             </div>
+            {m.role === "assistant" && m.citations && m.citations.length > 0 && (
+              <div className="flex flex-wrap items-center gap-1 pl-1 text-xs text-muted">
+                <span className="font-medium">Sources :</span>
+                {m.citations.map((c) => (
+                  <span
+                    key={c.index}
+                    title={`${sourceLabel(c)} · similarité ${c.similarity.toFixed(2)}`}
+                    className="rounded bg-black/5 px-1.5 py-0.5"
+                  >
+                    [{c.index}] {sourceLabel(c)}
+                  </span>
+                ))}
+              </div>
+            )}
             {m.role === "assistant" && !m.error && (
               <FeedbackBar
                 agent={m.pole ?? "general"}

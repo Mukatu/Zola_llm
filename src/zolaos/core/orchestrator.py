@@ -11,6 +11,8 @@ from dataclasses import dataclass
 
 from zolaos.agents.brigade import AgentResponse, SimulatedAgent
 from zolaos.agents.meta.planning import Plan, PlanningAgent
+from zolaos.agents.rag_agent import InsufficientContextError
+from zolaos.agents.registry import rag_agent_for
 from zolaos.agents.router import Pole, RouteDecision, Router
 from zolaos.core.logging import get_logger
 from zolaos.core.settings import Settings
@@ -58,10 +60,12 @@ class Orchestrator:
             if not plan.needs_planning:
                 plan = None
 
-        # Étape 3 : invocation des agents.
-        # Phase 1 : agent unique (le pôle choisi par le routeur). Le multi-agent
-        # parallèle (selon le plan) arrive Phase 2-3.
-        responses = [await self._brigade.answer(decision.pole, user_query)]
+        # Étape 3 : invocation de l'agent.
+        # Si un agent RAG existe pour le module (droit, compta, santé…), on l'utilise :
+        # il ancre sa réponse sur le corpus (retrieval + citations). Sinon — ou si le
+        # corpus ne contient pas de quoi répondre (InsufficientContextError) — on
+        # retombe sur l'agent générique.
+        responses = [await self._answer(decision, user_query)]
 
         duration = time.perf_counter() - start
         _log.info(
@@ -80,6 +84,24 @@ class Orchestrator:
             responses=responses,
             duration_seconds=duration,
         )
+
+    async def _answer(self, decision: RouteDecision, user_query: str) -> AgentResponse:
+        """Répond via l'agent RAG du module, ou l'agent générique en repli."""
+        agent_cls = rag_agent_for(decision.module)
+        if agent_cls is not None:
+            try:
+                agent = agent_cls(self._brigade.client, self._settings)
+                rr = await agent.answer(user_query)
+                return AgentResponse(
+                    pole=decision.pole,
+                    content=rr.content,
+                    model=self._settings.LLM_MODEL_BRIGADE,
+                    duration_seconds=rr.duration_seconds,
+                    citations=tuple(rr.citations),
+                )
+            except InsufficientContextError:
+                _log.info("orchestrator.rag_fallback", module=decision.module)
+        return await self._brigade.answer(decision.pole, user_query)
 
     # Helper de construction par défaut.
     @classmethod
