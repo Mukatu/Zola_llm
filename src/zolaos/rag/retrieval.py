@@ -81,7 +81,7 @@ async def retrieve(
             model.tags,
             model.extra_metadata,
         )
-        .where(model.tags.contains(required_tags))
+        .where(model.tags.op("@>")(required_tags))
         .order_by("score")
         .limit(k)
     )
