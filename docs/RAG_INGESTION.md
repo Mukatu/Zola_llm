@@ -107,6 +107,32 @@ docker exec zolaos-app python scripts/ingest_ohada.py --actes AUSCGIE,AUDCG
 
 ---
 
+## 3bis. Ingestion d'un document officiel (PDF / URL)
+
+Pour les sources **hors HuggingFace** (textes officiels CG : CGI, Code du travail,
+SYCEBNL, LNME…), utiliser `scripts/ingest_pdf.py` : il télécharge une URL (ou lit
+un fichier local), extrait le texte (PDF via pypdf ; .docx/.html/.csv/.xlsx/.txt
+aussi), découpe et ingère avec le rôle **migrator**. **Offline-first** : le modèle
+bge-m3 baké est utilisé sans recheck réseau du Hub (`HF_HUB_OFFLINE` par défaut).
+
+```bash
+# Aperçu (télécharge + extrait + découpe, SANS base ni embeddings) — testable
+# même sans le modèle complet (seul le tokenizer suffit) :
+docker exec zolaos-app python /tmp/ingest_pdf.py \
+  --url "https://www.sgg.cg/txts-droit-reg/OHADA-Acte-Uniforme-2022-entites-but-non-lucratif.pdf" \
+  --schema rag_erp --source-id sycebnl_acte \
+  --tags country:cg,module:projets_ong,type:texte_legal --dry-run
+
+# Ingestion réelle (nécessite bge-m3 baké) :
+docker exec zolaos-app python scripts/ingest_pdf.py \
+  --file /tmp/cgi_cg.pdf --schema rag_legal --source-id cgi_cg \
+  --tags country:cg,module:fiscal_cg,type:texte_legal
+```
+
+> Sources qualifiées (URL, format, licence) par domaine : voir `docs/sourcing/*.md`.
+
+---
+
 ## 4. Vérification
 
 ```bash
