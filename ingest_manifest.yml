@@ -155,3 +155,105 @@ corpora:
     license: IATI (ouvert)
     status: pending
     note: standard XML/schémas — nécessite un extracteur dédié (pas un PDF unique).
+
+  # ---- Conventions collectives sectorielles (travail_cg) ---------------
+  # La plupart sont des scans image → OCR automatique (tesseract fra) via
+  # ingest_pdf. Source : portails UNICONGO / OARH. Tag `secteur:<x>`.
+  - id: convention_banques
+    method: pdf
+    url: https://www.oarh.cg/wp-content/uploads/2021/06/Convention-Collective-des-Banques-Congo-cLEAN.pdf
+    schema: rag_legal
+    tags: [country:cg, module:travail_cg, type:convention_collective, secteur:banque]
+    license: convention sectorielle (public)
+    status: ready
+  - id: convention_commerce
+    method: pdf
+    url: https://www.unicongo.cg/wp-content/uploads/2024/02/Convention-Collective-Commerce.pdf
+    schema: rag_legal
+    tags: [country:cg, module:travail_cg, type:convention_collective, secteur:commerce]
+    license: convention sectorielle (public)
+    status: ready
+  - id: convention_ntic
+    method: pdf
+    url: https://www.unicongo.cg/wp-content/uploads/2024/02/Convention-NTIC.pdf
+    schema: rag_legal
+    tags: [country:cg, module:travail_cg, type:convention_collective, secteur:tic]
+    license: convention sectorielle (public)
+    status: ready
+  - id: convention_industrie
+    method: pdf
+    url: https://www.unicongo.cg/wp-content/uploads/2024/02/Convention-Industrie1.pdf
+    schema: rag_legal
+    tags: [country:cg, module:travail_cg, type:convention_collective, secteur:industrie]
+    license: convention sectorielle (public)
+    status: ready
+  - id: convention_hotellerie
+    method: pdf
+    url: https://www.unicongo.cg/wp-content/uploads/2024/02/Convention-Collective-Hotellerie-et-Catering.pdf
+    schema: rag_legal
+    tags: [country:cg, module:travail_cg, type:convention_collective, secteur:hotellerie]
+    license: convention sectorielle (public)
+    status: ready
+  - id: convention_mines
+    method: pdf
+    url: https://www.unicongo.cg/wp-content/uploads/2024/02/Convention-dexploitation-Miniere.pdf
+    schema: rag_legal
+    tags: [country:cg, module:travail_cg, type:convention_collective, secteur:mines]
+    license: convention sectorielle (public)
+    status: ready
+  - id: convention_aerien
+    method: pdf
+    url: https://www.unicongo.cg/wp-content/uploads/2024/02/convention-collective-aerien.pdf
+    schema: rag_legal
+    tags: [country:cg, module:travail_cg, type:convention_collective, secteur:aerien]
+    license: convention sectorielle (public)
+    status: ready
+  - id: convention_peche
+    method: pdf
+    url: https://www.unicongo.cg/wp-content/uploads/2024/02/Convention-du-secteur-de-la-peche-Maritime-Industrielle.pdf
+    schema: rag_legal
+    tags: [country:cg, module:travail_cg, type:convention_collective, secteur:peche]
+    license: convention sectorielle (public)
+    status: ready
+  - id: convention_transport_aux
+    method: pdf
+    url: https://www.unicongo.cg/wp-content/uploads/2024/03/Auxiliaires-de-Transport.pdf
+    schema: rag_legal
+    tags: [country:cg, module:travail_cg, type:convention_collective, secteur:transport]
+    license: convention sectorielle (public)
+    status: ready
+  - id: convention_agriculture
+    method: pdf
+    url: https://www.unicongo.cg/wp-content/uploads/2024/02/Convention-Agri-foret.pdf
+    schema: rag_legal
+    tags: [country:cg, module:travail_cg, type:convention_collective, secteur:agriculture]
+    license: convention sectorielle (public)
+    status: ready
+  - id: convention_boulangerie
+    method: pdf
+    url: https://www.unicongo.cg/wp-content/uploads/2025/12/Convention-Collective-des-Boulangeries.pdf
+    schema: rag_legal
+    tags: [country:cg, module:travail_cg, type:convention_collective, secteur:boulangerie]
+    license: convention sectorielle (public)
+    status: ready
+  - id: convention_forestier
+    method: pdf
+    url: https://www.unicongo.cg/wp-content/uploads/2025/12/Convention-collective-des-entreprises-forestieres.pdf
+    schema: rag_legal
+    tags: [country:cg, module:travail_cg, type:convention_collective, secteur:foret]
+    license: convention sectorielle (public)
+    status: ready
+  - id: convention_pharmacie
+    method: pdf
+    url: https://www.unicongo.cg/wp-content/uploads/2025/12/convention-collective-des-officines-de-pharmacies.pdf
+    schema: rag_legal
+    tags: [country:cg, module:travail_cg, type:convention_collective, secteur:pharmacie]
+    license: convention sectorielle (public)
+    status: ready
+  - id: convention_domestique
+    method: pdf
+    url: https://www.unicongo.cg/wp-content/uploads/2024/02/convention-domestique-de-maison.pdf
+    schema: rag_legal
+    tags: [country:cg, module:travail_cg, type:convention_collective, secteur:domestique]
+    license: convention sectorielle (public)
+    status: ready

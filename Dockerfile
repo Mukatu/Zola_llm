@@ -63,6 +63,9 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libpq5 \
     curl \
+    tesseract-ocr \
+    tesseract-ocr-fra \
+    poppler-utils \
     && rm -rf /var/lib/apt/lists/*
 
 # Utilisateur non-root
@@ -79,7 +82,7 @@ COPY --from=builder /install /install
 # `hf_xet` accélère le transfert ; fournir --build-arg HF_TOKEN=hf_xxx évite le
 # bridage des requêtes anonymes (sinon le build peut être très lent ou bloquer).
 RUN mkdir -p /opt/hf_cache && \
-    (pip install --no-cache-dir --prefix=/install hf_xet || true) && \
+    (pip install --no-cache-dir --prefix=/install hf_xet pytesseract pdf2image || true) && \
     HF_TOKEN="${HF_TOKEN}" HF_HOME=/opt/hf_cache HF_XET_HIGH_PERFORMANCE=1 \
       python -c "from huggingface_hub import snapshot_download; \
         snapshot_download('BAAI/bge-m3', allow_patterns=['*.json','*.model','*.safetensors','*.txt'])" && \

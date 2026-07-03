@@ -47,6 +47,21 @@ from zolaos.rag.ingest import _load_text, ingest_text
 from zolaos.security.pii import PIIRedactionPolicy
 
 _UA = "Mozilla/5.0 (ZolaOS ingestion bot)"
+_MIN_TEXTE = 400  # en deçà → PDF probablement scanné (image) → OCR
+
+
+def _ocr_pdf(path: Path, lang: str = "fra") -> str:
+    """OCR d'un PDF scanné (image) via pdf2image (poppler) + tesseract.
+
+    Beaucoup de textes officiels congolais (conventions collectives, décrets
+    anciens) sont diffusés en scans image sans couche texte : pypdf n'en extrait
+    rien, il faut les reconnaître optiquement.
+    """
+    import pytesseract
+    from pdf2image import convert_from_path
+
+    pages = convert_from_path(str(path), dpi=200)
+    return "\n\n".join(pytesseract.image_to_string(img, lang=lang) for img in pages)
 
 
 def _dsn_async_migrator(settings: Settings) -> str:
@@ -95,10 +110,18 @@ async def ingerer(
     source_id: str,
     pii: PIIRedactionPolicy,
     dry_run: bool,
+    ocr: bool = True,
+    ocr_lang: str = "fra",
 ) -> None:
     chemin, source_uri = _resoudre_source(url, fichier)
     texte = _load_text(chemin)
     print(f"Document : {source_uri}\n  {len(texte)} caractères extraits.")
+
+    # Repli OCR : PDF scanné (image) sans couche texte exploitable.
+    if ocr and chemin.suffix.lower() == ".pdf" and len(texte.strip()) < _MIN_TEXTE:
+        print(f"  extraction insuffisante (<{_MIN_TEXTE}) → OCR ({ocr_lang})…")
+        texte = _ocr_pdf(chemin, lang=ocr_lang)
+        print(f"  OCR : {len(texte)} caractères reconnus.")
 
     chunks = get_chunker().chunk(texte)
     print(f"  {len(chunks)} chunks (schéma={schema}, tags={tags}, pii={pii.value}).")
@@ -154,6 +177,8 @@ if __name__ == "__main__":
     p.add_argument(
         "--dry-run", action="store_true", help="extraire + découper sans écrire ni embed"
     )
+    p.add_argument("--no-ocr", action="store_true", help="désactiver le repli OCR sur PDF scanné")
+    p.add_argument("--ocr-lang", default="fra", help="langue tesseract pour l'OCR (défaut : fra)")
     args = p.parse_args()
 
     asyncio.run(
@@ -165,5 +190,7 @@ if __name__ == "__main__":
             source_id=args.source_id,
             pii=PIIRedactionPolicy(args.pii),
             dry_run=args.dry_run,
+            ocr=not args.no_ocr,
+            ocr_lang=args.ocr_lang,
         )
     )
