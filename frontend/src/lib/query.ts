@@ -7,6 +7,7 @@ export interface Citation {
   source_uri: string;
   source_id: string | null;
   similarity: number;
+  schema_rag?: string | null; // corpus de la citation (lien Bibliothèque)
 }
 interface AgentResp { pole: string; content: string; citations?: Citation[] }
 interface QueryResponse { request_id: string; responses: AgentResp[] }

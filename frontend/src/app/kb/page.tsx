@@ -37,58 +37,83 @@ export default function KbPage() {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
-  const loadDocs = useCallback(async (sc: string, f: Filter | null) => {
-    const r = await kbDocuments({
-      schema: sc,
-      module: f?.kind === "module" ? f.valeur : undefined,
-      secteur: f?.kind === "secteur" ? f.valeur : undefined,
-      acte: f?.kind === "acte" ? f.valeur : undefined,
-    });
-    setDocs(r.documents);
-  }, []);
+  const openDoc = useCallback(
+    async (sourceUri: string, sc?: string) => {
+      setBusy(true);
+      setErr(null);
+      setResults(null);
+      try {
+        setDoc(await kbDocument(sc ?? schema, sourceUri));
+      } catch (e) {
+        setErr(e instanceof ApiError ? e.message : "Document indisponible");
+      } finally {
+        setBusy(false);
+      }
+    },
+    [schema],
+  );
 
+  // Catalogue (facettes) du schéma courant.
   useEffect(() => {
     let ok = true;
     (async () => {
       try {
         setErr(null);
-        setFilter(null);
-        setDoc(null);
-        setResults(null);
         const c = await kbCatalog(schema);
-        if (!ok) return;
-        setCat(c);
-        await loadDocs(schema, null);
+        if (ok) setCat(c);
       } catch (e) {
-        setErr(e instanceof ApiError ? e.message : "Chargement impossible");
+        if (ok) setErr(e instanceof ApiError ? e.message : "Chargement impossible");
       }
     })();
     return () => {
       ok = false;
     };
-  }, [schema, loadDocs]);
+  }, [schema]);
 
-  async function pickFilter(f: Filter | null) {
+  // Liste des documents selon schéma + filtre.
+  useEffect(() => {
+    let ok = true;
+    (async () => {
+      try {
+        const r = await kbDocuments({
+          schema,
+          module: filter?.kind === "module" ? filter.valeur : undefined,
+          secteur: filter?.kind === "secteur" ? filter.valeur : undefined,
+          acte: filter?.kind === "acte" ? filter.valeur : undefined,
+        });
+        if (ok) setDocs(r.documents);
+      } catch (e) {
+        if (ok) setErr(e instanceof ApiError ? e.message : "Erreur");
+      }
+    })();
+    return () => {
+      ok = false;
+    };
+  }, [schema, filter]);
+
+  // Ouverture directe d'un document via l'URL (lien depuis les citations de l'Assistant).
+  useEffect(() => {
+    const sp = new URLSearchParams(window.location.search);
+    const uri = sp.get("source_uri");
+    const sc = sp.get("schema");
+    if (!uri) return;
+    if (sc) setSchema(sc);
+    void openDoc(uri, sc ?? undefined);
+    // exécuté une seule fois au montage
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  function selectSchema(id: string) {
+    setSchema(id);
+    setFilter(null);
+    setDoc(null);
+    setResults(null);
+  }
+
+  function pickFilter(f: Filter | null) {
     setFilter(f);
     setDoc(null);
     setResults(null);
-    try {
-      await loadDocs(schema, f);
-    } catch (e) {
-      setErr(e instanceof ApiError ? e.message : "Erreur");
-    }
-  }
-
-  async function openDoc(sourceUri: string) {
-    setBusy(true);
-    setErr(null);
-    try {
-      setDoc(await kbDocument(schema, sourceUri));
-    } catch (e) {
-      setErr(e instanceof ApiError ? e.message : "Document indisponible");
-    } finally {
-      setBusy(false);
-    }
   }
 
   async function runSearch() {
@@ -129,7 +154,7 @@ export default function KbPage() {
         {SCHEMAS.map((s) => (
           <button
             key={s.id}
-            onClick={() => setSchema(s.id)}
+            onClick={() => selectSchema(s.id)}
             className={
               "rounded-lg px-3 py-1.5 text-sm " +
               (schema === s.id ? "bg-primary text-white" : "bg-black/5 hover:bg-black/10")

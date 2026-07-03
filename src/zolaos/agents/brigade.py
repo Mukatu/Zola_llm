@@ -26,6 +26,7 @@ class AgentResponse:
     model: str
     duration_seconds: float
     citations: tuple[Citation, ...] = ()  # non vide quand la réponse est ancrée RAG
+    rag_schema: str | None = None  # schéma RAG des citations (pour lien Bibliothèque)
 
 
 # Map pôle → libellé court pour le prompt système.

@@ -98,6 +98,7 @@ class Orchestrator:
                     model=self._settings.LLM_MODEL_BRIGADE,
                     duration_seconds=rr.duration_seconds,
                     citations=tuple(rr.citations),
+                    rag_schema=agent.rag_schema,
                 )
             except InsufficientContextError:
                 _log.info("orchestrator.rag_fallback", module=decision.module)

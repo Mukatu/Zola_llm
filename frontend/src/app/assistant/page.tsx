@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { Send, Sparkles } from "lucide-react";
 import { useZola } from "@/components/ConfigProvider";
 import { Card, Button } from "@/components/ui";
@@ -79,15 +80,26 @@ export default function AssistantPage() {
             {m.role === "assistant" && m.citations && m.citations.length > 0 && (
               <div className="flex flex-wrap items-center gap-1 pl-1 text-xs text-muted">
                 <span className="font-medium">Sources :</span>
-                {m.citations.map((c) => (
-                  <span
-                    key={c.index}
-                    title={`${sourceLabel(c)} · similarité ${c.similarity.toFixed(2)}`}
-                    className="rounded bg-black/5 px-1.5 py-0.5"
-                  >
-                    [{c.index}] {sourceLabel(c)}
-                  </span>
-                ))}
+                {m.citations.map((c) =>
+                  c.schema_rag ? (
+                    <Link
+                      key={c.index}
+                      href={`/kb?schema=${encodeURIComponent(c.schema_rag)}&source_uri=${encodeURIComponent(c.source_uri)}`}
+                      title={`Ouvrir dans la Bibliothèque · similarité ${c.similarity.toFixed(2)}`}
+                      className="rounded bg-primary/10 px-1.5 py-0.5 text-primary hover:bg-primary/20"
+                    >
+                      [{c.index}] {sourceLabel(c)}
+                    </Link>
+                  ) : (
+                    <span
+                      key={c.index}
+                      title={`${sourceLabel(c)} · similarité ${c.similarity.toFixed(2)}`}
+                      className="rounded bg-black/5 px-1.5 py-0.5"
+                    >
+                      [{c.index}] {sourceLabel(c)}
+                    </span>
+                  ),
+                )}
               </div>
             )}
             {m.role === "assistant" && !m.error && (
