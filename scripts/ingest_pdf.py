@@ -69,10 +69,11 @@ def _dsn_async_migrator(settings: Settings) -> str:
     return settings.postgres_dsn_migrations.replace("+psycopg", "+asyncpg")
 
 
-def _telecharger(url: str, tentatives: int = 3) -> Path:
+def _telecharger(url: str, tentatives: int = 5) -> Path:
     """Télécharge l'URL vers un fichier temporaire (suffixe déduit de l'URL).
 
-    Réessaie sur erreur réseau/DNS transitoire (backoff simple).
+    Réessaie sur erreur réseau/DNS transitoire (backoff croissant, ~45 s au total)
+    pour survivre aux coupures DNS intermittentes observées dans certains bacs à sable.
     """
     suffixe = Path(url.split("?", 1)[0]).suffix or ".pdf"
     req = urllib.request.Request(url, headers={"User-Agent": _UA})  # noqa: S310
@@ -86,7 +87,7 @@ def _telecharger(url: str, tentatives: int = 3) -> Path:
             return Path(tmp.name)
         except OSError as e:  # URLError et socket.gaierror héritent d'OSError
             dernier = e
-            time.sleep(2 * (essai + 1))
+            time.sleep(3 * (essai + 1))
     raise RuntimeError(f"Téléchargement échoué après {tentatives} tentatives : {url}") from dernier
 
 
