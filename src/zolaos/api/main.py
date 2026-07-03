@@ -147,6 +147,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     app.include_router(feedback_router)
 
+    # Bibliothèque documentaire (transverse) : consultation directe des corpus
+    # RAG (Actes uniformes, conventions, CGI, LNME…), lecture seule.
+    from zolaos.api.v1.kb import router as kb_router
+
+    app.include_router(kb_router)
+
     # Routes Zolabox (Polaris-8) : exposées uniquement en profil `box`. En
     # profil `cortex`, le router n'est pas monté → 404 sur /v1/box/* (préférable
     # à un 500 ProfileError qui révélerait l'existence des routes).
