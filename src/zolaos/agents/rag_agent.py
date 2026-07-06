@@ -102,16 +102,23 @@ class RAGAgent:
         settings: Settings,
         *,
         mission_client: MissionClient | None = None,
+        tenant_id: str | None = None,
     ) -> None:
         """`mission_client` (optionnel) : si fourni, le retrieve RAG passe par
         la Zolabox distante via JWT mission (Polaris-13). Sinon, retrieve local.
         Réservé au profil cortex.
+
+        `tenant_id` (optionnel) : si fourni, le retrieve **local** fusionne le
+        corpus de référence (droit public) avec les documents téléversés par le
+        client (schéma ``rag_tenant``, filtrés ``tenant:<id>``) → réponse ancrée
+        sur « la loi + VOS règles ».
         """
         if not self.name or not self.rag_schema or not self.prompt_file:
             raise ValueError(f"{type(self).__name__} doit définir name, rag_schema et prompt_file.")
         self._client = client
         self._settings = settings
         self._mission_client = mission_client
+        self._tenant_id = tenant_id
 
     @cached_property
     def _system_prompt(self) -> str:
@@ -236,12 +243,29 @@ class RAGAgent:
                 )
                 for m in raw
             ]
-        return await retrieve(
+        matches = await retrieve(
             query=query,
             schema=self.rag_schema,
             required_tags=tags,
             k=k,
         )
+        # Union avec le corpus du client (documents téléversés), si tenant connu.
+        if self._tenant_id:
+            try:
+                tenant_matches = await retrieve(
+                    query=query,
+                    schema="rag_tenant",
+                    required_tags=["country:cg", f"tenant:{self._tenant_id}"],
+                    k=k,
+                )
+            except Exception as exc:  # corpus client indispo → dégrade sur la référence seule
+                _log.warning("rag_agent.tenant_retrieve_failed", agent=self.name, error=str(exc))
+                tenant_matches = []
+            if tenant_matches:
+                merged = [*matches, *tenant_matches]
+                merged.sort(key=lambda m: m.score)  # score = distance cosine (plus petit = mieux)
+                matches = merged[:k]
+        return matches
 
     @staticmethod
     def _format_context(matches: list[Match]) -> str:

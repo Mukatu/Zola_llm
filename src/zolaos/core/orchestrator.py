@@ -45,7 +45,11 @@ class Orchestrator:
         self._settings = settings
 
     async def handle(
-        self, user_query: str, *, request_id: uuid.UUID | None = None
+        self,
+        user_query: str,
+        *,
+        request_id: uuid.UUID | None = None,
+        tenant_id: str = "local",
     ) -> OrchestrationResult:
         request_id = request_id or uuid.uuid4()
         start = time.perf_counter()
@@ -65,7 +69,7 @@ class Orchestrator:
         # il ancre sa réponse sur le corpus (retrieval + citations). Sinon — ou si le
         # corpus ne contient pas de quoi répondre (InsufficientContextError) — on
         # retombe sur l'agent générique.
-        responses = [await self._answer(decision, user_query)]
+        responses = [await self._answer(decision, user_query, tenant_id)]
 
         duration = time.perf_counter() - start
         _log.info(
@@ -85,12 +89,18 @@ class Orchestrator:
             duration_seconds=duration,
         )
 
-    async def _answer(self, decision: RouteDecision, user_query: str) -> AgentResponse:
-        """Répond via l'agent RAG du module, ou l'agent générique en repli."""
+    async def _answer(
+        self, decision: RouteDecision, user_query: str, tenant_id: str = "local"
+    ) -> AgentResponse:
+        """Répond via l'agent RAG du module, ou l'agent générique en repli.
+
+        `tenant_id` : transmis à l'agent RAG pour fusionner le corpus de référence
+        avec les documents téléversés par le client (« la loi + VOS règles »).
+        """
         agent_cls = rag_agent_for(decision.module)
         if agent_cls is not None:
             try:
-                agent = agent_cls(self._brigade.client, self._settings)
+                agent = agent_cls(self._brigade.client, self._settings, tenant_id=tenant_id)
                 rr = await agent.answer(user_query)
                 return AgentResponse(
                     pole=decision.pole,

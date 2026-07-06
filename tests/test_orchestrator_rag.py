@@ -59,6 +59,18 @@ def _match(sid: str) -> Match:
     )
 
 
+def _tenant_match() -> Match:
+    return Match(
+        content="Règlement intérieur — le préavis des cadres est de trois mois.",
+        score=0.15,  # plus proche que la référence → doit remonter en tête
+        source_uri="tenant://local/compta/reglement/RI.txt",
+        source_id="RI.txt",
+        chunk_index=0,
+        tags=["country:cg", "tenant:local"],
+        extra_metadata={},
+    )
+
+
 def _orch(decision: RouteDecision) -> Orchestrator:
     s = _settings()
     return Orchestrator(
@@ -104,6 +116,26 @@ async def test_orchestrator_falls_back_when_no_context(monkeypatch) -> None:
     resp = result.responses[0]
     assert resp.citations == (), "repli générique → aucune citation"
     assert resp.content  # l'agent générique a bien répondu
+
+
+async def test_orchestrator_unions_public_and_tenant(monkeypatch) -> None:
+    """« La loi + VOS règles » : l'agent fusionne la référence et le corpus client."""
+
+    async def fake_retrieve(*, query, schema, required_tags, k):  # type: ignore[no-untyped-def]
+        if schema == "rag_tenant":
+            assert "tenant:local" in required_tags  # cloisonnement par tenant
+            return [_tenant_match()]
+        return [_match("3")]
+
+    monkeypatch.setattr(rag_agent_mod, "retrieve", fake_retrieve)
+
+    decision = RouteDecision(pole=Pole.ERP, module="compta", confidence=0.9, complexity="simple")
+    result = await _orch(decision).handle("préavis des cadres", tenant_id="local")
+
+    sids = [c.source_id for c in result.responses[0].citations]
+    assert "RI.txt" in sids  # le document du client est cité
+    assert "AUDCIF-art-3" in sids  # la référence aussi
+    assert sids[0] == "RI.txt"  # plus pertinent (similarité) → en tête
 
 
 async def test_orchestrator_generic_when_no_module(monkeypatch) -> None:
