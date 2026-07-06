@@ -153,6 +153,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     app.include_router(kb_router)
 
+    # Pôle juridique — outils (traduction de contrats étrangers).
+    from zolaos.api.v1.legal import router as legal_router
+
+    app.include_router(legal_router)
+
     # Routes Zolabox (Polaris-8) : exposées uniquement en profil `box`. En
     # profil `cortex`, le router n'est pas monté → 404 sur /v1/box/* (préférable
     # à un 500 ProfileError qui révélerait l'existence des routes).

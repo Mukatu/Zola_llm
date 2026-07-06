@@ -2,9 +2,10 @@
 
 import { useState } from "react";
 import clsx from "clsx";
-import { ScrollText, FileText, Scale, Info } from "lucide-react";
+import { ScrollText, FileText, Scale, Info, Languages } from "lucide-react";
 import { Card, Button, Skeleton } from "../ui";
 import { FlagshipHeader, Inp } from "./_shared";
+import { ContractTranslator } from "../ContractTranslator";
 import { runQuery } from "@/lib/query";
 import { ApiError } from "@/lib/api";
 
@@ -12,7 +13,7 @@ const TYPES = ["CDI", "CDD", "Bail commercial OHADA", "Cession de parts", "NDA /
 const CLAUSES = ["Confidentialité", "Non-concurrence", "Pénalités de retard", "Résiliation", "Règlement des litiges (OHADA)"];
 
 export function DroitScreen() {
-  const [mode, setMode] = useState<"rediger" | "analyser">("rediger");
+  const [mode, setMode] = useState<"rediger" | "analyser" | "traduire">("rediger");
   const [type, setType] = useState(TYPES[0]);
   const [partieA, setPartieA] = useState("");
   const [partieB, setPartieB] = useState("");
@@ -47,9 +48,12 @@ export function DroitScreen() {
       <div className="flex gap-2">
         <Tab active={mode === "rediger"} onClick={() => setMode("rediger")} icon={FileText} label="Rédiger un contrat" />
         <Tab active={mode === "analyser"} onClick={() => setMode("analyser")} icon={Scale} label="Analyser (contentieux)" />
+        <Tab active={mode === "traduire"} onClick={() => setMode("traduire")} icon={Languages} label="Traduire un contrat" />
       </div>
 
-      {mode === "rediger" ? (
+      {mode === "traduire" ? (
+        <ContractTranslator module="ohada" />
+      ) : mode === "rediger" ? (
         <Card className="flex flex-col gap-3">
           <div className="grid gap-3 sm:grid-cols-2">
             <Field label="Type de contrat">
