@@ -300,9 +300,23 @@ class RagErpDocument(_RagDocumentMixin, Base):
     __table_args__ = _rag_doc_table_args("rag_erp")
 
 
+class RagTenantDocument(_RagDocumentMixin, Base):
+    """Corpus RAG **du client** : documents téléversés (règlement intérieur,
+    accords, chartes, contrats…), **cloisonnés par tenant** (tag ``tenant:<id>``).
+
+    Contrairement aux corpus de référence (rag_legal/erp/health, en lecture seule
+    pour l'app), ce schéma est **inscriptible par l'app** : le client gère ses
+    propres documents. Schéma sensible → politique PII obligatoire à l'ingestion.
+    """
+
+    __tablename__ = "documents"
+    __table_args__ = _rag_doc_table_args("rag_tenant")
+
+
 # Lookup pour code générique (pipeline ingest/retrieve qui prend un schéma).
 RAG_MODELS: dict[str, type[Base]] = {
     "rag_health": RagHealthDocument,
     "rag_legal": RagLegalDocument,
     "rag_erp": RagErpDocument,
+    "rag_tenant": RagTenantDocument,
 }

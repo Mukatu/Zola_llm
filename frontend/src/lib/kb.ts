@@ -63,3 +63,51 @@ export function kbSearch(
 ): Promise<{ resultats: KbSearchResult[] }> {
   return api(`/v1/kb/search`, { body });
 }
+
+// ----- Documents du client (rag_tenant) : téléversement + suppression -----
+export interface KbUploadResult {
+  source_uri: string;
+  titre: string;
+  chunks: number;
+  tenant_id: string;
+}
+
+export function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve((r.result as string).split(",")[1] ?? "");
+    r.onerror = () => reject(r.error);
+    r.readAsDataURL(file);
+  });
+}
+
+export async function kbUpload(p: {
+  file: File;
+  module: string;
+  doctype: string;
+  secteur?: string;
+  langue?: string;
+  tenantId?: string;
+  pii?: string;
+}): Promise<KbUploadResult> {
+  const content_b64 = await fileToBase64(p.file);
+  return api(`/v1/kb/upload`, {
+    body: {
+      filename: p.file.name,
+      content_b64,
+      module: p.module,
+      doctype: p.doctype,
+      secteur: p.secteur,
+      langue: p.langue,
+      tenant_id: p.tenantId ?? "local",
+      pii: p.pii ?? "none",
+    },
+  });
+}
+
+export function kbDelete(sourceUri: string, tenantId = "local"): Promise<{ deleted: string }> {
+  return api(
+    `/v1/kb/document?source_uri=${encodeURIComponent(sourceUri)}&tenant_id=${encodeURIComponent(tenantId)}`,
+    { method: "DELETE" },
+  );
+}

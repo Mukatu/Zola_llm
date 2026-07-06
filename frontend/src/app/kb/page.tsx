@@ -1,14 +1,16 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { BookOpen, Search, FileText, Loader2 } from "lucide-react";
+import { BookOpen, Search, FileText, Loader2, Trash2 } from "lucide-react";
 import { Card, Button } from "@/components/ui";
+import { DocumentUpload } from "@/components/DocumentUpload";
 import { ApiError } from "@/lib/api";
 import {
   kbCatalog,
   kbDocuments,
   kbDocument,
   kbSearch,
+  kbDelete,
   type KbCatalog,
   type KbDoc,
   type KbDocument,
@@ -19,6 +21,16 @@ const SCHEMAS: { id: string; label: string }[] = [
   { id: "rag_legal", label: "Droit & OHADA" },
   { id: "rag_erp", label: "Comptable / ERP" },
   { id: "rag_health", label: "Santé" },
+  { id: "rag_tenant", label: "Mes documents" },
+];
+
+// Modules proposés au téléversement depuis la Bibliothèque (contexte non deviné).
+const UPLOAD_MODULES: { id: string; label: string; doctypes: string[] }[] = [
+  { id: "travail_cg", label: "RH / Droit du travail", doctypes: ["reglement_interieur", "accord_entreprise", "grille_salariale", "procedure_rh", "organigramme"] },
+  { id: "compta", label: "Comptabilité", doctypes: ["manuel_procedures", "plan_comptes", "politique_engagement"] },
+  { id: "ohada", label: "Juridique", doctypes: ["charte", "statuts", "pacte_actionnaires", "contrat_type", "pv_ag"] },
+  { id: "fiscal_cg", label: "Fiscal", doctypes: ["convention_fiscale", "attestation", "procedure"] },
+  { id: "projets_ong", label: "Projets ONG", doctypes: ["convention_financement", "manuel_procedures", "cadre_logique", "rapport"] },
 ];
 
 interface Filter {
@@ -36,6 +48,8 @@ export default function KbPage() {
   const [results, setResults] = useState<KbSearchResult[] | null>(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [uploadModule, setUploadModule] = useState(UPLOAD_MODULES[0].id);
+  const [refresh, setRefresh] = useState(0);
 
   const openDoc = useCallback(
     async (sourceUri: string, sc?: string) => {
@@ -89,7 +103,17 @@ export default function KbPage() {
     return () => {
       ok = false;
     };
-  }, [schema, filter]);
+  }, [schema, filter, refresh]);
+
+  async function removeDoc(sourceUri: string) {
+    try {
+      await kbDelete(sourceUri);
+      if (doc?.source_uri === sourceUri) setDoc(null);
+      setRefresh((r) => r + 1);
+    } catch (e) {
+      setErr(e instanceof ApiError ? e.message : "Suppression impossible");
+    }
+  }
 
   // Ouverture directe d'un document via l'URL (lien depuis les citations de l'Assistant).
   useEffect(() => {
@@ -183,6 +207,30 @@ export default function KbPage() {
 
       {err && <div className="text-sm text-red-600">{err}</div>}
 
+      {schema === "rag_tenant" && (
+        <Card className="p-3">
+          <div className="mb-2 flex items-center gap-2 text-sm">
+            <span className="text-muted">Contexte :</span>
+            <select
+              value={uploadModule}
+              onChange={(e) => setUploadModule(e.target.value)}
+              className="rounded-lg border border-black/10 bg-white px-2 py-1 text-sm"
+            >
+              {UPLOAD_MODULES.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <DocumentUpload
+            module={uploadModule}
+            doctypes={UPLOAD_MODULES.find((m) => m.id === uploadModule)?.doctypes ?? ["document"]}
+            onUploaded={() => setRefresh((r) => r + 1)}
+          />
+        </Card>
+      )}
+
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[300px_1fr]">
         {/* Colonne gauche : facettes + liste de documents */}
         <div className="flex flex-col gap-3">
@@ -199,11 +247,11 @@ export default function KbPage() {
             </div>
             <ul className="max-h-[50vh] space-y-0.5 overflow-y-auto">
               {docs.map((d) => (
-                <li key={d.source_uri}>
+                <li key={d.source_uri} className="flex items-center">
                   <button
                     onClick={() => openDoc(d.source_uri)}
                     className={
-                      "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-black/5 " +
+                      "flex min-w-0 flex-1 items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-black/5 " +
                       (doc?.source_uri === d.source_uri ? "bg-black/5 font-medium" : "")
                     }
                   >
@@ -211,6 +259,15 @@ export default function KbPage() {
                     <span className="truncate">{d.titre || d.source_id}</span>
                     <span className="ml-auto shrink-0 text-xs text-muted">{d.nb_chunks}</span>
                   </button>
+                  {schema === "rag_tenant" && (
+                    <button
+                      onClick={() => removeDoc(d.source_uri)}
+                      title="Supprimer"
+                      className="ml-1 rounded p-1 text-muted hover:bg-red-50 hover:text-red-600"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  )}
                 </li>
               ))}
             </ul>

@@ -35,3 +35,24 @@ def test_kb_search_schema_alias() -> None:
     body = KbSearchIn(q="tva", schema="rag_erp")  # 'schema' est un alias de schema_rag
     assert body.schema_rag == "rag_erp"
     assert body.k == 8
+
+
+def test_rag_tenant_registered_and_sensitive() -> None:
+    from zolaos.db.models import RAG_MODELS
+    from zolaos.security.pii import SENSITIVE_SCHEMAS
+
+    assert "rag_tenant" in RAG_MODELS
+    assert "rag_tenant" in SENSITIVE_SCHEMAS  # PII obligatoire à l'ingestion
+
+
+def test_kb_upload_defaults() -> None:
+    from zolaos.api.v1.kb import KbUploadIn
+
+    b = KbUploadIn(
+        filename="ri.pdf",
+        content_b64="eA==",
+        module="travail_cg",
+        doctype="reglement_interieur",
+    )
+    assert b.tenant_id == "local"
+    assert b.pii == "none"

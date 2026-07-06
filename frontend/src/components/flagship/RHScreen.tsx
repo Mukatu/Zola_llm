@@ -5,6 +5,7 @@ import clsx from "clsx";
 import { Users, LayoutGrid, BarChart3, CalendarClock, Plus, Trash2 } from "lucide-react";
 import { Card, Button } from "../ui";
 import { FlagshipHeader, Inp, Urg } from "./_shared";
+import { DocumentUpload } from "../DocumentUpload";
 import { fmtXaf } from "@/lib/erp";
 import { ApiError } from "@/lib/api";
 import {
@@ -56,6 +57,19 @@ export function RHScreen() {
       </div>
 
       {err && <Card className="ring-amber-200"><p className="text-sm text-amber-700">{err}</p></Card>}
+
+      <DocumentUpload
+        module="travail_cg"
+        titre="Documents RH de votre entreprise"
+        doctypes={[
+          "reglement_interieur",
+          "accord_entreprise",
+          "grille_salariale",
+          "procedure_rh",
+          "organigramme",
+          "note_service",
+        ]}
+      />
 
       {tab === "registre" && (
         <Card>

@@ -17,18 +17,43 @@ d'embeddings (bge-m3) ; la navigation et la lecture fonctionnent sans.
 
 from __future__ import annotations
 
+import base64
+import binascii
+import os
+import tempfile
+from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
+from sqlalchemy import delete as sa_delete
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from zolaos.db.models import RAG_MODELS
 from zolaos.db.session import get_session
+from zolaos.rag.ingest import _load_text, ingest_text
 from zolaos.rag.retrieval import retrieve
+from zolaos.security.pii import PIIRedactionPolicy
 
 router = APIRouter(prefix="/v1/kb", tags=["kb"])
+
+_MIN_TEXTE = 400  # en deçà → PDF probablement scanné → OCR
+
+
+def _extraire_texte(path: Path) -> str:
+    """Extrait le texte (repli OCR fra sur PDF scanné)."""
+    texte = _load_text(path)
+    if path.suffix.lower() == ".pdf" and len(texte.strip()) < _MIN_TEXTE:
+        try:
+            import pytesseract
+            from pdf2image import convert_from_path
+
+            pages = convert_from_path(str(path), dpi=200)
+            texte = "\n\n".join(pytesseract.image_to_string(p, lang="fra") for p in pages)
+        except Exception:  # noqa: S110  (OCR indisponible → on garde l'extraction pypdf)
+            pass
+    return texte
 
 
 def _model(schema: str) -> Any:
@@ -175,3 +200,108 @@ async def search(body: KbSearchIn) -> dict[str, Any]:
             for m in matches
         ]
     }
+
+
+# --------------------------------------------------------------------------
+# Documents du CLIENT (rag_tenant) : téléversement + suppression
+# --------------------------------------------------------------------------
+
+
+class KbUploadIn(BaseModel):
+    """Téléversement d'un document (contenu encodé base64 — évite le multipart)."""
+
+    filename: str = Field(..., min_length=1)
+    content_b64: str = Field(..., min_length=1)
+    module: str
+    doctype: str
+    secteur: str | None = None
+    langue: str | None = None
+    tenant_id: str = "local"
+    pii: str = "none"
+
+
+@router.post("/upload", summary="Téléverser un document contextuel (corpus du client)")
+async def upload(
+    body: KbUploadIn,
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    """Ingestion d'un document du client dans le corpus **rag_tenant** (cloisonné
+    par ``tenant:<id>``). Décodage base64, extraction texte + repli OCR, chunk,
+    embed, insert.
+    """
+    if body.pii not in {p.value for p in PIIRedactionPolicy}:
+        raise HTTPException(status_code=422, detail=f"politique PII invalide: {body.pii!r}")
+    try:
+        data = base64.b64decode(body.content_b64, validate=True)
+    except (binascii.Error, ValueError) as exc:
+        raise HTTPException(status_code=422, detail="content_b64 invalide") from exc
+
+    suffixe = Path(body.filename).suffix or ".bin"
+    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=suffixe)
+    tmp.write(data)
+    tmp.close()
+    chemin = Path(tmp.name)
+    try:
+        texte = _extraire_texte(chemin)
+        if len(texte.strip()) < 20:
+            raise HTTPException(
+                status_code=422,
+                detail="aucun texte exploitable extrait (document vide ou scan illisible ?)",
+            )
+        source_uri = f"tenant://{body.tenant_id}/{body.module}/{body.doctype}/{body.filename}"
+        tags = [
+            f"tenant:{body.tenant_id}",
+            f"module:{body.module}",
+            f"doctype:{body.doctype}",
+            "country:cg",
+        ]
+        if body.secteur:
+            tags.append(f"secteur:{body.secteur}")
+        if body.langue:
+            tags.append(f"langue:{body.langue}")
+        n = await ingest_text(
+            text=texte,
+            source_uri=source_uri,
+            schema="rag_tenant",
+            tags=tags,
+            pii_policy=PIIRedactionPolicy(body.pii),
+            source_id=body.filename,
+            extra_metadata={
+                "tenant_id": body.tenant_id,
+                "module": body.module,
+                "doctype": body.doctype,
+                "titre": body.filename,
+                "secteur": body.secteur,
+                "langue": body.langue,
+            },
+            session=session,
+        )
+        await session.commit()
+    finally:
+        os.unlink(chemin)
+    return {
+        "source_uri": source_uri,
+        "titre": body.filename,
+        "chunks": n,
+        "tenant_id": body.tenant_id,
+    }
+
+
+@router.delete("/document", summary="Supprimer un document du client")
+async def supprimer(
+    source_uri: str = Query(...),
+    tenant_id: str = Query("local"),
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    """Supprime un document téléversé (rag_tenant uniquement, borné au tenant)."""
+    model = RAG_MODELS["rag_tenant"]
+    res = await session.execute(
+        sa_delete(model)
+        .where(model.source_uri == source_uri)
+        .where(model.tags.op("@>")([f"tenant:{tenant_id}"]))
+    )
+    await session.commit()
+    n = res.rowcount or 0
+    if n == 0:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="document introuvable")
+    return {"deleted": source_uri, "chunks": n}

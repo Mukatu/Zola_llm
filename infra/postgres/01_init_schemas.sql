@@ -20,6 +20,7 @@ CREATE SCHEMA IF NOT EXISTS rag_health;
 CREATE SCHEMA IF NOT EXISTS rag_legal;
 CREATE SCHEMA IF NOT EXISTS rag_erp;
 CREATE SCHEMA IF NOT EXISTS rag_code;
+CREATE SCHEMA IF NOT EXISTS rag_tenant;  -- documents téléversés par le client (cloisonnés par tenant)
 CREATE SCHEMA IF NOT EXISTS audit;
 
 -- =========================================================================
@@ -69,6 +70,7 @@ ALTER SCHEMA rag_health OWNER TO zolaos_migrator;
 ALTER SCHEMA rag_legal  OWNER TO zolaos_migrator;
 ALTER SCHEMA rag_erp    OWNER TO zolaos_migrator;
 ALTER SCHEMA rag_code   OWNER TO zolaos_migrator;
+ALTER SCHEMA rag_tenant OWNER TO zolaos_migrator;
 ALTER SCHEMA audit      OWNER TO zolaos_migrator;
 
 -- =========================================================================
@@ -87,20 +89,26 @@ ALTER ROLE zolaos_app      SET search_path = core, public;
 -- =========================================================================
 -- 5. Révocation par défaut (zero-trust)
 -- =========================================================================
-REVOKE ALL ON SCHEMA core, memory, rag_health, rag_legal, rag_erp, rag_code, audit FROM PUBLIC;
+REVOKE ALL ON SCHEMA core, memory, rag_health, rag_legal, rag_erp, rag_code, rag_tenant, audit FROM PUBLIC;
 
 -- =========================================================================
 -- 6. Privilèges fins par rôle
 -- =========================================================================
 
 -- zolaos_app : R/W core + memory, R sur rag_*, INSERT audit
-GRANT USAGE ON SCHEMA core, memory, rag_health, rag_legal, rag_erp, rag_code, audit TO zolaos_app;
+GRANT USAGE ON SCHEMA core, memory, rag_health, rag_legal, rag_erp, rag_code, rag_tenant, audit TO zolaos_app;
 ALTER DEFAULT PRIVILEGES FOR ROLE zolaos_migrator IN SCHEMA core, memory
   GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO zolaos_app;
 ALTER DEFAULT PRIVILEGES FOR ROLE zolaos_migrator IN SCHEMA core, memory
   GRANT USAGE, SELECT ON SEQUENCES TO zolaos_app;
 ALTER DEFAULT PRIVILEGES FOR ROLE zolaos_migrator IN SCHEMA rag_health, rag_legal, rag_erp, rag_code
   GRANT SELECT ON TABLES TO zolaos_app;
+-- rag_tenant : R/W pour l'app (le client téléverse et gère SES documents ;
+-- corpus cloisonné par tag tenant:<id>). Les corpus de référence restent en R.
+ALTER DEFAULT PRIVILEGES FOR ROLE zolaos_migrator IN SCHEMA rag_tenant
+  GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO zolaos_app;
+ALTER DEFAULT PRIVILEGES FOR ROLE zolaos_migrator IN SCHEMA rag_tenant
+  GRANT USAGE, SELECT ON SEQUENCES TO zolaos_app;
 
 -- Agents RAG : lecture seule sur leur schéma
 GRANT USAGE ON SCHEMA rag_health TO zolaos_health_agent;
