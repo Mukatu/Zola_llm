@@ -129,15 +129,26 @@ d'administration/curation).
 Chaque phase est autonome et sûre : même en s'arrêtant après A, aucune donnée
 privée n'a franchi la frontière (les candidats restent en quarantaine, non promus).
 
-## 8. Décisions ouvertes (à trancher avant Phase A)
+## 8. Décisions (tranchées le 2026-07-07)
 
-1. **Valeur de *k*** (défaut proposé : 3). Compromis richesse ↔ ré-identification.
-2. **Qui curate ?** Polaris (central) ? Un rôle dédié par secteur ?
-3. **Cible de promotion** : corpus `rag_commons` (sémantique, cité) **vs** table
-   `learned_rules` (déterministe, ex. mappings compta). Probablement **les deux**,
-   selon le type de candidat.
-4. **Incitation** : un client qui contribue reçoit-il en retour un accès prioritaire
-   aux améliorations du commun ? (modèle « communs » vertueux).
+1. **k = 3** — un motif doit être corroboré ≥ 3 fois avant d'être éligible.
+2. **Curation mixte (auto + humain)** — pré-filtrage automatique (k-anonymat,
+   doublons) puis validation humaine sur les seuls candidats qui passent.
+3. **Cible de promotion : les deux** — `rag_commons` (sémantique, cité) pour Q/R
+   & terminologie ; `learned_rules` (déterministe) pour les mappings compta.
+4. **Incitation** : à décider plus tard (piste : accès prioritaire aux améliorations
+   du commun pour les contributeurs).
+
+### Séquencement de stockage (précision d'implémentation)
+
+- **Phase A** : la quarantaine est une **table `core`** `store_contrib_candidates`
+  **sans `tenant_id` ni lien source** (anonymat *logique*). Simple, sûr, isolé —
+  aucune promotion. Les 6 invariants sont respectés (l'anonymisation a lieu avant
+  l'écriture ; rien de brut n'est stocké).
+- **Phase C** : introduction des **schémas physiques dédiés** `contrib_staging`
+  (quarantaine) et `rag_commons` (savoir promu, app en lecture seule) avec grants
+  zero-trust — la séparation physique compte au moment où le savoir entre
+  réellement dans le moteur.
 
 ---
 

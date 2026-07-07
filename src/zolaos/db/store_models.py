@@ -1580,6 +1580,9 @@ class AgentFeedbackRecord(StoreBase):
     verdict: Mapped[str] = mapped_column(String(4))  # "up" | "down"
     correction: Mapped[str | None] = mapped_column(Text, nullable=True)
     context_snapshot: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
+    # Marqueur local d'idempotence de la contribution (niveau 3) — reste chez le
+    # locataire, sans effet sur l'anonymat du candidat émis.
+    contributed: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
     def to_dict(self) -> dict[str, Any]:
@@ -1594,4 +1597,67 @@ class AgentFeedbackRecord(StoreBase):
             "correction": self.correction,
             "context_snapshot": self.context_snapshot,
             "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
+
+
+class ContributionOptin(StoreBase):
+    """Consentement d'un locataire à contribuer au moteur commun (niveau 3).
+
+    **Désactivé par défaut**, par périmètre (poles/modules autorisés), révocable.
+    Local au déploiement — c'est la porte que seul le client ouvre.
+    """
+
+    __tablename__ = "store_contribution_optin"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    tenant_id: Mapped[str] = mapped_column(String(64), unique=True, index=True, default="local")
+    enabled: Mapped[bool] = mapped_column(Boolean, default=False)
+    scopes: Mapped[list[str]] = mapped_column(JSON, default=list)  # poles/modules autorisés
+    updated_by: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_now, onupdate=_now
+    )
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "tenant_id": self.tenant_id,
+            "enabled": self.enabled,
+            "scopes": list(self.scopes or []),
+            "updated_by": self.updated_by,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+        }
+
+
+class ContribCandidate(StoreBase):
+    """Candidat de contribution en **quarantaine** — dérivé, anonymisé, non promu.
+
+    **Aucun `tenant_id`, aucun lien source** : anonymat par construction (I1/I6).
+    L'anonymisation a lieu AVANT l'insertion (I2). `content_hash` sert la déduplication
+    et le compteur de corroboration (k-anonymat, I3). Rien n'entre dans le moteur
+    sans validation humaine (I5) — géré en Phase B.
+    """
+
+    __tablename__ = "store_contrib_candidates"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    type: Mapped[str] = mapped_column(String(24))  # qa | correction | terminologie | categorisation
+    domaine: Mapped[str] = mapped_column(String(64), default="")  # pôle/agent (catégorie, non privé)
+    payload: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)  # assaini
+    content_hash: Mapped[str] = mapped_column(String(64), unique=True, index=True)
+    occurrences: Mapped[int] = mapped_column(Integer, default=1)
+    status: Mapped[str] = mapped_column(String(12), default="pending")  # pending|validated|rejected
+    validated_by: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    validated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    first_seen: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    last_seen: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, onupdate=_now)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "type": self.type,
+            "domaine": self.domaine,
+            "payload": dict(self.payload or {}),
+            "occurrences": self.occurrences,
+            "status": self.status,
+            "first_seen": self.first_seen.isoformat() if self.first_seen else None,
         }

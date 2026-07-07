@@ -158,6 +158,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     app.include_router(legal_router)
 
+    # Communs de connaissance (niveau 3) : consentement opt-in + extraction.
+    from zolaos.api.v1.commons import router as commons_router
+
+    app.include_router(commons_router)
+
     # Routes Zolabox (Polaris-8) : exposées uniquement en profil `box`. En
     # profil `cortex`, le router n'est pas monté → 404 sur /v1/box/* (préférable
     # à un 500 ProfileError qui révélerait l'existence des routes).
