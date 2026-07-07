@@ -38,6 +38,17 @@ interface Filter {
   valeur: string;
 }
 
+// Détection légère de titres pour la mise en page de lecture (juridique/réglementaire).
+function headingKind(bloc: string): "major" | "article" | null {
+  const t = bloc.trim();
+  if (t.length > 160) return null;
+  if (/^(titre|chapitre|livre|section|préambule|partie|annexe)\b/i.test(t)) return "major";
+  if (/\barticle\s+\d+/i.test(t)) return "article"; // ex : « AUDCIF — Article 42 — Préavis »
+  const lettres = t.replace(/[^A-Za-zÀ-ÿ]/g, "");
+  if (lettres.length >= 4 && lettres === lettres.toUpperCase() && t.length <= 90) return "major";
+  return null;
+}
+
 export default function KbPage() {
   const [schema, setSchema] = useState("rag_legal");
   const [cat, setCat] = useState<KbCatalog | null>(null);
@@ -300,14 +311,42 @@ export default function KbPage() {
             </div>
           )}
           {!busy && !results && doc && (
-            <article>
-              <h2 className="mb-1 font-semibold">{doc.titre || doc.source_id}</h2>
-              <div className="mb-3 text-xs text-muted">
-                {doc.nb_chunks} section(s) · <span className="break-all">{doc.source_uri}</span>
+            <article className="mx-auto max-w-[72ch]">
+              <header className="border-b border-black/5 pb-4">
+                <div className="mb-1.5 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-forest">
+                  <span className="h-1.5 w-1.5 rounded-full bg-forest" /> Texte de référence
+                </div>
+                <h2 className="text-balance text-xl font-bold leading-snug tracking-tight text-ink">
+                  {doc.titre || doc.source_id}
+                </h2>
+                <div className="mt-1.5 text-xs text-muted">
+                  {doc.nb_chunks} section(s) · <span className="break-all">{doc.source_uri}</span>
+                </div>
+              </header>
+              <div lang="fr" className="mt-5 max-h-[60vh] space-y-4 overflow-y-auto pr-3">
+                {doc.texte.split(/\n{2,}/).map((bloc, i) => {
+                  const b = bloc.trim();
+                  if (!b) return null;
+                  const kind = headingKind(b);
+                  if (kind === "major")
+                    return (
+                      <h3 key={i} className="mt-8 border-l-2 border-forest pl-3 text-sm font-bold uppercase tracking-wide text-forest first:mt-0">
+                        {b}
+                      </h3>
+                    );
+                  if (kind === "article")
+                    return (
+                      <h4 key={i} className="mt-6 text-[15px] font-semibold text-ink first:mt-0">
+                        {b}
+                      </h4>
+                    );
+                  return (
+                    <p key={i} className="hyphens-auto text-justify font-serif text-[15.5px] leading-[1.75] text-ink/90">
+                      {b}
+                    </p>
+                  );
+                })}
               </div>
-              <pre className="max-h-[62vh] overflow-y-auto whitespace-pre-wrap font-sans text-sm leading-relaxed">
-                {doc.texte}
-              </pre>
             </article>
           )}
           {!busy && !results && !doc && (
