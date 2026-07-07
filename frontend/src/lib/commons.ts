@@ -32,7 +32,7 @@ export interface Candidate {
   id: string;
   type: string;
   domaine: string;
-  payload: { domaine?: string; question?: string; reponse?: string };
+  payload: { domaine?: string; question?: string; reponse?: string; cle?: string; valeur?: string };
   occurrences: number;
   status: string;
   first_seen: string | null;

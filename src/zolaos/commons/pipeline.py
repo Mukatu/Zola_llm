@@ -12,8 +12,9 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from zolaos.commons.anonymize import origin_hash
-from zolaos.commons.extraction import feedback_to_candidate
+from zolaos.commons.anonymize import content_hash, origin_hash
+from zolaos.commons.extraction import feedback_to_candidate, scope_allowed
+from zolaos.commons.learned import rule_key
 from zolaos.db.store_models import AgentFeedbackRecord, ContribCandidate, ContributionOptin
 
 
@@ -103,3 +104,59 @@ async def run_extraction(session: AsyncSession, tenant_id: str) -> dict[str, Any
 
     await session.flush()
     return {"scanned": len(feedbacks), "nouveaux": nouveaux, "corrobores": corrobores}
+
+
+async def _upsert_candidate(
+    session: AsyncSession, *, ctype: str, domaine: str, payload: dict[str, Any], oh: str
+) -> str:
+    """Insère (ou corrobore) un candidat en quarantaine. Retourne l'état."""
+    ch = content_hash(payload)
+    existing = (
+        await session.execute(
+            select(ContribCandidate).where(ContribCandidate.content_hash == ch)
+        )
+    ).scalar_one_or_none()
+    if existing is None:
+        session.add(
+            ContribCandidate(
+                type=ctype, domaine=domaine, payload=payload, content_hash=ch,
+                origins=[oh], occurrences=1,
+            )
+        )
+        return "nouveau"
+    if oh not in (existing.origins or []):
+        existing.origins = [*(existing.origins or []), oh]
+        existing.occurrences = len(existing.origins)
+        return "corrobore"
+    return "connu"
+
+
+async def capture_categorisation(
+    session: AsyncSession,
+    tenant_id: str,
+    *,
+    libelle: str,
+    valeur: str,
+    domaine: str = "erp.compta",
+) -> dict[str, Any]:
+    """Capture une correction (ex. libellé → compte) comme candidat ``categorisation``.
+
+    Gaté par l'opt-in du locataire et son périmètre. La clé est anonymisée avant
+    d'entrer en quarantaine (I2). Rien n'est promu ici (Phases B/C).
+    """
+    optin = await get_optin(session, tenant_id)
+    enabled = bool(optin and optin.enabled)
+    scopes = list(optin.scopes) if optin else []
+    if not scope_allowed(enabled, scopes, domaine):
+        return {"captured": False, "raison": "opt-in désactivé pour ce périmètre"}
+
+    cle = rule_key(libelle)
+    if not cle or not valeur.strip():
+        return {"captured": False, "raison": "libellé/valeur vide"}
+
+    payload = {"domaine": domaine, "cle": cle, "valeur": valeur.strip()}
+    etat = await _upsert_candidate(
+        session, ctype="categorisation", domaine=domaine, payload=payload, oh=origin_hash(tenant_id)
+    )
+    await session.flush()
+    return {"captured": True, "etat": etat}

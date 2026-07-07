@@ -49,7 +49,7 @@ async def test_promote_validated(monkeypatch: pytest.MonkeyPatch) -> None:
         res = await promotion.promote_validated(s)
         await s.commit()
 
-        assert res["promus"] == 1 and res["cible"] == "rag_commons"
+        assert res["promus"] == 1 and res["rag_commons"] == 1
         # ingéré dans le bon corpus, tagué contribution
         assert calls and calls[0]["schema"] == "rag_commons"
         assert "source:contribution" in calls[0]["tags"]

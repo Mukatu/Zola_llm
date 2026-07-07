@@ -16,7 +16,17 @@ from datetime import UTC, date, datetime
 from decimal import Decimal
 from typing import Any
 
-from sqlalchemy import JSON, Boolean, Date, DateTime, Integer, Numeric, String, Text
+from sqlalchemy import (
+    JSON,
+    Boolean,
+    Date,
+    DateTime,
+    Integer,
+    Numeric,
+    String,
+    Text,
+    UniqueConstraint,
+)
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
@@ -1641,7 +1651,9 @@ class ContribCandidate(StoreBase):
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
     type: Mapped[str] = mapped_column(String(24))  # qa | correction | terminologie | categorisation
-    domaine: Mapped[str] = mapped_column(String(64), default="")  # pôle/agent (catégorie, non privé)
+    domaine: Mapped[str] = mapped_column(
+        String(64), default=""
+    )  # pôle/agent (catégorie, non privé)
     payload: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)  # assaini
     content_hash: Mapped[str] = mapped_column(String(64), unique=True, index=True)
     # Empreintes d'origine **anonymes** (locataires distincts) → k-anonymat (I3).
@@ -1652,7 +1664,9 @@ class ContribCandidate(StoreBase):
     validated_by: Mapped[str | None] = mapped_column(String(120), nullable=True)
     validated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     first_seen: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
-    last_seen: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, onupdate=_now)
+    last_seen: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_now, onupdate=_now
+    )
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -1663,6 +1677,36 @@ class ContribCandidate(StoreBase):
             "occurrences": self.occurrences,
             "status": self.status,
             "first_seen": self.first_seen.isoformat() if self.first_seen else None,
+        }
+
+
+class LearnedRule(StoreBase):
+    """Règle **apprise** déterministe, promue depuis le communs (niveau 3).
+
+    Générique et **multi-métier** : `(domaine, cle) -> valeur`. Ex. compta :
+    domaine ``erp.compta``, cle = libellé normalisé anonymisé, valeur = compte
+    SYSCOHADA. Consultée en amont des moteurs déterministes (override explicable).
+    Anonyme : la `cle` est passée par la rédaction PII avant promotion.
+    """
+
+    __tablename__ = "store_learned_rules"
+    __table_args__ = (UniqueConstraint("domaine", "cle", name="uq_learned_domaine_cle"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    domaine: Mapped[str] = mapped_column(String(64), index=True)
+    cle: Mapped[str] = mapped_column(String(300))
+    valeur: Mapped[str] = mapped_column(String(120))
+    meta: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    occurrences: Mapped[int] = mapped_column(Integer, default=1)
+    validated_by: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    promoted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "domaine": self.domaine,
+            "cle": self.cle,
+            "valeur": self.valeur,
+            "occurrences": self.occurrences,
         }
 
 

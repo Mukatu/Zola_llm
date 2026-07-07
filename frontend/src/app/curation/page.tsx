@@ -81,10 +81,20 @@ export default function CurationPage() {
               </span>
             </div>
             <div className="rounded-lg bg-black/[0.03] p-2.5 text-sm">
-              <div className="text-xs font-semibold uppercase tracking-wide text-muted">Question</div>
-              <div className="mb-2">{c.payload.question}</div>
-              <div className="text-xs font-semibold uppercase tracking-wide text-muted">Réponse retenue</div>
-              <div className="whitespace-pre-wrap">{c.payload.reponse}</div>
+              {c.type === "categorisation" ? (
+                <div className="flex items-center gap-2">
+                  <code className="rounded bg-black/5 px-1.5 py-0.5">{c.payload.cle}</code>
+                  <span className="text-muted">→</span>
+                  <code className="rounded bg-primary/10 px-1.5 py-0.5 text-primary">{c.payload.valeur}</code>
+                </div>
+              ) : (
+                <>
+                  <div className="text-xs font-semibold uppercase tracking-wide text-muted">Question</div>
+                  <div className="mb-2">{c.payload.question}</div>
+                  <div className="text-xs font-semibold uppercase tracking-wide text-muted">Réponse retenue</div>
+                  <div className="whitespace-pre-wrap">{c.payload.reponse}</div>
+                </>
+              )}
             </div>
             <div className="flex justify-end gap-2">
               <Button onClick={() => decide(c.id, "reject")} disabled={busy === c.id} variant="ghost">

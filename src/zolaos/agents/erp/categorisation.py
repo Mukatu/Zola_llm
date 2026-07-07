@@ -64,12 +64,28 @@ def suggest_accounts(
     chart: ChartOfAccounts,
     sens: str | None = None,
     top_k: int = 3,
+    learned_comptes: list[str] | None = None,
 ) -> list[AccountSuggestion]:
     """Propose les comptes SYSCOHADA les plus probables pour un libellé.
 
     Déterministe : score = longueur du mot-clé le plus spécifique trouvé,
     bonifié si le sens normal du compte correspond au sens de la ligne.
+    `learned_comptes` (règles apprises du communs) prime : proposé en tête,
+    s'il existe au plan de comptes.
     """
+    prioritaires: list[AccountSuggestion] = []
+    for compte in learned_comptes or []:
+        account = chart.resolve(compte)
+        if account is not None and all(s.compte != compte for s in prioritaires):
+            prioritaires.append(
+                AccountSuggestion(
+                    compte=compte,
+                    libelle_compte=account.libelle,
+                    score=1.0,
+                    raison="Règle apprise (communs)",
+                )
+            )
+
     text = _norm(libelle)
     best: dict[str, tuple[float, str, str]] = {}  # compte -> (score, raison, libelle_compte)
     for keywords, compte, raison in _RULES:
@@ -86,16 +102,18 @@ def suggest_accounts(
         if current is None or score > current[0]:
             best[compte] = (score, raison, account.libelle)
 
-    ranked = sorted(best.items(), key=lambda kv: kv[1][0], reverse=True)[:top_k]
-    if not ranked:
-        return []
-    top = ranked[0][1][0]
-    return [
-        AccountSuggestion(
-            compte=compte,
-            libelle_compte=meta[2],
-            score=round(meta[0] / top, 2),
-            raison=meta[1],
-        )
-        for compte, meta in ranked
-    ]
+    deja = {s.compte for s in prioritaires}
+    ranked = [kv for kv in sorted(best.items(), key=lambda kv: kv[1][0], reverse=True) if kv[0] not in deja]
+    mots_cles: list[AccountSuggestion] = []
+    if ranked:
+        top = ranked[0][1][0]
+        mots_cles = [
+            AccountSuggestion(
+                compte=compte,
+                libelle_compte=meta[2],
+                score=round(meta[0] / top, 2),
+                raison=meta[1],
+            )
+            for compte, meta in ranked
+        ]
+    return (prioritaires + mots_cles)[:top_k]
