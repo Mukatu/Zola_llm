@@ -165,9 +165,10 @@ class RAGAgent:
             user_msg = (
                 f"{context}\n\n"
                 f"--- Question utilisateur ---\n{query}\n\n"
-                "Réponds en t'appuyant **strictement** sur les extraits ci-dessus. "
+                "Réponds en t'appuyant **strictement** sur les textes ci-dessus. "
                 "Cite tes sources avec leur numéro entre crochets, ex: [1], [2]. "
-                "Si l'information n'est pas dans les extraits, dis-le explicitement."
+                "Si l'information n'y figure pas, dis-le explicitement. "
+                "N'évoque aucun mécanisme interne (ne dis pas « RAG » ni « extraits »)."
             )
 
             # --- 3. Generate ---
@@ -271,8 +272,8 @@ class RAGAgent:
     def _format_context(matches: list[Match]) -> str:
         """Sérialise les chunks RAG en bloc numéroté pour le prompt LLM."""
         if not matches:
-            return "--- Contexte RAG ---\n(aucun extrait disponible)"
-        lines = ["--- Contexte RAG ---"]
+            return "--- Textes de référence ---\n(aucun extrait disponible)"
+        lines = ["--- Textes de référence ---"]
         for i, m in enumerate(matches, start=1):
             src = m.source_id or m.source_uri.rsplit("/", 1)[-1]
             lines.append(
