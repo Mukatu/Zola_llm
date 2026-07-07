@@ -38,14 +38,34 @@ interface Filter {
   valeur: string;
 }
 
-// Détection légère de titres pour la mise en page de lecture (juridique/réglementaire).
+// Structure un texte juridique souvent extrait « au fil de l'eau » (peu de sauts) :
+// nettoie les artefacts OCR et insère un saut avant chaque marqueur (Titre, Chapitre,
+// Section, Article/Art.), pour détacher visuellement articles et sections.
+function structureText(texte: string): string[] {
+  const t = texte
+    .replace(/\.{3,}/g, " · ") // pointillés de sommaire OCR → séparateur discret
+    .replace(/[ \t]{2,}/g, " ") // espaces multiples
+    .replace(/\s*\n\s*/g, "\n")
+    .replace(/\s+(TITRE\s)/g, "\n\n$1")
+    .replace(/\s+(Titre\s+[0-9IVXLC])/g, "\n\n$1")
+    .replace(/\s+(Chapitre\s)/gi, "\n\n$1")
+    .replace(/\s+(Section\s+[0-9IVXLC])/g, "\n\n$1")
+    .replace(/\s+(Art(?:icle)?\.?\s*\d+)/g, "\n\n$1");
+  return t
+    .split(/\n{2,}/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
+// Détection légère de titres pour la mise en page de lecture.
 function headingKind(bloc: string): "major" | "article" | null {
   const t = bloc.trim();
-  if (t.length > 160) return null;
-  if (/^(titre|chapitre|livre|section|préambule|partie|annexe)\b/i.test(t)) return "major";
-  if (/\barticle\s+\d+/i.test(t)) return "article"; // ex : « AUDCIF — Article 42 — Préavis »
+  if (/^(titre|chapitre|livre|section|préambule|partie|annexe)\b/i.test(t) && t.length <= 120)
+    return "major";
   const lettres = t.replace(/[^A-Za-zÀ-ÿ]/g, "");
   if (lettres.length >= 4 && lettres === lettres.toUpperCase() && t.length <= 90) return "major";
+  // Ligne-titre d'article courte (« Article 42 — Préavis »), pas un article entier.
+  if (/\bart(?:icle)?\.?\s*\d+/i.test(t) && t.length <= 70) return "article";
   return null;
 }
 
@@ -324,9 +344,7 @@ export default function KbPage() {
                 </div>
               </header>
               <div lang="fr" className="mt-5 max-h-[60vh] space-y-4 overflow-y-auto pr-3">
-                {doc.texte.split(/\n{2,}/).map((bloc, i) => {
-                  const b = bloc.trim();
-                  if (!b) return null;
+                {structureText(doc.texte).map((b, i) => {
                   const kind = headingKind(b);
                   if (kind === "major")
                     return (
