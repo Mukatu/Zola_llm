@@ -54,5 +54,22 @@ def test_kb_upload_defaults() -> None:
         module="travail_cg",
         doctype="reglement_interieur",
     )
-    assert b.tenant_id == "local"
+    # Le tenant n'est plus dans le corps : il est dérivé de l'auth (current_tenant).
+    assert not hasattr(b, "tenant_id")
     assert b.pii == "none"
+
+
+async def test_current_tenant_derives_from_principal() -> None:
+    import uuid
+
+    from zolaos.api.auth import Principal, current_tenant
+
+    p = Principal(
+        user_id=uuid.uuid4(), email="a@b.c", tenant_id="acme", country="cg", auth_method="jwt"
+    )
+    assert await current_tenant(p) == "acme"
+
+    anon = Principal(
+        user_id=uuid.uuid4(), email="a@b.c", tenant_id=None, country="cg", auth_method="jwt"
+    )
+    assert await current_tenant(anon) == "local"

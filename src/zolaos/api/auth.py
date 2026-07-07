@@ -120,3 +120,13 @@ async def _auth_via_jwt(token: str, *, session: AsyncSession, settings: Settings
         scopes=tuple(claims.get("scopes", []) or ()),
         tenant_uuid=user.tenant_uuid,
     )
+
+
+async def current_tenant(principal: Principal = Depends(authenticate)) -> str:
+    """Tenant courant, **dérivé de l'identité authentifiée** (jamais du client).
+
+    Sert de clé d'isolation pour le corpus privé (rag_tenant) : le retrieval-union
+    et les écritures (upload, traduction assimilée) sont bornés à ce tenant.
+    Défaut ``local`` (déploiement mono-tenant Zolabox).
+    """
+    return principal.tenant_id or "local"

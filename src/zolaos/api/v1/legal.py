@@ -20,6 +20,7 @@ from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from zolaos.agents.legal.translation import TranslationService
+from zolaos.api.auth import current_tenant
 from zolaos.api.dependencies import get_router_client
 from zolaos.api.v1.kb import _extraire_texte
 from zolaos.core.settings import Settings, get_settings
@@ -40,7 +41,6 @@ class TranslateIn(BaseModel):
     target_lang: str = "français"
     source_lang: str | None = None
     assimilate: bool = False
-    tenant_id: str = "local"
     module: str = "ohada"
 
 
@@ -68,6 +68,7 @@ def _texte_depuis(body: TranslateIn) -> tuple[str, str | None]:
 @router.post("/translate", summary="Traduire un contrat étranger (texte ou fichier)")
 async def translate(
     body: TranslateIn,
+    tenant: str = Depends(current_tenant),
     client: LLMClient = Depends(get_router_client),
     settings: Settings = Depends(get_settings),
     session: AsyncSession = Depends(get_session),
@@ -88,13 +89,13 @@ async def translate(
     }
 
     if body.assimilate:
-        source_uri = f"tenant://{body.tenant_id}/{body.module}/traduction/{titre or 'texte'}"
+        source_uri = f"tenant://{tenant}/{body.module}/traduction/{titre or 'texte'}"
         n = await ingest_text(
             text=res.text,
             source_uri=source_uri,
             schema="rag_tenant",
             tags=[
-                f"tenant:{body.tenant_id}",
+                f"tenant:{tenant}",
                 f"module:{body.module}",
                 "doctype:traduction",
                 f"langue:{body.target_lang}",
@@ -104,7 +105,7 @@ async def translate(
             pii_policy=PIIRedactionPolicy.NONE,
             source_id=titre or "traduction",
             extra_metadata={
-                "tenant_id": body.tenant_id,
+                "tenant_id": tenant,
                 "doctype": "traduction",
                 "titre": f"Traduction — {titre or 'texte'}",
                 "langue": body.target_lang,

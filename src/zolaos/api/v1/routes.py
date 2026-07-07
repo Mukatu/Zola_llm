@@ -44,9 +44,10 @@ async def query(
     principal: Principal = Depends(authenticate),
 ) -> QueryResponse:
     """Point d'entrée unique pour adresser une requête utilisateur à ZolaOS."""
-    _ = principal  # placeholder pour Phase 1 ; sera utilisé pour le tagging RBAC en Phase 2
+    # Tenant dérivé de l'identité → l'agent fusionne le corpus privé du bon client.
+    tenant_id = principal.tenant_id or "local"
     try:
-        result = await orch.handle(payload.query)
+        result = await orch.handle(payload.query, tenant_id=tenant_id)
     except RouterError as exc:
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,

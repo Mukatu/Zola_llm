@@ -30,6 +30,7 @@ from sqlalchemy import delete as sa_delete
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from zolaos.api.auth import current_tenant
 from zolaos.db.models import RAG_MODELS
 from zolaos.db.session import get_session
 from zolaos.rag.ingest import _load_text, ingest_text
@@ -216,13 +217,13 @@ class KbUploadIn(BaseModel):
     doctype: str
     secteur: str | None = None
     langue: str | None = None
-    tenant_id: str = "local"
     pii: str = "none"
 
 
 @router.post("/upload", summary="Téléverser un document contextuel (corpus du client)")
 async def upload(
     body: KbUploadIn,
+    tenant: str = Depends(current_tenant),
     session: AsyncSession = Depends(get_session),
 ) -> dict[str, Any]:
     """Ingestion d'un document du client dans le corpus **rag_tenant** (cloisonné
@@ -248,9 +249,9 @@ async def upload(
                 status_code=422,
                 detail="aucun texte exploitable extrait (document vide ou scan illisible ?)",
             )
-        source_uri = f"tenant://{body.tenant_id}/{body.module}/{body.doctype}/{body.filename}"
+        source_uri = f"tenant://{tenant}/{body.module}/{body.doctype}/{body.filename}"
         tags = [
-            f"tenant:{body.tenant_id}",
+            f"tenant:{tenant}",
             f"module:{body.module}",
             f"doctype:{body.doctype}",
             "country:cg",
@@ -267,7 +268,7 @@ async def upload(
             pii_policy=PIIRedactionPolicy(body.pii),
             source_id=body.filename,
             extra_metadata={
-                "tenant_id": body.tenant_id,
+                "tenant_id": tenant,
                 "module": body.module,
                 "doctype": body.doctype,
                 "titre": body.filename,
@@ -283,14 +284,14 @@ async def upload(
         "source_uri": source_uri,
         "titre": body.filename,
         "chunks": n,
-        "tenant_id": body.tenant_id,
+        "tenant_id": tenant,
     }
 
 
 @router.delete("/document", summary="Supprimer un document du client")
 async def supprimer(
     source_uri: str = Query(...),
-    tenant_id: str = Query("local"),
+    tenant: str = Depends(current_tenant),
     session: AsyncSession = Depends(get_session),
 ) -> dict[str, Any]:
     """Supprime un document téléversé (rag_tenant uniquement, borné au tenant)."""
@@ -298,7 +299,7 @@ async def supprimer(
     res = await session.execute(
         sa_delete(model)
         .where(model.source_uri == source_uri)
-        .where(model.tags.op("@>")([f"tenant:{tenant_id}"]))
+        .where(model.tags.op("@>")([f"tenant:{tenant}"]))
     )
     await session.commit()
     n = res.rowcount or 0
