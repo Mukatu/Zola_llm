@@ -10,11 +10,12 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from zolaos.api.auth import Principal, authenticate
+from zolaos.api.auth import Principal, authenticate, require_curator
+from zolaos.commons import curation
 from zolaos.commons.pipeline import get_optin, run_extraction, set_optin
 from zolaos.db.session import get_session
 
@@ -61,3 +62,55 @@ async def extract(
     res = await run_extraction(session, tenant)
     await session.commit()
     return res
+
+
+# --------------------------------------------------------------------------
+# Curation (Phase B) — réservée au scope commons:curate
+# --------------------------------------------------------------------------
+
+
+@router.get("/candidates", summary="Candidats à curer (pré-filtrés par k-anonymat)")
+async def list_candidates(
+    status_filter: str | None = "pending",
+    eligible_only: bool = True,
+    _curator: Principal = Depends(require_curator),
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    rows = await curation.list_candidates(
+        session, status=status_filter, eligible_only=eligible_only
+    )
+    return {
+        "k_anonymat": curation.K_ANONYMITY,
+        "total": len(rows),
+        "candidats": [c.to_dict() for c in rows],
+    }
+
+
+@router.post("/candidates/{candidate_id}/validate", summary="Valider un candidat (humain)")
+async def validate_candidate(
+    candidate_id: str,
+    curator: Principal = Depends(require_curator),
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    try:
+        c = await curation.validate(session, candidate_id, by=curator.email)
+    except KeyError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="introuvable") from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+    await session.commit()
+    return c.to_dict()
+
+
+@router.post("/candidates/{candidate_id}/reject", summary="Rejeter un candidat (humain)")
+async def reject_candidate(
+    candidate_id: str,
+    curator: Principal = Depends(require_curator),
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    try:
+        c = await curation.reject(session, candidate_id, by=curator.email)
+    except KeyError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="introuvable") from exc
+    await session.commit()
+    return c.to_dict()

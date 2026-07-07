@@ -25,3 +25,18 @@ def content_hash(payload: dict[str, Any]) -> str:
     """Empreinte stable du contenu assaini (déduplication + compteur k-anonymat, I3)."""
     blob = json.dumps(payload, sort_keys=True, ensure_ascii=False)
     return hashlib.sha256(blob.encode("utf-8")).hexdigest()
+
+
+# Sel fixe : l'empreinte d'origine sert uniquement à compter des locataires
+# **distincts** (k-anonymat) ; elle ne quitte jamais la base et n'identifie personne.
+_ORIGIN_SALT = "zolaos.commons.origin.v1"
+
+
+def origin_hash(tenant_id: str) -> str:
+    """Empreinte **anonyme** et stable d'un locataire (pour le comptage k-anonymat, I3/I6).
+
+    Non réversible en pratique et jamais exposée : on ne stocke pas `tenant_id` sur
+    le candidat, seulement cette empreinte, pour savoir si ≥ k origines distinctes
+    ont produit le même motif.
+    """
+    return hashlib.sha256(f"{_ORIGIN_SALT}:{tenant_id}".encode()).hexdigest()[:16]

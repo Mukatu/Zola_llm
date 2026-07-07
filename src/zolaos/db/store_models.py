@@ -1644,7 +1644,10 @@ class ContribCandidate(StoreBase):
     domaine: Mapped[str] = mapped_column(String(64), default="")  # pôle/agent (catégorie, non privé)
     payload: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)  # assaini
     content_hash: Mapped[str] = mapped_column(String(64), unique=True, index=True)
-    occurrences: Mapped[int] = mapped_column(Integer, default=1)
+    # Empreintes d'origine **anonymes** (locataires distincts) → k-anonymat (I3).
+    # Ne contient jamais de tenant_id ; sert uniquement au comptage de corroboration.
+    origins: Mapped[list[str]] = mapped_column(JSON, default=list)
+    occurrences: Mapped[int] = mapped_column(Integer, default=1)  # = nb d'origines distinctes
     status: Mapped[str] = mapped_column(String(12), default="pending")  # pending|validated|rejected
     validated_by: Mapped[str | None] = mapped_column(String(120), nullable=True)
     validated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

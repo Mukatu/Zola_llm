@@ -149,3 +149,15 @@ async def optional_principal(
     return await authenticate(
         authorization=authorization, x_api_key=x_api_key, session=session, settings=settings
     )
+
+
+CURATOR_SCOPE = "commons:curate"
+
+
+async def require_curator(principal: Principal = Depends(authenticate)) -> Principal:
+    """Réserve la curation du communs aux porteurs du scope ``commons:curate`` (403 sinon)."""
+    if CURATOR_SCOPE not in principal.scopes:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="curator_scope_required"
+        )
+    return principal

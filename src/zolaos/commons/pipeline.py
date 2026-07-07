@@ -12,6 +12,7 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from zolaos.commons.anonymize import origin_hash
 from zolaos.commons.extraction import feedback_to_candidate
 from zolaos.db.store_models import AgentFeedbackRecord, ContribCandidate, ContributionOptin
 
@@ -57,6 +58,7 @@ async def run_extraction(session: AsyncSession, tenant_id: str) -> dict[str, Any
         return {"scanned": 0, "nouveaux": 0, "corrobores": 0, "raison": "opt-in désactivé"}
 
     scopes = list(optin.scopes or [])
+    oh = origin_hash(tenant_id)  # empreinte anonyme du locataire (k-anonymat)
     feedbacks = (
         (
             await session.execute(
@@ -88,11 +90,15 @@ async def run_extraction(session: AsyncSession, tenant_id: str) -> dict[str, Any
                     domaine=cand.domaine,
                     payload=cand.payload,
                     content_hash=cand.content_hash,
+                    origins=[oh],
+                    occurrences=1,
                 )
             )
             nouveaux += 1
-        else:
-            existing.occurrences += 1
+        elif oh not in (existing.origins or []):
+            # Nouvelle origine distincte → renforce la corroboration (k-anonymat).
+            existing.origins = [*(existing.origins or []), oh]
+            existing.occurrences = len(existing.origins)
             corrobores += 1
 
     await session.flush()
