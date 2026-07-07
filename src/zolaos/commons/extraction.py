@@ -24,11 +24,16 @@ class Candidate:
 
 
 def scope_allowed(enabled: bool, scopes: list[str], agent: str) -> bool:
-    """Le périmètre de l'agent est-il autorisé par le consentement du locataire ?"""
+    """Le périmètre de l'agent est-il autorisé par le consentement du locataire ?
+
+    Accepte **tout segment** du nom : ``erp.rh`` matche ``erp`` ou ``rh`` ;
+    ``legal.ohada`` matche ``legal`` ou ``ohada``. Ainsi les périmètres proposés
+    (legal, erp, achats, rh, sante) restent intuitifs malgré le nommage interne.
+    """
     if not enabled:
         return False
-    pole = agent.split(".", 1)[0] if agent else ""  # "legal.ohada" → "legal"
-    return pole in scopes or agent in scopes
+    segments = agent.split(".") if agent else []
+    return agent in scopes or any(seg in scopes for seg in segments)
 
 
 def feedback_to_candidate(

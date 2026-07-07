@@ -23,6 +23,10 @@ def test_scope_allowed() -> None:
     assert scope_allowed(False, ["legal"], "legal.ohada") is False  # opt-in coupé
     assert scope_allowed(True, ["legal"], "legal.ohada") is True  # pôle autorisé
     assert scope_allowed(True, ["compta"], "legal.ohada") is False  # hors périmètre
+    # tout segment compte : erp.rh matche "erp" OU "rh" (nommage interne vs périmètre UI)
+    assert scope_allowed(True, ["rh"], "erp.rh") is True
+    assert scope_allowed(True, ["erp"], "erp.rh") is True
+    assert scope_allowed(True, ["sante"], "erp.rh") is False
 
 
 def _fb(**kw: object) -> dict[str, object]:
