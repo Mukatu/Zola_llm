@@ -51,7 +51,7 @@ export default function CurationPage() {
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-4">
       <div className="flex items-center gap-3">
-        <span className="grid h-10 w-10 place-items-center rounded-xl bg-primary/10 text-primary">
+        <span className="grid h-10 w-10 place-items-center rounded-xl bg-mint/15 text-forest">
           <ShieldCheck className="h-5 w-5" />
         </span>
         <div>

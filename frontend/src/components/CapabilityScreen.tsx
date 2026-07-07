@@ -46,7 +46,7 @@ export function CapabilityScreen({ capability }: { capability: Capability }) {
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-4">
       <div className="flex items-start gap-3">
-        <span className="grid h-10 w-10 place-items-center rounded-xl bg-primary/10 text-primary">
+        <span className="grid h-10 w-10 place-items-center rounded-xl bg-mint/15 text-forest">
           <capability.icon className="h-5 w-5" />
         </span>
         <div>

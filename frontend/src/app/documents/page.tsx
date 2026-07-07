@@ -22,7 +22,7 @@ export default function DocumentsPage() {
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-4">
       <div className="flex items-center gap-3">
-        <span className="grid h-10 w-10 place-items-center rounded-xl bg-primary/10 text-primary"><FolderOpen className="h-5 w-5" /></span>
+        <span className="grid h-10 w-10 place-items-center rounded-xl bg-mint/15 text-forest"><FolderOpen className="h-5 w-5" /></span>
         <div><h1 className="text-lg font-semibold">Documents générés</h1><p className="text-sm text-muted">Fiches de poste, contrats, rapports… (brouillons à valider).</p></div>
       </div>
 

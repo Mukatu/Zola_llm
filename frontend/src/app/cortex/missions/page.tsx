@@ -46,7 +46,7 @@ export default function MissionsPage() {
   return (
     <div className="mx-auto flex max-w-4xl flex-col gap-4">
       <div className="flex items-center gap-3">
-        <span className="grid h-10 w-10 place-items-center rounded-xl bg-primary/10 text-primary"><Briefcase className="h-5 w-5" /></span>
+        <span className="grid h-10 w-10 place-items-center rounded-xl bg-mint/15 text-forest"><Briefcase className="h-5 w-5" /></span>
         <div><h1 className="text-lg font-semibold">Missions</h1><p className="text-sm text-muted">Accès éphémère et scopé aux Zolabox clientes (Zero Trust).</p></div>
       </div>
 
