@@ -249,20 +249,20 @@ class RAGAgent:
             required_tags=tags,
             k=k,
         )
-        # Union avec le corpus du client (documents téléversés), si tenant connu.
+        # Union avec : le communs partagé (savoir promu, niveau 3) + le corpus du
+        # client (documents téléversés, si tenant connu). Chaque source dégrade
+        # proprement si indisponible.
+        sources: list[tuple[str, list[str]]] = [("rag_commons", ["country:cg"])]
         if self._tenant_id:
+            sources.append(("rag_tenant", ["country:cg", f"tenant:{self._tenant_id}"]))
+        for schema, req in sources:
             try:
-                tenant_matches = await retrieve(
-                    query=query,
-                    schema="rag_tenant",
-                    required_tags=["country:cg", f"tenant:{self._tenant_id}"],
-                    k=k,
-                )
-            except Exception as exc:  # corpus client indispo → dégrade sur la référence seule
-                _log.warning("rag_agent.tenant_retrieve_failed", agent=self.name, error=str(exc))
-                tenant_matches = []
-            if tenant_matches:
-                merged = [*matches, *tenant_matches]
+                extra = await retrieve(query=query, schema=schema, required_tags=req, k=k)
+            except Exception as exc:  # source indispo → on garde ce qu'on a
+                _log.warning("rag_agent.union_retrieve_failed", agent=self.name, schema=schema, error=str(exc))
+                extra = []
+            if extra:
+                merged = [*matches, *extra]
                 merged.sort(key=lambda m: m.score)  # score = distance cosine (plus petit = mieux)
                 matches = merged[:k]
         return matches

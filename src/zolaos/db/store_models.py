@@ -1664,3 +1664,21 @@ class ContribCandidate(StoreBase):
             "status": self.status,
             "first_seen": self.first_seen.isoformat() if self.first_seen else None,
         }
+
+
+class CommonsAudit(StoreBase):
+    """Journal **anonyme** des promotions vers le moteur (I6).
+
+    Trace ce qui est entré dans le communs : empreinte de contenu, cible,
+    validateur, date. **Aucune référence locataire.**
+    """
+
+    __tablename__ = "store_commons_audit"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    content_hash: Mapped[str] = mapped_column(String(64), index=True)
+    target: Mapped[str] = mapped_column(String(24))  # rag_commons | learned_rules
+    domaine: Mapped[str] = mapped_column(String(64), default="")
+    source_uri: Mapped[str | None] = mapped_column(Text, nullable=True)
+    validated_by: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    promoted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)

@@ -313,10 +313,22 @@ class RagTenantDocument(_RagDocumentMixin, Base):
     __table_args__ = _rag_doc_table_args("rag_tenant")
 
 
+class RagCommonsDocument(_RagDocumentMixin, Base):
+    """Corpus RAG **du communs** (niveau 3) : savoir promu — anonymisé, partagé,
+    validé humainement. **Lecture seule pour l'app** (comme les corpus de
+    référence) ; écriture par le rôle d'administration lors de la promotion.
+    Consulté par les agents en complément de la loi et des documents du client.
+    """
+
+    __tablename__ = "documents"
+    __table_args__ = _rag_doc_table_args("rag_commons")
+
+
 # Lookup pour code générique (pipeline ingest/retrieve qui prend un schéma).
 RAG_MODELS: dict[str, type[Base]] = {
     "rag_health": RagHealthDocument,
     "rag_legal": RagLegalDocument,
     "rag_erp": RagErpDocument,
     "rag_tenant": RagTenantDocument,
+    "rag_commons": RagCommonsDocument,
 }
