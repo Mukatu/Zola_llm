@@ -12,7 +12,7 @@ from dataclasses import dataclass
 from zolaos.agents.brigade import AgentResponse, SimulatedAgent
 from zolaos.agents.meta.planning import Plan, PlanningAgent
 from zolaos.agents.rag_agent import InsufficientContextError
-from zolaos.agents.registry import rag_agent_for
+from zolaos.agents.registry import default_rag_agent_for, rag_agent_for
 from zolaos.agents.router import Pole, RouteDecision, Router
 from zolaos.core.logging import get_logger
 from zolaos.core.settings import Settings
@@ -97,7 +97,9 @@ class Orchestrator:
         `tenant_id` : transmis à l'agent RAG pour fusionner le corpus de référence
         avec les documents téléversés par le client (« la loi + VOS règles »).
         """
-        agent_cls = rag_agent_for(decision.module)
+        # Agent du module précis, sinon filet structurel : agent générique du pôle
+        # (tout le corpus du pôle). Sinon seulement, agent placeholder.
+        agent_cls = rag_agent_for(decision.module) or default_rag_agent_for(decision.pole)
         if agent_cls is not None:
             try:
                 agent = agent_cls(self._brigade.client, self._settings, tenant_id=tenant_id)
@@ -111,7 +113,9 @@ class Orchestrator:
                     rag_schema=agent.rag_schema,
                 )
             except InsufficientContextError:
-                _log.info("orchestrator.rag_fallback", module=decision.module)
+                _log.info(
+                    "orchestrator.rag_fallback", pole=decision.pole.value, module=decision.module
+                )
         return await self._brigade.answer(decision.pole, user_query)
 
     # Helper de construction par défaut.

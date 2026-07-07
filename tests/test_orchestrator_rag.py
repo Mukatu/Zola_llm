@@ -138,6 +138,22 @@ async def test_orchestrator_unions_public_and_tenant(monkeypatch) -> None:
     assert sids[0] == "RI.txt"  # plus pertinent (similarité) → en tête
 
 
+async def test_orchestrator_pole_default_grounds_when_module_none(monkeypatch) -> None:
+    """Filet structurel : pole=legal sans module → agent générique du pôle → citations."""
+
+    async def fake_retrieve(*, query, schema, required_tags, k):  # type: ignore[no-untyped-def]
+        return [_match("42")] if schema == "rag_legal" else []
+
+    monkeypatch.setattr(rag_agent_mod, "retrieve", fake_retrieve)
+
+    decision = RouteDecision(pole=Pole.LEGAL, module=None, confidence=0.7, complexity="simple")
+    result = await _orch(decision).handle("une question juridique sans domaine précis")
+
+    resp = result.responses[0]
+    assert resp.rag_schema == "rag_legal"  # ancré sur le corpus du pôle, pas l'agent placeholder
+    assert len(resp.citations) >= 1
+
+
 async def test_orchestrator_generic_when_no_module(monkeypatch) -> None:
     # Un appel qui échouerait si un agent RAG était (à tort) sélectionné.
     def _boom(*a, **k):  # type: ignore[no-untyped-def]
