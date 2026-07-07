@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Calculator, Plus, Trash2, CheckCircle2, XCircle, Save, Activity, Sparkles } from "lucide-react";
 import { Card, Button } from "../ui";
 import { FlagshipHeader, Inp } from "./_shared";
-import { comptaValidate, comptaSuggest, fmtXaf, type JournalLineInput, type ValidationReport } from "@/lib/erp";
+import { comptaValidate, comptaSuggest, comptaCorrection, fmtXaf, type JournalLineInput, type ValidationReport } from "@/lib/erp";
 import { ApiError } from "@/lib/api";
 import {
   createEntry, listEntries, getBalance, deleteEntry,
@@ -24,6 +24,7 @@ export function ComptaScreen() {
   const [err, setErr] = useState<string | null>(null);
   const [balance, setBalance] = useState<Balance | null>(null);
   const [entries, setEntries] = useState<EntryRec[]>([]);
+  const [appris, setAppris] = useState<Set<number>>(new Set());
 
   const set = (i: number, k: keyof JournalLineInput, v: string) =>
     setLignes((l) => l.map((row, j) => (j === i ? { ...row, [k]: v } : row)));
@@ -44,16 +45,20 @@ export function ComptaScreen() {
 
   async function autoCategorize() {
     setErr(null);
+    const learned = new Set<number>();
     try {
       const updated = await Promise.all(
-        lignes.map(async (row) => {
+        lignes.map(async (row, i) => {
           if (row.compte.trim() || !row.libelle.trim()) return row;
           const sens = Number(row.debit_xaf) > 0 ? "debit" : Number(row.credit_xaf) > 0 ? "credit" : undefined;
           const { suggestions } = await comptaSuggest(row.libelle, sens);
-          return suggestions[0] ? { ...row, compte: suggestions[0].compte } : row;
+          const s = suggestions[0];
+          if (s?.raison?.toLowerCase().includes("apprise")) learned.add(i);
+          return s ? { ...row, compte: s.compte } : row;
         }),
       );
       setLignes(updated);
+      setAppris(learned);
     } catch (e) {
       setErr(e instanceof ApiError ? "Suggestion indisponible." : "Service indisponible.");
     }
@@ -83,6 +88,12 @@ export function ComptaScreen() {
           credit_xaf: l.credit_xaf,
         })),
       });
+      // Les classements confirmés nourrissent le communs (opt-in serveur, anonymisé).
+      void Promise.allSettled(
+        lignes
+          .filter((l) => l.compte.trim() && l.libelle.trim())
+          .map((l) => comptaCorrection(l.libelle, l.compte)),
+      );
       setRep(null);
       await refresh();
     } catch (e) {
@@ -108,13 +119,18 @@ export function ComptaScreen() {
         </div>
         {lignes.map((row, i) => (
           <div key={i} className="mt-1 grid grid-cols-[80px_1fr_110px_110px_32px] gap-2">
-            <Inp value={row.compte} onChange={(v) => set(i, "compte", v)} />
+            <Inp value={row.compte} onChange={(v) => set(i, "compte", v)} className={appris.has(i) ? "ring-2 ring-primary/40" : ""} />
             <Inp value={row.libelle} onChange={(v) => set(i, "libelle", v)} />
             <Inp value={row.debit_xaf} type="number" onChange={(v) => set(i, "debit_xaf", v)} />
             <Inp value={row.credit_xaf} type="number" onChange={(v) => set(i, "credit_xaf", v)} />
             <button onClick={() => del(i)} className="text-muted hover:text-red-600"><Trash2 className="h-4 w-4" /></button>
           </div>
         ))}
+        {appris.size > 0 && (
+          <p className="mt-2 flex items-center gap-1 text-xs text-primary">
+            <Sparkles className="h-3.5 w-3.5" /> Compte(s) proposé(s) par une règle apprise du communs (liseré).
+          </p>
+        )}
         <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
           <div className="flex gap-2">
             <Button variant="ghost" onClick={add}><Plus className="h-4 w-4" /> Ligne</Button>

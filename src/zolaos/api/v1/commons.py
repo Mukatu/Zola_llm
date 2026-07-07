@@ -15,8 +15,13 @@ from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from zolaos.api.auth import Principal, authenticate, require_curator
-from zolaos.commons import curation
-from zolaos.commons.pipeline import get_optin, run_extraction, set_optin
+from zolaos.commons import curation, learned
+from zolaos.commons.pipeline import (
+    capture_categorisation,
+    get_optin,
+    run_extraction,
+    set_optin,
+)
 from zolaos.db.session import get_session
 
 router = APIRouter(prefix="/v1/commons", tags=["commons"])
@@ -62,6 +67,43 @@ async def extract(
     res = await run_extraction(session, tenant)
     await session.commit()
     return res
+
+
+# --------------------------------------------------------------------------
+# Apprentissage déterministe générique (learned_rules) — tout métier
+# --------------------------------------------------------------------------
+
+
+class CorrectionIn(BaseModel):
+    domaine: str = Field(..., min_length=1)  # ex : erp.compta, achats.objet, rh.classification
+    libelle: str = Field(..., min_length=1)
+    valeur: str = Field(..., min_length=1)
+
+
+@router.post("/correction", summary="Capturer une correction (mapping) — tout métier")
+async def correction(
+    body: CorrectionIn,
+    principal: Principal = Depends(authenticate),
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    """Capture générique `(libellé → valeur)` pour un `domaine` — gaté par l'opt-in."""
+    tenant = principal.tenant_id or "local"
+    res = await capture_categorisation(
+        session, tenant, libelle=body.libelle, valeur=body.valeur, domaine=body.domaine
+    )
+    await session.commit()
+    return res
+
+
+@router.get("/learned", summary="Règles apprises applicables à un libellé (tout métier)")
+async def learned_rules(
+    domaine: str,
+    texte: str,
+    _principal: Principal = Depends(authenticate),
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    rows = await learned.lookup(session, domaine, texte)
+    return {"regles": [r.to_dict() for r in rows]}
 
 
 # --------------------------------------------------------------------------

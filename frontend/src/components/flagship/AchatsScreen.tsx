@@ -14,11 +14,13 @@ import {
   Wallet,
   BarChart3,
   Download,
+  Sparkles,
 } from "lucide-react";
 import { Card, Button } from "../ui";
 import { FlagshipHeader, Inp } from "./_shared";
 import { fmt } from "@/lib/data";
 import { ApiError } from "@/lib/api";
+import { captureCorrection, learnedLookup } from "@/lib/commons";
 import {
   listSuppliers,
   createSupplier,
@@ -189,10 +191,24 @@ export function AchatsScreen() {
         montant_ttc_xaf: poForm.montant,
         delai_livraison_jours: Number(poForm.delai) || 0,
       });
+      // Apprentissage : fournisseur récurrent → objet habituel (opt-in serveur, anonymisé).
+      if (poForm.objet.trim()) {
+        void captureCorrection("achats.fournisseur", poForm.fournisseur, poForm.objet).catch(() => {});
+      }
       setPoForm({ ...poForm, fournisseur: "", montant: "" });
       await refresh();
     } catch {
       setErr("Création BC impossible (backend/DB).");
+    }
+  }
+
+  async function suggestObjet() {
+    if (!poForm.fournisseur.trim()) return;
+    try {
+      const { regles } = await learnedLookup("achats.fournisseur", poForm.fournisseur);
+      if (regles[0]) setPoForm((f) => ({ ...f, objet: regles[0].valeur }));
+    } catch {
+      /* règle apprise indisponible — sans effet */
     }
   }
 
@@ -349,8 +365,12 @@ export function AchatsScreen() {
         {/* Bons de commande + réception → facture d'achat */}
         <Card>
           <h2 className="mb-2 text-sm font-semibold">Bons de commande</h2>
-          <div className="mb-3 grid grid-cols-[1fr_110px_60px_36px] gap-2">
+          <div className="mb-3 grid grid-cols-[1fr_1fr_32px_100px_56px_36px] gap-2">
             <Inp value={poForm.fournisseur} onChange={(v) => setPoForm({ ...poForm, fournisseur: v })} placeholder="Fournisseur" />
+            <Inp value={poForm.objet} onChange={(v) => setPoForm({ ...poForm, objet: v })} placeholder="Objet" />
+            <button onClick={suggestObjet} title="Objet habituel appris pour ce fournisseur" className="grid place-items-center rounded-lg bg-black/5 text-primary hover:bg-black/10">
+              <Sparkles className="h-4 w-4" />
+            </button>
             <Inp value={poForm.montant} type="number" onChange={(v) => setPoForm({ ...poForm, montant: v })} placeholder="Montant" />
             <Inp value={poForm.delai} type="number" onChange={(v) => setPoForm({ ...poForm, delai: v })} placeholder="Délai" />
             <button onClick={addPo} className="grid place-items-center rounded-lg bg-primary text-white">

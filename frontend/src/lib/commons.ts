@@ -51,3 +51,25 @@ export function validateCandidate(id: string): Promise<Candidate> {
 export function rejectCandidate(id: string): Promise<Candidate> {
   return api(`/v1/commons/candidates/${id}/reject`, { body: {} });
 }
+
+// ----- Apprentissage déterministe générique (tout métier) -----
+export interface LearnedRule {
+  domaine: string;
+  cle: string;
+  valeur: string;
+  occurrences: number;
+}
+
+/** Capture une correction (libellé → valeur) pour un domaine — gaté opt-in côté serveur. */
+export function captureCorrection(
+  domaine: string,
+  libelle: string,
+  valeur: string,
+): Promise<{ captured: boolean; etat?: string; raison?: string }> {
+  return api("/v1/commons/correction", { body: { domaine, libelle, valeur } });
+}
+
+/** Règles apprises applicables à un libellé, pour un domaine. */
+export function learnedLookup(domaine: string, texte: string): Promise<{ regles: LearnedRule[] }> {
+  return api(`/v1/commons/learned?domaine=${encodeURIComponent(domaine)}&texte=${encodeURIComponent(texte)}`);
+}

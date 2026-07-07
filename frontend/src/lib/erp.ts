@@ -36,6 +36,10 @@ export interface AccountSuggestion { compte: string; libelle_compte: string; sco
 export function comptaSuggest(libelle: string, sens?: "debit" | "credit"): Promise<{ suggestions: AccountSuggestion[] }> {
   return api("/v1/erp/compta/suggest", { body: { libelle, sens } });
 }
+// Capture d'une correction (libellé → compte) pour nourrir le communs (opt-in serveur).
+export function comptaCorrection(libelle: string, compte: string): Promise<{ captured: boolean }> {
+  return api("/v1/erp/compta/correction", { body: { libelle, compte } });
+}
 
 // ----- Supply -----
 export interface StockItemInput {

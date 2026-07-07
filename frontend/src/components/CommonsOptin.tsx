@@ -10,6 +10,7 @@ import { getOptin, setOptin, runExtraction } from "@/lib/commons";
 const SCOPES = [
   { value: "legal", label: "Juridique" },
   { value: "erp", label: "Comptabilité / ERP" },
+  { value: "achats", label: "Achats" },
   { value: "rh", label: "RH / Paie" },
   { value: "sante", label: "Santé" },
 ];
