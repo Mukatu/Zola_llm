@@ -19,6 +19,7 @@ class QueryRequest(BaseModel):
 
 class RoutingInfo(BaseModel):
     pole: Pole
+    module: str | None = None  # sous-agent choisi (ex: travail_cg) — observabilité du routage
     confidence: float
     language: Literal["fr", "ln", "kg", "other"]
     country_hint: str
