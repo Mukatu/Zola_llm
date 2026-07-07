@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Settings, Check } from "lucide-react";
 import { useZola } from "@/components/ConfigProvider";
 import { Card, Button } from "@/components/ui";
+import { CommonsOptin } from "@/components/CommonsOptin";
 import { CAPABILITIES, POLE_LABELS, type Capability } from "@/lib/capabilities";
 
 export default function ParametresPage() {
@@ -89,6 +90,8 @@ export default function ParametresPage() {
         {saved && <span className="flex items-center gap-1 text-sm text-emerald-600"><Check className="h-4 w-4" /> Enregistré</span>}
         <Button onClick={onSave} disabled={saving}>{saving ? "Enregistrement…" : "Enregistrer"}</Button>
       </div>
+
+      <CommonsOptin />
     </div>
   );
 }
