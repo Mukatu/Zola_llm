@@ -26,6 +26,19 @@ export function biKpis(payload: { invoices?: unknown[]; transactions?: unknown[]
 export function biDashboard(): Promise<{ kpis: Kpi[] }> {
   return api("/v1/bi/dashboard");
 }
+// Cockpit v2 : KPIs + signaux déterministes + échéances indicatives.
+export interface Signal { code: string; niveau: string; domaine: string; titre: string; detail: string; kpi_code: string | null }
+export interface Echeance { code: string; libelle: string; periodicite: string; date_limite: string; jours_restants: number; indicatif: boolean; note: string }
+export interface Cockpit { generated_at: string; kpis: Kpi[]; signals: Signal[]; echeances: Echeance[] }
+export function biCockpit(): Promise<Cockpit> {
+  return api("/v1/bi/cockpit");
+}
+export function biBrief(): Promise<{ brief: string; signals_apercu: string }> {
+  return api("/v1/bi/brief", { body: {} });
+}
+export function biAsk(question: string): Promise<{ answer: string }> {
+  return api("/v1/bi/ask", { body: { question } });
+}
 
 // ----- Finance -----
 export interface FinanceFinding { type: string; severity: string; libelle: string; montant_xaf: string; references: string[] }
