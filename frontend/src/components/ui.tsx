@@ -21,7 +21,8 @@ export function Button({
       disabled={disabled}
       className={clsx(
         "inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-medium transition active:scale-[0.98] disabled:opacity-50",
-        variant === "primary" && "bg-primary text-white hover:opacity-90",
+        variant === "primary" &&
+          "bg-gradient-to-b from-primary to-primary/85 text-white shadow-sm shadow-primary/30 hover:brightness-[1.05]",
         variant === "ghost" && "text-ink hover:bg-black/5",
       )}
     >

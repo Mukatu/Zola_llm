@@ -5,11 +5,14 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        // Couleur primaire pilotée par la config tenant (variable CSS).
+        // Palette Polaris. Primaire (orange) pilotée par la config tenant (variable CSS).
         primary: "rgb(var(--zo-primary) / <alpha-value>)",
         surface: "rgb(var(--zo-surface) / <alpha-value>)",
         ink: "rgb(var(--zo-ink) / <alpha-value>)",
         muted: "rgb(var(--zo-muted) / <alpha-value>)",
+        navy: "rgb(var(--zo-navy) / <alpha-value>)",
+        mint: "rgb(var(--zo-mint) / <alpha-value>)",
+        forest: "rgb(var(--zo-forest) / <alpha-value>)",
       },
       borderRadius: { xl: "0.875rem", "2xl": "1.25rem" },
       keyframes: {

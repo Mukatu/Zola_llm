@@ -22,7 +22,7 @@ export const DEFAULT_CONFIG: TenantConfig = {
   profil: (process.env.NEXT_PUBLIC_SURFACE as "box" | "cortex") || "box",
   personnalisable: true,
   modules_actifs: ["droit.ohada", "erp.rh", "erp.finance", "bi.pilotage"],
-  branding: { nom_affichage: "ZolaOS", couleur_primaire: "#0B5FFF", logo_uri: null },
+  branding: { nom_affichage: "ZolaOS", couleur_primaire: "#E8763A", logo_uri: null },
   locale: "fr",
   champs_personnalises: {},
   connecteurs_actifs: [],

@@ -96,7 +96,7 @@ class Branding(BaseModel):
     model_config = {"extra": "forbid"}
 
     nom_affichage: str = "ZolaOS"
-    couleur_primaire: str = Field(default="#0B5FFF", pattern=r"^#[0-9A-Fa-f]{6}$")
+    couleur_primaire: str = Field(default="#E8763A", pattern=r"^#[0-9A-Fa-f]{6}$")
     logo_uri: str | None = None
 
 

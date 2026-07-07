@@ -3,12 +3,16 @@
 @tailwind utilities;
 
 :root {
-  /* Tokens (la couleur primaire est surchargée à l'exécution depuis /v1/config) */
-  --zo-primary: 11 95 255;   /* #0B5FFF */
-  --zo-surface: 255 255 255;
-  --zo-ink: 17 24 39;
-  --zo-muted: 107 114 128;
-  --zo-bg: 247 248 251;
+  /* Palette Polaris (charte : bleu nuit + vert forêt + menthe, touche orange pour l'action).
+     La couleur primaire (orange) est surchargée à l'exécution depuis /v1/config. */
+  --zo-primary: 232 118 58;  /* #E8763A orange — action / CTA / actif */
+  --zo-surface: 255 255 255; /* cartes */
+  --zo-ink: 15 37 61;        /* #0F253D bleu nuit — texte principal */
+  --zo-muted: 100 116 139;   /* #64748B ardoise — texte secondaire */
+  --zo-bg: 243 245 248;      /* #F3F5F8 gris-bleu — fond de page */
+  --zo-navy: 14 31 51;       /* #0E1F33 bleu nuit profond — sidebar / top bar */
+  --zo-mint: 61 174 140;     /* #3DAE8C menthe — succès / sécurité */
+  --zo-forest: 30 107 79;    /* #1E6B4F vert forêt — institutionnel */
 }
 
 html, body {
