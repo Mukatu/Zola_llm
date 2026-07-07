@@ -73,3 +73,26 @@ async def test_current_tenant_derives_from_principal() -> None:
         user_id=uuid.uuid4(), email="a@b.c", tenant_id=None, country="cg", auth_method="jwt"
     )
     assert await current_tenant(anon) == "local"
+
+
+def test_tenant_filter_read_scoping() -> None:
+    import uuid
+
+    from fastapi import HTTPException
+
+    from zolaos.api.auth import Principal
+    from zolaos.api.v1.kb import _tenant_filter
+
+    # Corpus de référence : consultable sans compte (aucun filtre tenant).
+    assert _tenant_filter("rag_legal", None) is None
+
+    # Corpus privé sans identité → 401.
+    with pytest.raises(HTTPException) as exc:
+        _tenant_filter("rag_tenant", None)
+    assert exc.value.status_code == 401
+
+    # Corpus privé avec identité → borné à son tenant.
+    p = Principal(
+        user_id=uuid.uuid4(), email="a@b.c", tenant_id="acme", country="cg", auth_method="jwt"
+    )
+    assert _tenant_filter("rag_tenant", p) == "acme"

@@ -30,7 +30,7 @@ from sqlalchemy import delete as sa_delete
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from zolaos.api.auth import current_tenant
+from zolaos.api.auth import Principal, current_tenant, optional_principal
 from zolaos.db.models import RAG_MODELS
 from zolaos.db.session import get_session
 from zolaos.rag.ingest import _load_text, ingest_text
@@ -84,13 +84,37 @@ def _titre(meta: dict[str, Any] | None, source_id: str | None) -> str | None:
     return m.get("titre") or m.get("acte_nom") or source_id
 
 
+def _tenant_filter(schema: str, principal: Principal | None) -> str | None:
+    """Corpus privé (rag_tenant) : impose l'isolation par tenant (auth requise).
+
+    Retourne le tag `tenant:<id>` à ajouter au filtre, ou ``None`` pour les corpus
+    de référence (consultables sans compte). Lève 401 si rag_tenant sans identité.
+    """
+    if schema != "rag_tenant":
+        return None
+    if principal is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="missing_credentials"
+        )
+    return principal.tenant_id or "local"
+
+
 @router.get("/catalog", summary="Facettes de navigation d'un corpus")
 async def catalog(
     schema: str = "rag_legal",
     session: AsyncSession = Depends(get_session),
+    principal: Principal | None = Depends(optional_principal),
 ) -> dict[str, Any]:
     model = _model(schema)
-    sub = select(func.unnest(model.tags).label("tag")).subquery()
+    tenant = _tenant_filter(schema, principal)
+
+    tag_q = select(func.unnest(model.tags).label("tag"))
+    total_q = select(func.count(func.distinct(model.source_uri)))
+    if tenant:
+        scope = model.tags.op("@>")([f"tenant:{tenant}"])
+        tag_q = tag_q.where(scope)
+        total_q = total_q.where(scope)
+    sub = tag_q.subquery()
     rows = (await session.execute(select(sub.c.tag, func.count().label("n")).group_by(sub.c.tag))).all()
 
     facettes: dict[str, list[dict[str, Any]]] = {"module": [], "secteur": [], "acte": []}
@@ -101,9 +125,7 @@ async def catalog(
     for cle in facettes:
         facettes[cle].sort(key=lambda x: x["valeur"])
 
-    total = (
-        await session.execute(select(func.count(func.distinct(model.source_uri))))
-    ).scalar_one()
+    total = (await session.execute(total_q)).scalar_one()
     return {"schema": schema, "documents": int(total), "facettes": facettes}
 
 
@@ -116,9 +138,13 @@ async def documents(
     country: str = "cg",
     limit: int = Query(default=300, le=1000),
     session: AsyncSession = Depends(get_session),
+    principal: Principal | None = Depends(optional_principal),
 ) -> dict[str, Any]:
     model = _model(schema)
     req = _required_tags(country, module, secteur, acte)
+    tenant = _tenant_filter(schema, principal)
+    if tenant:
+        req.append(f"tenant:{tenant}")
     stmt = (
         select(
             model.source_uri,
@@ -150,15 +176,18 @@ async def document(
     schema: str = "rag_legal",
     source_uri: str = Query(...),
     session: AsyncSession = Depends(get_session),
+    principal: Principal | None = Depends(optional_principal),
 ) -> dict[str, Any]:
     model = _model(schema)
-    rows = (
-        await session.execute(
-            select(model.content, model.extra_metadata, model.source_id)
-            .where(model.source_uri == source_uri)
-            .order_by(model.chunk_index)
-        )
-    ).all()
+    tenant = _tenant_filter(schema, principal)
+    stmt = (
+        select(model.content, model.extra_metadata, model.source_id)
+        .where(model.source_uri == source_uri)
+        .order_by(model.chunk_index)
+    )
+    if tenant:
+        stmt = stmt.where(model.tags.op("@>")([f"tenant:{tenant}"]))
+    rows = (await session.execute(stmt)).all()
     if not rows:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="document introuvable")
     meta = rows[0].extra_metadata or {}
@@ -185,9 +214,15 @@ class KbSearchIn(BaseModel):
 
 
 @router.post("/search", summary="Recherche sémantique dans un corpus (embeddings)")
-async def search(body: KbSearchIn) -> dict[str, Any]:
+async def search(
+    body: KbSearchIn,
+    principal: Principal | None = Depends(optional_principal),
+) -> dict[str, Any]:
     _model(body.schema_rag)
     req = _required_tags(body.country, body.module, body.secteur, body.acte)
+    tenant = _tenant_filter(body.schema_rag, principal)
+    if tenant:
+        req.append(f"tenant:{tenant}")
     matches = await retrieve(query=body.q, schema=body.schema_rag, required_tags=req, k=body.k)
     return {
         "resultats": [

@@ -130,3 +130,22 @@ async def current_tenant(principal: Principal = Depends(authenticate)) -> str:
     Défaut ``local`` (déploiement mono-tenant Zolabox).
     """
     return principal.tenant_id or "local"
+
+
+async def optional_principal(
+    authorization: str | None = Header(default=None),
+    x_api_key: str | None = Header(default=None, alias="X-API-Key"),
+    session: AsyncSession = Depends(get_session),
+    settings: Settings = Depends(get_settings),
+) -> Principal | None:
+    """Auth **optionnelle** : ``None`` si aucune créance n'est fournie, sinon valide
+    l'identité (401 si les créances sont présentes mais invalides).
+
+    Sert la lecture mixte : les corpus de référence restent consultables sans
+    compte, mais le corpus privé (rag_tenant) exige une identité (cf. appelant).
+    """
+    if not authorization and not x_api_key:
+        return None
+    return await authenticate(
+        authorization=authorization, x_api_key=x_api_key, session=session, settings=settings
+    )
