@@ -26,3 +26,28 @@ export function setOptin(enabled: boolean, scopes: string[]): Promise<OptinState
 export function runExtraction(): Promise<ExtractResult> {
   return api("/v1/commons/extract", { body: {} });
 }
+
+// ----- Curation (réservé au scope commons:curate) -----
+export interface Candidate {
+  id: string;
+  type: string;
+  domaine: string;
+  payload: { domaine?: string; question?: string; reponse?: string };
+  occurrences: number;
+  status: string;
+  first_seen: string | null;
+}
+
+export function listCandidates(
+  eligibleOnly = true,
+): Promise<{ k_anonymat: number; total: number; candidats: Candidate[] }> {
+  return api(`/v1/commons/candidates?eligible_only=${eligibleOnly}`);
+}
+
+export function validateCandidate(id: string): Promise<Candidate> {
+  return api(`/v1/commons/candidates/${id}/validate`, { body: {} });
+}
+
+export function rejectCandidate(id: string): Promise<Candidate> {
+  return api(`/v1/commons/candidates/${id}/reject`, { body: {} });
+}
