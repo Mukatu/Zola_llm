@@ -2,12 +2,13 @@
 
 import { useState } from "react";
 import clsx from "clsx";
-import { ScrollText, FileText, Scale, Info, Languages } from "lucide-react";
+import { ScrollText, FileText, Scale, Info, Languages, Sparkles } from "lucide-react";
 import { Card, Button, Skeleton } from "../ui";
 import { FlagshipHeader, Inp } from "./_shared";
 import { ContractTranslator } from "../ContractTranslator";
 import { runQuery } from "@/lib/query";
 import { ApiError } from "@/lib/api";
+import { captureCorrection, learnedLookup } from "@/lib/commons";
 
 const TYPES = ["CDI", "CDD", "Bail commercial OHADA", "Cession de parts", "NDA / Confidentialité", "Contrat de prestation"];
 const CLAUSES = ["Confidentialité", "Non-concurrence", "Pénalités de retard", "Résiliation", "Règlement des litiges (OHADA)"];
@@ -20,7 +21,17 @@ export function DroitScreen() {
   const [objet, setObjet] = useState("");
   const [montant, setMontant] = useState("");
   const [clauses, setClauses] = useState<string[]>(["Résiliation", "Règlement des litiges (OHADA)"]);
+  const [regime, setRegime] = useState("");
   const [situation, setSituation] = useState("");
+
+  async function suggestRegime() {
+    try {
+      const { regles } = await learnedLookup("legal.doctype", type);
+      if (regles[0]) setRegime(regles[0].valeur);
+    } catch {
+      /* règle apprise indisponible — sans effet */
+    }
+  }
   const [out, setOut] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -33,12 +44,21 @@ export function DroitScreen() {
       ? `Rédige un projet de "${type}" conforme au droit OHADA / République du Congo.\n`
         + `Parties : ${partieA || "Partie A"} et ${partieB || "Partie B"}.\n`
         + `Objet : ${objet || "(à préciser)"}.${montant ? ` Montant/rémunération : ${montant} XAF.` : ""}\n`
+        + (regime ? `Régime / base OHADA applicable : ${regime}.\n` : "")
         + `Clauses à inclure : ${clauses.join(", ") || "usuelles"}.\n`
         + `Cite les articles applicables et signale les clauses à risque (sécurisation).`
       : `Analyse juridique (droit OHADA / CG) de la situation suivante, avec base légale, jurisprudence si pertinente, et évaluation du risque :\n\n${situation}`;
-    try { setOut((await runQuery(q)).content); }
-    catch (e) { setErr(e instanceof ApiError ? e.message : "Service indisponible (LLM/auth requis ou hors-ligne)."); }
-    finally { setLoading(false); }
+    try {
+      setOut((await runQuery(q)).content);
+      // Apprentissage : type de contrat → régime OHADA applicable (opt-in serveur).
+      if (mode === "rediger" && regime.trim()) {
+        void captureCorrection("legal.doctype", type, regime).catch(() => {});
+      }
+    } catch (e) {
+      setErr(e instanceof ApiError ? e.message : "Service indisponible (LLM/auth requis ou hors-ligne).");
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -66,6 +86,14 @@ export function DroitScreen() {
             <Field label="Partie B"><Inp className="w-full" value={partieB} onChange={setPartieB} placeholder="ex: M. X" /></Field>
           </div>
           <Field label="Objet"><Inp className="w-full" value={objet} onChange={setObjet} placeholder="ex: poste de comptable" /></Field>
+          <Field label="Régime / base OHADA applicable (appris)">
+            <div className="flex gap-2">
+              <Inp className="flex-1" value={regime} onChange={setRegime} placeholder="ex: Acte uniforme sur le droit commercial général" />
+              <button type="button" onClick={suggestRegime} className="grid place-items-center rounded-lg bg-black/5 px-2 text-primary hover:bg-black/10" title="Régime appris pour ce type de contrat">
+                <Sparkles className="h-4 w-4" />
+              </button>
+            </div>
+          </Field>
           <div>
             <div className="mb-1 text-sm font-medium">Clauses</div>
             <div className="flex flex-wrap gap-2">

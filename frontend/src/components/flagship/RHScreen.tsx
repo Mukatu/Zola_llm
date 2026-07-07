@@ -2,12 +2,13 @@
 
 import { useCallback, useEffect, useState } from "react";
 import clsx from "clsx";
-import { Users, LayoutGrid, BarChart3, CalendarClock, Plus, Trash2 } from "lucide-react";
+import { Users, LayoutGrid, BarChart3, CalendarClock, Plus, Trash2, Sparkles } from "lucide-react";
 import { Card, Button } from "../ui";
 import { FlagshipHeader, Inp, Urg } from "./_shared";
 import { DocumentUpload } from "../DocumentUpload";
 import { fmtXaf } from "@/lib/erp";
 import { ApiError } from "@/lib/api";
+import { captureCorrection, learnedLookup } from "@/lib/commons";
 import {
   listEmployees, createEmployee, deleteEmployee, getDashboard, getEcheancier,
   type EmployeeRec, type HrDashboard, type HrEcheance,
@@ -23,7 +24,18 @@ export function RHScreen() {
   const [dash, setDash] = useState<HrDashboard | null>(null);
   const [ech, setEch] = useState<HrEcheance[]>([]);
   const [form, setForm] = useState({ ...EMPTY });
+  const [categorie, setCategorie] = useState("");
   const [err, setErr] = useState<string | null>(null);
+
+  async function suggestCategorie() {
+    if (!form.poste.trim()) return;
+    try {
+      const { regles } = await learnedLookup("rh.classification", form.poste);
+      if (regles[0]) setCategorie(regles[0].valeur);
+    } catch {
+      /* règle apprise indisponible — sans effet */
+    }
+  }
 
   const refresh = useCallback(async () => {
     setErr(null);
@@ -41,8 +53,18 @@ export function RHScreen() {
 
   async function add() {
     if (!form.matricule || !form.nom_complet) return;
-    try { await createEmployee(form); setForm({ ...EMPTY }); await refresh(); }
-    catch { setErr("Création impossible (backend/DB)."); }
+    try {
+      await createEmployee(form);
+      // Apprentissage : intitulé de poste → catégorie conventionnelle (opt-in serveur).
+      if (form.poste.trim() && categorie.trim()) {
+        void captureCorrection("rh.classification", form.poste, categorie).catch(() => {});
+      }
+      setForm({ ...EMPTY });
+      setCategorie("");
+      await refresh();
+    } catch {
+      setErr("Création impossible (backend/DB).");
+    }
   }
   async function del(id: string) { try { await deleteEmployee(id); await refresh(); } catch { setErr("Suppression impossible."); } }
 
@@ -85,6 +107,12 @@ export function RHScreen() {
             <Inp value={form.salaire_base_xaf} type="number" onChange={(v) => setForm({ ...form, salaire_base_xaf: v })} placeholder="Salaire" />
             <button onClick={add} className="grid place-items-center rounded-lg bg-primary text-white"><Plus className="h-4 w-4" /></button>
           </div>
+          <div className="mb-3 grid grid-cols-[1fr_1fr_32px] gap-2">
+            <Inp value={form.poste} onChange={(v) => setForm({ ...form, poste: v })} placeholder="Intitulé de poste" />
+            <Inp value={categorie} onChange={setCategorie} placeholder="Catégorie conventionnelle" />
+            <button onClick={suggestCategorie} className="grid place-items-center rounded-lg bg-black/5 text-primary hover:bg-black/10"><Sparkles className="h-4 w-4" /></button>
+          </div>
+          <p className="mb-2 text-xs text-muted">Le classement poste → catégorie conventionnelle s&apos;apprend (communs, opt-in). ✨ propose une catégorie connue.</p>
           {emps.length === 0 && <p className="text-sm text-muted">Aucun employé. Ajoutez-en un.</p>}
           {emps.map((e) => (
             <div key={e.id} className="flex items-center justify-between border-b border-black/5 py-1.5 text-sm last:border-0">
