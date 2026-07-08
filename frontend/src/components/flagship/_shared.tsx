@@ -5,7 +5,7 @@ import type { LucideIcon } from "lucide-react";
 export function FlagshipHeader({ icon: Icon, title, subtitle }: { icon: LucideIcon; title: string; subtitle: string }) {
   return (
     <div className="flex items-center gap-3">
-      <span className="grid h-10 w-10 place-items-center rounded-xl bg-mint/15 text-forest"><Icon className="h-5 w-5" /></span>
+      <span className="grid h-10 w-10 place-items-center rounded-xl bg-mint/25 text-forest"><Icon className="h-5 w-5" /></span>
       <div>
         <h1 className="text-lg font-semibold">{title}</h1>
         <p className="text-sm text-muted">{subtitle}</p>

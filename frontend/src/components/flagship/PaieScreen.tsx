@@ -101,7 +101,7 @@ export function PaieScreen() {
     <div className="mx-auto flex max-w-4xl flex-col gap-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <span className="grid h-10 w-10 place-items-center rounded-xl bg-mint/15 text-forest"><Wallet className="h-5 w-5" /></span>
+          <span className="grid h-10 w-10 place-items-center rounded-xl bg-mint/25 text-forest"><Wallet className="h-5 w-5" /></span>
           <div>
             <h1 className="text-lg font-semibold">Paie</h1>
             <p className="text-sm text-muted">Bulletins historisés (CNSS/IRPP) + masse salariale — registre vivant.</p>

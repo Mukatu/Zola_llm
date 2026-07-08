@@ -6,6 +6,7 @@ import { Send, Sparkles } from "lucide-react";
 import { useZola } from "@/components/ConfigProvider";
 import { Card, Button } from "@/components/ui";
 import { FeedbackBar } from "@/components/FeedbackBar";
+import { Prose } from "@/components/Prose";
 import { ApiError } from "@/lib/api";
 import { runQuery, type Citation } from "@/lib/query";
 
@@ -75,7 +76,11 @@ export default function AssistantPage() {
               "max-w-[85%] rounded-2xl px-4 py-2 text-sm " +
               (m.role === "user" ? "bg-primary text-white" : "bg-surface ring-1 ring-black/5")
             }>
-              <pre className="whitespace-pre-wrap font-sans">{m.content}</pre>
+              {m.role === "user" ? (
+                <p className="whitespace-pre-wrap">{m.content}</p>
+              ) : (
+                <Prose text={m.content} />
+              )}
             </div>
             {m.role === "assistant" && m.citations && m.citations.length > 0 && (
               <div className="flex flex-wrap items-center gap-1 pl-1 text-xs text-muted">

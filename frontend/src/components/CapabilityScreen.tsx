@@ -4,6 +4,7 @@ import { useState } from "react";
 import clsx from "clsx";
 import { Sparkles, AlertCircle } from "lucide-react";
 import { Card, Button, Skeleton, SeverityBadge } from "./ui";
+import { Prose } from "./Prose";
 import { useZola } from "./ConfigProvider";
 import { ApiError } from "@/lib/api";
 import { runQuery } from "@/lib/query";
@@ -46,7 +47,7 @@ export function CapabilityScreen({ capability }: { capability: Capability }) {
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-4">
       <div className="flex items-start gap-3">
-        <span className="grid h-10 w-10 place-items-center rounded-xl bg-mint/15 text-forest">
+        <span className="grid h-10 w-10 place-items-center rounded-xl bg-mint/25 text-forest">
           <capability.icon className="h-5 w-5" />
         </span>
         <div>
@@ -107,7 +108,7 @@ function OutputRenderer({ result }: { result: QueryResult }) {
   return (
     <div className="flex flex-col gap-3">
       {text && (
-        <Card><pre className="whitespace-pre-wrap font-sans text-sm leading-relaxed">{text}</pre></Card>
+        <Card><Prose text={text} /></Card>
       )}
 
       {Array.isArray(result.findings) && result.findings.length > 0 && (

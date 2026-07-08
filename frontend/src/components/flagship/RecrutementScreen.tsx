@@ -5,6 +5,7 @@ import clsx from "clsx";
 import { UserPlus, Briefcase, KanbanSquare, BarChart3, Plus, Sparkles, Save } from "lucide-react";
 import { Card, Button, Skeleton } from "../ui";
 import { FlagshipHeader, Inp, Urg } from "./_shared";
+import { Prose } from "../Prose";
 import { ApiError } from "@/lib/api";
 import { runQuery } from "@/lib/query";
 import { hrGeneratePrompt, createDocument } from "@/lib/documents";
@@ -218,7 +219,7 @@ export function RecrutementScreen() {
                 <Button variant="ghost" onClick={saveDoc}><Save className="h-4 w-4" /> {gSaved ? "Enregistré" : "Enregistrer"}</Button>
               </div>
               <div className="mb-2 rounded-lg bg-amber-100 px-3 py-1 text-xs text-amber-800">Brouillon — à valider avant usage.</div>
-              <pre className="whitespace-pre-wrap font-sans text-sm leading-relaxed">{gDraft}</pre>
+              <Prose text={gDraft} />
             </Card>
           )}
         </>

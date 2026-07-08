@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { FolderOpen, Trash2, ChevronDown, ChevronRight } from "lucide-react";
 import { Card } from "@/components/ui";
+import { Prose } from "@/components/Prose";
 import { ApiError } from "@/lib/api";
 import { listDocuments, deleteDocument, type DocumentRec } from "@/lib/documents";
 
@@ -22,7 +23,7 @@ export default function DocumentsPage() {
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-4">
       <div className="flex items-center gap-3">
-        <span className="grid h-10 w-10 place-items-center rounded-xl bg-mint/15 text-forest"><FolderOpen className="h-5 w-5" /></span>
+        <span className="grid h-10 w-10 place-items-center rounded-xl bg-mint/25 text-forest"><FolderOpen className="h-5 w-5" /></span>
         <div><h1 className="text-lg font-semibold">Documents générés</h1><p className="text-sm text-muted">Fiches de poste, contrats, rapports… (brouillons à valider).</p></div>
       </div>
 
@@ -46,7 +47,7 @@ export default function DocumentsPage() {
             </button>
             <button onClick={() => del(d.id)} className="text-muted hover:text-red-600"><Trash2 className="h-4 w-4" /></button>
           </div>
-          {open === d.id && <pre className="mt-2 whitespace-pre-wrap border-t border-black/5 pt-2 font-sans text-sm leading-relaxed">{d.contenu}</pre>}
+          {open === d.id && <Prose text={d.contenu} className="mt-2 border-t border-black/5 pt-2" />}
         </Card>
       ))}
     </div>

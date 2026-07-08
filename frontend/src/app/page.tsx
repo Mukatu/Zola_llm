@@ -19,7 +19,7 @@ export default function Dashboard() {
         </div>
         <Link href="/cortex/missions">
           <Card className="flex items-center gap-4 transition hover:shadow-md">
-            <span className="grid h-12 w-12 place-items-center rounded-xl bg-mint/15 text-forest"><Briefcase className="h-6 w-6" /></span>
+            <span className="grid h-12 w-12 place-items-center rounded-xl bg-mint/25 text-forest"><Briefcase className="h-6 w-6" /></span>
             <div className="flex-1"><div className="font-semibold">Missions</div><div className="text-sm text-muted">Créer, suivre et révoquer les missions d'audit.</div></div>
             <ArrowRight className="h-5 w-5 text-muted" />
           </Card>
@@ -43,7 +43,7 @@ export default function Dashboard() {
 
       <Link href="/assistant">
         <Card className="flex items-center gap-4 transition hover:shadow-md">
-          <span className="grid h-12 w-12 place-items-center rounded-xl bg-mint/15 text-forest">
+          <span className="grid h-12 w-12 place-items-center rounded-xl bg-mint/25 text-forest">
             <MessagesSquare className="h-6 w-6" />
           </span>
           <div className="flex-1">
@@ -66,7 +66,7 @@ export default function Dashboard() {
               {g.items.map((c) => (
                 <Link key={c.code} href={c.route}>
                   <Card className="flex items-center gap-3 transition hover:shadow-md">
-                    <span className="grid h-10 w-10 place-items-center rounded-xl bg-mint/15 text-forest">
+                    <span className="grid h-10 w-10 place-items-center rounded-xl bg-mint/25 text-forest">
                       <c.icon className="h-5 w-5" />
                     </span>
                     <span className="font-medium">{c.label}</span>

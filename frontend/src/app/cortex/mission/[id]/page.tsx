@@ -41,12 +41,12 @@ export default function MissionCockpit() {
 
           <div className="grid gap-3 sm:grid-cols-2">
             <Card className="flex items-center gap-3">
-              <span className="grid h-10 w-10 place-items-center rounded-xl bg-mint/15 text-forest"><Gavel className="h-5 w-5" /></span>
+              <span className="grid h-10 w-10 place-items-center rounded-xl bg-mint/25 text-forest"><Gavel className="h-5 w-5" /></span>
               <div className="flex-1"><div className="font-semibold">Audit</div><div className="text-xs text-muted">Lancer une méthodologie d'audit (overlays cabinet).</div></div>
               <Button variant="ghost" onClick={() => {}}>Ouvrir</Button>
             </Card>
             <Card className="flex items-center gap-3">
-              <span className="grid h-10 w-10 place-items-center rounded-xl bg-mint/15 text-forest"><FileText className="h-5 w-5" /></span>
+              <span className="grid h-10 w-10 place-items-center rounded-xl bg-mint/25 text-forest"><FileText className="h-5 w-5" /></span>
               <div className="flex-1"><div className="font-semibold">Rapport</div><div className="text-xs text-muted">Générer le livrable .docx de la mission.</div></div>
               <Button variant="ghost" onClick={() => {}}>Générer</Button>
             </Card>

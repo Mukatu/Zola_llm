@@ -6,6 +6,7 @@ import Link from "next/link";
 import { Sparkles, X, Send } from "lucide-react";
 import { runQuery, type Citation } from "@/lib/query";
 import { FeedbackBar } from "@/components/FeedbackBar";
+import { Prose } from "@/components/Prose";
 import { ApiError } from "@/lib/api";
 
 // Pré-scoping par module (dérivé de la route /c/<pole>.<module>). Le préfixe
@@ -126,7 +127,11 @@ export function AssistantDock() {
                 (m.role === "user" ? "bg-primary text-white" : "bg-black/5")
               }
             >
-              <pre className="whitespace-pre-wrap font-sans">{m.content}</pre>
+              {m.role === "user" ? (
+                <p className="whitespace-pre-wrap">{m.content}</p>
+              ) : (
+                <Prose text={m.content} compact />
+              )}
             </div>
             {m.role === "assistant" && m.citations && m.citations.length > 0 && (
               <div className="flex flex-wrap items-center gap-1 text-xs text-muted">

@@ -6,6 +6,7 @@ import { ScrollText, FileText, Scale, Info, Languages, Sparkles } from "lucide-r
 import { Card, Button, Skeleton } from "../ui";
 import { FlagshipHeader, Inp } from "./_shared";
 import { ContractTranslator } from "../ContractTranslator";
+import { Prose } from "../Prose";
 import { runQuery } from "@/lib/query";
 import { ApiError } from "@/lib/api";
 import { captureCorrection, learnedLookup } from "@/lib/commons";
@@ -123,7 +124,7 @@ export function DroitScreen() {
           <div className="mb-3 flex items-center gap-2 rounded-lg bg-amber-100 px-3 py-1.5 text-xs font-medium text-amber-800">
             <Info className="h-4 w-4" /> Projet — à faire valider par un juriste avant signature.
           </div>
-          <pre className="whitespace-pre-wrap font-sans text-sm leading-relaxed">{out}</pre>
+          <Prose text={out} />
         </Card>
       )}
     </div>

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { BookOpen, Search, FileText, Loader2, Trash2 } from "lucide-react";
 import { Card, Button } from "@/components/ui";
 import { DocumentUpload } from "@/components/DocumentUpload";
+import { Prose } from "@/components/Prose";
 import { ApiError } from "@/lib/api";
 import {
   kbCatalog,
@@ -36,37 +37,6 @@ const UPLOAD_MODULES: { id: string; label: string; doctypes: string[] }[] = [
 interface Filter {
   kind: "module" | "secteur" | "acte";
   valeur: string;
-}
-
-// Structure un texte juridique souvent extrait « au fil de l'eau » (peu de sauts) :
-// nettoie les artefacts OCR et insère un saut avant chaque marqueur (Titre, Chapitre,
-// Section, Article/Art.), pour détacher visuellement articles et sections.
-function structureText(texte: string): string[] {
-  const t = texte
-    .replace(/\.{3,}/g, " · ") // pointillés de sommaire OCR → séparateur discret
-    .replace(/[ \t]{2,}/g, " ") // espaces multiples
-    .replace(/\s*\n\s*/g, "\n")
-    .replace(/\s+(TITRE\s)/g, "\n\n$1")
-    .replace(/\s+(Titre\s+[0-9IVXLC])/g, "\n\n$1")
-    .replace(/\s+(Chapitre\s)/gi, "\n\n$1")
-    .replace(/\s+(Section\s+[0-9IVXLC])/g, "\n\n$1")
-    .replace(/\s+(Art(?:icle)?\.?\s*\d+)/g, "\n\n$1");
-  return t
-    .split(/\n{2,}/)
-    .map((s) => s.trim())
-    .filter(Boolean);
-}
-
-// Détection légère de titres pour la mise en page de lecture.
-function headingKind(bloc: string): "major" | "article" | null {
-  const t = bloc.trim();
-  if (/^(titre|chapitre|livre|section|préambule|partie|annexe)\b/i.test(t) && t.length <= 120)
-    return "major";
-  const lettres = t.replace(/[^A-Za-zÀ-ÿ]/g, "");
-  if (lettres.length >= 4 && lettres === lettres.toUpperCase() && t.length <= 90) return "major";
-  // Ligne-titre d'article courte (« Article 42 — Préavis »), pas un article entier.
-  if (/\bart(?:icle)?\.?\s*\d+/i.test(t) && t.length <= 70) return "article";
-  return null;
 }
 
 export default function KbPage() {
@@ -194,7 +164,7 @@ export default function KbPage() {
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-4">
       <div className="flex items-center gap-3">
-        <span className="grid h-10 w-10 place-items-center rounded-xl bg-mint/15 text-forest">
+        <span className="grid h-10 w-10 place-items-center rounded-xl bg-mint/25 text-forest">
           <BookOpen className="h-5 w-5" />
         </span>
         <div>
@@ -343,28 +313,7 @@ export default function KbPage() {
                   {doc.nb_chunks} section(s) · <span className="break-all">{doc.source_uri}</span>
                 </div>
               </header>
-              <div lang="fr" className="mt-5 max-h-[60vh] space-y-4 overflow-y-auto pr-3">
-                {structureText(doc.texte).map((b, i) => {
-                  const kind = headingKind(b);
-                  if (kind === "major")
-                    return (
-                      <h3 key={i} className="mt-8 border-l-2 border-forest pl-3 text-sm font-bold uppercase tracking-wide text-forest first:mt-0">
-                        {b}
-                      </h3>
-                    );
-                  if (kind === "article")
-                    return (
-                      <h4 key={i} className="mt-6 text-[15px] font-semibold text-ink first:mt-0">
-                        {b}
-                      </h4>
-                    );
-                  return (
-                    <p key={i} className="hyphens-auto text-justify font-serif text-[15.5px] leading-[1.75] text-ink/90">
-                      {b}
-                    </p>
-                  );
-                })}
-              </div>
+              <Prose text={doc.texte} className="mt-5 max-h-[60vh] overflow-y-auto pr-3" />
             </article>
           )}
           {!busy && !results && !doc && (

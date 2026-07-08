@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { BarChart3, Sparkles, AlertTriangle, CalendarClock, Send, Loader2 } from "lucide-react";
 import { Card, Button } from "../ui";
 import { FlagshipHeader } from "./_shared";
+import { Prose } from "../Prose";
 import { biCockpit, biBrief, biAsk, fmt, type Cockpit, type Signal, type Kpi } from "@/lib/data";
 import { ApiError } from "@/lib/api";
 
@@ -100,7 +101,7 @@ export function BiScreen() {
         </div>
         {briefErr && <p className="mt-2 text-sm text-amber-700">{briefErr}</p>}
         {brief ? (
-          <pre className="mt-3 whitespace-pre-wrap font-sans text-sm leading-relaxed">{brief}</pre>
+          <Prose text={brief} className="mt-3" />
         ) : (
           !briefErr && <p className="mt-2 text-sm text-muted">Synthèse écrite des KPIs et signaux, en un clic.</p>
         )}
@@ -192,7 +193,7 @@ export function BiScreen() {
               {askBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
             </Button>
           </div>
-          {answer && <pre className="mt-3 whitespace-pre-wrap font-sans text-sm leading-relaxed">{answer}</pre>}
+          {answer && <Prose text={answer} className="mt-3" />}
         </Card>
       )}
     </div>

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Languages, FileText, Loader2, Copy, Check } from "lucide-react";
 import { Card, Button } from "@/components/ui";
+import { Prose } from "@/components/Prose";
 import { ApiError } from "@/lib/api";
 import { translateContract, type TranslateResult } from "@/lib/legal";
 
@@ -145,9 +146,7 @@ export function ContractTranslator({ module = "ohada" }: { module?: string }) {
               {copied ? "Copié" : "Copier"}
             </button>
           </div>
-          <pre className="max-h-[40vh] overflow-y-auto whitespace-pre-wrap rounded-lg bg-black/5 p-3 font-sans text-sm leading-relaxed">
-            {res.translation}
-          </pre>
+          <Prose text={res.translation} className="max-h-[40vh] overflow-y-auto rounded-lg bg-black/[0.03] p-3" />
           {res.assimilated && (
             <p className="mt-1 flex items-center gap-1 text-xs text-emerald-700">
               <FileText className="h-3.5 w-3.5" /> Le contrat traduit est désormais interrogeable
