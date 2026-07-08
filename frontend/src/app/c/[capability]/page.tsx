@@ -19,6 +19,7 @@ import { RHScreen } from "@/components/flagship/RHScreen";
 import { ReferentielsScreen } from "@/components/flagship/ReferentielsScreen";
 import { RecrutementScreen } from "@/components/flagship/RecrutementScreen";
 import { DeveloppementScreen } from "@/components/flagship/DeveloppementScreen";
+import { FintechScreen } from "@/components/flagship/FintechScreen";
 import { getCapability } from "@/lib/capabilities";
 import { Card } from "@/components/ui";
 import type { ComponentType } from "react";
@@ -46,6 +47,8 @@ const FLAGSHIPS: Record<string, ComponentType> = {
   "droit.fiscal_cg": DroitScreen,
   "droit.admin_cg": DroitScreen,
   "marketing.campagnes": MarketingScreen,
+  "fintech.scoring": FintechScreen,
+  "fintech.kyc": FintechScreen,
 };
 
 export default function CapabilityPage() {
