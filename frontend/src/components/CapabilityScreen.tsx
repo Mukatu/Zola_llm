@@ -64,7 +64,7 @@ export function CapabilityScreen({ capability }: { capability: Capability }) {
               onClick={() => setIntent(it.id)}
               className={clsx(
                 "rounded-full px-3 py-1 text-sm transition",
-                intent === it.id ? "bg-primary text-white" : "bg-black/5 text-ink/70 hover:bg-black/10",
+                intent === it.id ? "bg-forest text-white" : "bg-black/5 text-ink/70 hover:bg-black/10",
               )}
             >
               {it.label}

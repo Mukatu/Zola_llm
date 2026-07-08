@@ -126,7 +126,7 @@ export function FacilityScreen() {
             <Inp value={aForm.libelle} onChange={(v) => setAForm({ ...aForm, libelle: v })} placeholder="Actif" />
             <Inp value={aForm.intervalle} type="number" onChange={(v) => setAForm({ ...aForm, intervalle: v })} placeholder="Inter." />
             <Inp value={aForm.derniere} type="date" onChange={(v) => setAForm({ ...aForm, derniere: v })} />
-            <button onClick={addAsset} className="grid place-items-center rounded-lg bg-primary text-white"><Plus className="h-4 w-4" /></button>
+            <button onClick={addAsset} className="grid place-items-center rounded-lg bg-forest text-white"><Plus className="h-4 w-4" /></button>
           </div>
           {assets.map((a) => (
             <div key={a.id} className="flex items-center justify-between border-b border-black/5 py-1.5 text-sm last:border-0">
@@ -145,7 +145,7 @@ export function FacilityScreen() {
               {["assurance", "controle", "contrat", "autre"].map((t) => <option key={t} value={t}>{t}</option>)}
             </select>
             <Inp value={eForm.date} type="date" onChange={(v) => setEForm({ ...eForm, date: v })} />
-            <button onClick={addEcheance} className="grid place-items-center rounded-lg bg-primary text-white"><Plus className="h-4 w-4" /></button>
+            <button onClick={addEcheance} className="grid place-items-center rounded-lg bg-forest text-white"><Plus className="h-4 w-4" /></button>
           </div>
           {echeances.map((e) => (
             <div key={e.id} className="flex items-center justify-between border-b border-black/5 py-1.5 text-sm last:border-0">

@@ -332,7 +332,7 @@ export function AchatsScreen() {
           <div className="mb-3 grid grid-cols-[1fr_90px_36px] gap-2">
             <Inp value={supForm.nom} onChange={(v) => setSupForm({ ...supForm, nom: v })} placeholder="Nom" />
             <Inp value={supForm.note_qualite} type="number" onChange={(v) => setSupForm({ ...supForm, note_qualite: v })} placeholder="Note /5" />
-            <button onClick={addSupplier} className="grid place-items-center rounded-lg bg-primary text-white">
+            <button onClick={addSupplier} className="grid place-items-center rounded-lg bg-forest text-white">
               <Plus className="h-4 w-4" />
             </button>
           </div>
@@ -373,7 +373,7 @@ export function AchatsScreen() {
             </button>
             <Inp value={poForm.montant} type="number" onChange={(v) => setPoForm({ ...poForm, montant: v })} placeholder="Montant" />
             <Inp value={poForm.delai} type="number" onChange={(v) => setPoForm({ ...poForm, delai: v })} placeholder="Délai" />
-            <button onClick={addPo} className="grid place-items-center rounded-lg bg-primary text-white">
+            <button onClick={addPo} className="grid place-items-center rounded-lg bg-forest text-white">
               <Plus className="h-4 w-4" />
             </button>
           </div>
@@ -805,7 +805,7 @@ function PilotagePanel({
                 setBudForm({ direction: "", montant: "" });
               }
             }}
-            className="grid place-items-center rounded-lg bg-primary text-white"
+            className="grid place-items-center rounded-lg bg-forest text-white"
           >
             <Plus className="h-4 w-4" />
           </button>

@@ -260,7 +260,7 @@ export function FinanceScreen() {
             <select value={accForm.type} onChange={(e) => setAccForm({ ...accForm, type: e.target.value })} className="rounded-lg border border-black/10 bg-white px-2 py-1 text-sm">
               {["banque", "caisse", "mobile_money"].map((t) => <option key={t} value={t}>{TYPE_LABEL[t]}</option>)}
             </select>
-            <button onClick={addAccount} className="grid place-items-center rounded-lg bg-primary text-white"><Plus className="h-4 w-4" /></button>
+            <button onClick={addAccount} className="grid place-items-center rounded-lg bg-forest text-white"><Plus className="h-4 w-4" /></button>
           </div>
           <Inp value={accForm.solde} type="number" onChange={(v) => setAccForm({ ...accForm, solde: v })} placeholder="Solde initial XAF" className="mb-2 w-full" />
           {accounts.map((a) => (
@@ -288,7 +288,7 @@ export function FinanceScreen() {
               <option value="prevu">prévu</option>
             </select>
             <Inp value={flowForm.montant} type="number" onChange={(v) => setFlowForm({ ...flowForm, montant: v })} placeholder="Montant" />
-            <button onClick={addFlow} className="grid place-items-center rounded-lg bg-primary text-white"><Plus className="h-4 w-4" /></button>
+            <button onClick={addFlow} className="grid place-items-center rounded-lg bg-forest text-white"><Plus className="h-4 w-4" /></button>
           </div>
           <Inp value={flowForm.libelle} onChange={(v) => setFlowForm({ ...flowForm, libelle: v })} placeholder="Libellé" className="mb-2 w-full" />
           {flows.length === 0 && <p className="text-sm text-muted">Aucun flux.</p>}

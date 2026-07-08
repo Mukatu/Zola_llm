@@ -46,7 +46,7 @@ export function CodeScreen() {
       <div className="flex flex-wrap items-center gap-2">
         {INTENTS.map((it) => (
           <button key={it.id} onClick={() => setIntent(it.id)}
-            className={clsx("rounded-full px-3 py-1 text-sm transition", intent === it.id ? "bg-primary text-white" : "bg-black/5 text-ink/70 hover:bg-black/10")}>
+            className={clsx("rounded-full px-3 py-1 text-sm transition", intent === it.id ? "bg-forest text-white" : "bg-black/5 text-ink/70 hover:bg-black/10")}>
             {it.label}
           </button>
         ))}

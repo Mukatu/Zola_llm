@@ -112,7 +112,7 @@ export function RecrutementScreen() {
             <Inp value={vForm.intitule} onChange={(v) => setVForm({ ...vForm, intitule: v })} placeholder="Intitulé" />
             <Inp value={vForm.departement} onChange={(v) => setVForm({ ...vForm, departement: v })} placeholder="Département" />
             <Inp value={vForm.date_ouverture} type="date" onChange={(v) => setVForm({ ...vForm, date_ouverture: v })} />
-            <button onClick={addVac} className="grid place-items-center rounded-lg bg-primary text-white"><Plus className="h-4 w-4" /></button>
+            <button onClick={addVac} className="grid place-items-center rounded-lg bg-forest text-white"><Plus className="h-4 w-4" /></button>
           </div>
           {vacs.length === 0 && <p className="text-sm text-muted">Aucune vacance.</p>}
           {vacs.map((v) => (
@@ -137,7 +137,7 @@ export function RecrutementScreen() {
                 <option value="">Vacance…</option>
                 {vacs.map((v) => <option key={v.id} value={v.code_vacance}>{v.code_vacance}</option>)}
               </select>
-              <button onClick={addApp} className="grid place-items-center rounded-lg bg-primary text-white"><Plus className="h-4 w-4" /></button>
+              <button onClick={addApp} className="grid place-items-center rounded-lg bg-forest text-white"><Plus className="h-4 w-4" /></button>
             </div>
           </Card>
           <div className="grid grid-cols-2 gap-2 md:grid-cols-5">
@@ -230,7 +230,7 @@ export function RecrutementScreen() {
 
 function TabBtn({ active, onClick, icon: Icon, label }: { active: boolean; onClick: () => void; icon: typeof UserPlus; label: string }) {
   return (
-    <button onClick={onClick} className={clsx("flex items-center gap-2 rounded-xl px-3 py-1.5 text-sm transition", active ? "bg-primary text-white" : "bg-black/5 text-ink/70 hover:bg-black/10")}>
+    <button onClick={onClick} className={clsx("flex items-center gap-2 rounded-xl px-3 py-1.5 text-sm transition", active ? "bg-forest text-white" : "bg-black/5 text-ink/70 hover:bg-black/10")}>
       <Icon className="h-4 w-4" /> {label}
     </button>
   );

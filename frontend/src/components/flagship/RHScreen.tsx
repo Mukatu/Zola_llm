@@ -105,7 +105,7 @@ export function RHScreen() {
             <Inp value={form.date_embauche} type="date" onChange={(v) => setForm({ ...form, date_embauche: v })} />
             <Inp value={form.departement} onChange={(v) => setForm({ ...form, departement: v })} placeholder="Département" />
             <Inp value={form.salaire_base_xaf} type="number" onChange={(v) => setForm({ ...form, salaire_base_xaf: v })} placeholder="Salaire" />
-            <button onClick={add} className="grid place-items-center rounded-lg bg-primary text-white"><Plus className="h-4 w-4" /></button>
+            <button onClick={add} className="grid place-items-center rounded-lg bg-forest text-white"><Plus className="h-4 w-4" /></button>
           </div>
           <div className="mb-3 grid grid-cols-[1fr_1fr_32px] gap-2">
             <Inp value={form.poste} onChange={(v) => setForm({ ...form, poste: v })} placeholder="Intitulé de poste" />
@@ -165,7 +165,7 @@ export function RHScreen() {
 
 function TabBtn({ active, onClick, icon: Icon, label }: { active: boolean; onClick: () => void; icon: typeof Users; label: string }) {
   return (
-    <button onClick={onClick} className={clsx("flex items-center gap-2 rounded-xl px-3 py-1.5 text-sm transition", active ? "bg-primary text-white" : "bg-black/5 text-ink/70 hover:bg-black/10")}>
+    <button onClick={onClick} className={clsx("flex items-center gap-2 rounded-xl px-3 py-1.5 text-sm transition", active ? "bg-forest text-white" : "bg-black/5 text-ink/70 hover:bg-black/10")}>
       <Icon className="h-4 w-4" /> {label}
     </button>
   );

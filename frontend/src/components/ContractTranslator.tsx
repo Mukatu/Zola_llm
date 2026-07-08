@@ -78,7 +78,7 @@ export function ContractTranslator({ module = "ohada" }: { module?: string }) {
             onClick={() => setMode(m)}
             className={
               "rounded-md px-2.5 py-1 text-xs " +
-              (mode === m ? "bg-primary text-white" : "bg-black/5 hover:bg-black/10")
+              (mode === m ? "bg-forest text-white" : "bg-black/5 hover:bg-black/10")
             }
           >
             {m === "texte" ? "Coller un texte" : "Téléverser un fichier"}

@@ -100,7 +100,7 @@ export function DroitScreen() {
             <div className="flex flex-wrap gap-2">
               {CLAUSES.map((c) => (
                 <button key={c} onClick={() => toggle(c)}
-                  className={clsx("rounded-full px-3 py-1 text-xs transition", clauses.includes(c) ? "bg-primary text-white" : "bg-black/5 text-ink/70 hover:bg-black/10")}>
+                  className={clsx("rounded-full px-3 py-1 text-xs transition", clauses.includes(c) ? "bg-forest text-white" : "bg-black/5 text-ink/70 hover:bg-black/10")}>
                   {c}
                 </button>
               ))}
@@ -133,7 +133,7 @@ export function DroitScreen() {
 
 function Tab({ active, onClick, icon: Icon, label }: { active: boolean; onClick: () => void; icon: typeof FileText; label: string }) {
   return (
-    <button onClick={onClick} className={clsx("flex items-center gap-2 rounded-xl px-3 py-1.5 text-sm transition", active ? "bg-primary text-white" : "bg-black/5 text-ink/70 hover:bg-black/10")}>
+    <button onClick={onClick} className={clsx("flex items-center gap-2 rounded-xl px-3 py-1.5 text-sm transition", active ? "bg-forest text-white" : "bg-black/5 text-ink/70 hover:bg-black/10")}>
       <Icon className="h-4 w-4" /> {label}
     </button>
   );

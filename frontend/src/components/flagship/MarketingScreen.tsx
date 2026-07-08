@@ -185,7 +185,7 @@ export function MarketingScreen() {
             <label className="flex items-center gap-1 text-xs text-muted">
               <input type="checkbox" checked={cForm.consent} onChange={(e) => setCForm({ ...cForm, consent: e.target.checked })} /> opt-in
             </label>
-            <button onClick={addContact} className="grid place-items-center rounded-lg bg-primary text-white"><Plus className="h-4 w-4" /></button>
+            <button onClick={addContact} className="grid place-items-center rounded-lg bg-forest text-white"><Plus className="h-4 w-4" /></button>
           </div>
           {contacts.map((c) => (
             <div key={c.id} className="flex items-center justify-between border-b border-black/5 py-1.5 text-sm last:border-0">
@@ -211,7 +211,7 @@ export function MarketingScreen() {
             <select value={campForm.finalite} onChange={(e) => setCampForm({ ...campForm, finalite: e.target.value })} className="rounded-lg border border-black/10 bg-white px-2 py-1 text-sm">
               {FINALITES.map((f) => <option key={f} value={f}>{f}</option>)}
             </select>
-            <button onClick={addCampaign} className="grid place-items-center rounded-lg bg-primary text-white"><Plus className="h-4 w-4" /></button>
+            <button onClick={addCampaign} className="grid place-items-center rounded-lg bg-forest text-white"><Plus className="h-4 w-4" /></button>
           </div>
           {campaigns.length === 0 && <p className="text-sm text-muted">Aucune campagne.</p>}
           {campaigns.map((k) => (

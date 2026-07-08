@@ -85,7 +85,7 @@ export function DeveloppementScreen() {
               <Inp value={tForm.intitule} onChange={(v) => setTForm({ ...tForm, intitule: v })} placeholder="Intitulé" />
               <Inp value={tForm.duree_heures} type="number" onChange={(v) => setTForm({ ...tForm, duree_heures: v })} placeholder="Heures" />
               <Inp value={tForm.cout_xaf} type="number" onChange={(v) => setTForm({ ...tForm, cout_xaf: v })} placeholder="Coût" />
-              <button onClick={addT} className="grid place-items-center rounded-lg bg-primary text-white"><Plus className="h-4 w-4" /></button>
+              <button onClick={addT} className="grid place-items-center rounded-lg bg-forest text-white"><Plus className="h-4 w-4" /></button>
             </div>
             {trainings.map((t) => (
               <div key={t.id} className="flex items-center justify-between border-b border-black/5 py-1 text-sm last:border-0">
@@ -103,7 +103,7 @@ export function DeveloppementScreen() {
                   {trainings.map((t) => <option key={t.id} value={t.code}>{t.code}</option>)}
                 </select>
                 <Inp value={sForm.date_debut} type="date" onChange={(v) => setSForm({ ...sForm, date_debut: v })} />
-                <button onClick={addS} className="grid place-items-center rounded-lg bg-primary text-white"><Plus className="h-4 w-4" /></button>
+                <button onClick={addS} className="grid place-items-center rounded-lg bg-forest text-white"><Plus className="h-4 w-4" /></button>
               </div>
               {sessions.map((s) => (
                 <div key={s.id} className="flex items-center justify-between border-b border-black/5 py-1 text-sm last:border-0">
@@ -120,7 +120,7 @@ export function DeveloppementScreen() {
                   {sessions.map((s) => <option key={s.id} value={s.id}>{s.training_code} · {s.date_debut}</option>)}
                 </select>
                 <Inp value={eForm.employee_matricule} onChange={(v) => setEForm({ ...eForm, employee_matricule: v })} placeholder="Matricule" />
-                <button onClick={addE} className="grid place-items-center rounded-lg bg-primary text-white"><Plus className="h-4 w-4" /></button>
+                <button onClick={addE} className="grid place-items-center rounded-lg bg-forest text-white"><Plus className="h-4 w-4" /></button>
               </div>
               {enrolls.map((en) => (
                 <div key={en.id} className="flex items-center justify-between border-b border-black/5 py-1 text-sm last:border-0">
@@ -145,7 +145,7 @@ export function DeveloppementScreen() {
               <Inp value={vForm.periode} onChange={(v) => setVForm({ ...vForm, periode: v })} placeholder="Période" />
               <Score label="Perf." value={vForm.performance} onChange={(n) => setVForm({ ...vForm, performance: n })} />
               <Score label="Potentiel" value={vForm.potentiel} onChange={(n) => setVForm({ ...vForm, potentiel: n })} />
-              <button onClick={addV} className="grid place-items-center rounded-lg bg-primary text-white"><Plus className="h-4 w-4" /></button>
+              <button onClick={addV} className="grid place-items-center rounded-lg bg-forest text-white"><Plus className="h-4 w-4" /></button>
             </div>
           </Card>
           {review && (
@@ -237,7 +237,7 @@ function Score({ label, value, onChange }: { label: string; value: number; onCha
 
 function TabBtn({ active, onClick, icon: Icon, label }: { active: boolean; onClick: () => void; icon: typeof GraduationCap; label: string }) {
   return (
-    <button onClick={onClick} className={clsx("flex items-center gap-2 rounded-xl px-3 py-1.5 text-sm transition", active ? "bg-primary text-white" : "bg-black/5 text-ink/70 hover:bg-black/10")}>
+    <button onClick={onClick} className={clsx("flex items-center gap-2 rounded-xl px-3 py-1.5 text-sm transition", active ? "bg-forest text-white" : "bg-black/5 text-ink/70 hover:bg-black/10")}>
       <Icon className="h-4 w-4" /> {label}
     </button>
   );

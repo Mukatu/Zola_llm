@@ -71,7 +71,7 @@ export function ReferentielsScreen() {
             <Inp value={rForm.code_emploi} onChange={(v) => setRForm({ ...rForm, code_emploi: v })} placeholder="Code" />
             <Inp value={rForm.intitule} onChange={(v) => setRForm({ ...rForm, intitule: v })} placeholder="Intitulé emploi-repère" />
             <Inp value={rForm.famille_professionnelle} onChange={(v) => setRForm({ ...rForm, famille_professionnelle: v })} placeholder="Famille" />
-            <button onClick={addRole} className="grid place-items-center rounded-lg bg-primary text-white"><Plus className="h-4 w-4" /></button>
+            <button onClick={addRole} className="grid place-items-center rounded-lg bg-forest text-white"><Plus className="h-4 w-4" /></button>
           </div>
           {roles.length === 0 && <p className="text-sm text-muted">Aucun emploi. Ajoutez-en un.</p>}
           {roles.map((r) => (
@@ -90,7 +90,7 @@ export function ReferentielsScreen() {
             <select value={sForm.domaine} onChange={(e) => setSForm({ ...sForm, domaine: e.target.value })} className="rounded-lg border border-black/10 bg-white px-2 text-sm">
               <option value="technique">Technique</option><option value="transversal">Transversal</option><option value="soft">Soft skills</option>
             </select>
-            <button onClick={addSkill} className="grid place-items-center rounded-lg bg-primary text-white"><Plus className="h-4 w-4" /></button>
+            <button onClick={addSkill} className="grid place-items-center rounded-lg bg-forest text-white"><Plus className="h-4 w-4" /></button>
           </div>
           {skills.length === 0 && <p className="text-sm text-muted">Aucune compétence. Ajoutez-en une.</p>}
           {skills.map((s) => (
@@ -159,7 +159,7 @@ function noteColor(n: number): string {
 
 function TabBtn({ active, onClick, icon: Icon, label }: { active: boolean; onClick: () => void; icon: typeof Network; label: string }) {
   return (
-    <button onClick={onClick} className={clsx("flex items-center gap-2 rounded-xl px-3 py-1.5 text-sm transition", active ? "bg-primary text-white" : "bg-black/5 text-ink/70 hover:bg-black/10")}>
+    <button onClick={onClick} className={clsx("flex items-center gap-2 rounded-xl px-3 py-1.5 text-sm transition", active ? "bg-forest text-white" : "bg-black/5 text-ink/70 hover:bg-black/10")}>
       <Icon className="h-4 w-4" /> {label}
     </button>
   );

@@ -182,7 +182,7 @@ export default function KbPage() {
             onClick={() => selectSchema(s.id)}
             className={
               "rounded-lg px-3 py-1.5 text-sm " +
-              (schema === s.id ? "bg-primary text-white" : "bg-black/5 hover:bg-black/10")
+              (schema === s.id ? "bg-forest text-white" : "bg-black/5 hover:bg-black/10")
             }
           >
             {s.label}
@@ -353,7 +353,7 @@ function Facets({
               onClick={() => onPick(active ? null : { kind, valeur: it.valeur })}
               className={
                 "rounded px-1.5 py-0.5 text-xs " +
-                (active ? "bg-primary text-white" : "bg-black/5 hover:bg-black/10")
+                (active ? "bg-forest text-white" : "bg-black/5 hover:bg-black/10")
               }
             >
               {it.valeur} <span className="opacity-60">{it.n}</span>

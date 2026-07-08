@@ -248,7 +248,7 @@ export function SupplyScreen() {
           <Inp value={form.conso_moyenne_jour} type="number" onChange={(v) => setForm({ ...form, conso_moyenne_jour: v })} placeholder="Conso/j" />
           <Inp value={form.delai_appro_jours} type="number" onChange={(v) => setForm({ ...form, delai_appro_jours: Number(v) })} placeholder="Délai" />
           <Inp value={form.stock_securite} type="number" onChange={(v) => setForm({ ...form, stock_securite: v })} placeholder="Sécu" />
-          <button onClick={add} className="grid place-items-center rounded-lg bg-primary text-white"><Plus className="h-4 w-4" /></button>
+          <button onClick={add} className="grid place-items-center rounded-lg bg-forest text-white"><Plus className="h-4 w-4" /></button>
         </div>
       </Card>
 
@@ -281,7 +281,7 @@ export function SupplyScreen() {
           <Inp value={mv.sku} onChange={(v) => setMv({ ...mv, sku: v })} placeholder="SKU" />
           <Inp value={mv.quantite} type="number" onChange={(v) => setMv({ ...mv, quantite: v })} placeholder="Qté" />
           <Inp value={mv.cout} type="number" onChange={(v) => setMv({ ...mv, cout: v })} placeholder="Coût (entrée)" />
-          <button onClick={addMove} className="grid place-items-center rounded-lg bg-primary text-white"><Plus className="h-4 w-4" /></button>
+          <button onClick={addMove} className="grid place-items-center rounded-lg bg-forest text-white"><Plus className="h-4 w-4" /></button>
         </div>
         {moves.length === 0 && <p className="text-sm text-muted">Aucun mouvement. Créez-en un (validez pour appliquer au stock).</p>}
         {moves.map((m) => {

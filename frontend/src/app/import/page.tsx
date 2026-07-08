@@ -94,7 +94,7 @@ export default function ImportPage() {
       onClick={() => { setMode(m); reset(); }}
       className={
         "rounded-lg px-3 py-1.5 text-sm font-medium transition " +
-        (mode === m ? "bg-primary text-white" : "bg-black/5 text-ink/70 hover:bg-black/10")
+        (mode === m ? "bg-forest text-white" : "bg-black/5 text-ink/70 hover:bg-black/10")
       }
     >
       {label}

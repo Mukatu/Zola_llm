@@ -131,7 +131,7 @@ export function HseScreen() {
             <Inp value={rForm.libelle} onChange={(v) => setRForm({ ...rForm, libelle: v })} placeholder="Risque" />
             <Inp value={rForm.probabilite} type="number" onChange={(v) => setRForm({ ...rForm, probabilite: v })} placeholder="P" />
             <Inp value={rForm.gravite} type="number" onChange={(v) => setRForm({ ...rForm, gravite: v })} placeholder="G" />
-            <button onClick={addRisque} className="grid place-items-center rounded-lg bg-primary text-white"><Plus className="h-4 w-4" /></button>
+            <button onClick={addRisque} className="grid place-items-center rounded-lg bg-forest text-white"><Plus className="h-4 w-4" /></button>
           </div>
           {[...risques]
             .sort((a, b) => (critByRef[b.id_externe]?.criticite ?? 0) - (critByRef[a.id_externe]?.criticite ?? 0))
@@ -157,7 +157,7 @@ export function HseScreen() {
               {["mineur", "grave", "critique"].map((g) => <option key={g} value={g}>{g}</option>)}
             </select>
             <Inp value={iForm.jours} type="number" onChange={(v) => setIForm({ ...iForm, jours: v })} placeholder="j arrêt" />
-            <button onClick={addIncident} className="grid place-items-center rounded-lg bg-primary text-white"><Plus className="h-4 w-4" /></button>
+            <button onClick={addIncident} className="grid place-items-center rounded-lg bg-forest text-white"><Plus className="h-4 w-4" /></button>
           </div>
           {incidents.length === 0 && <p className="text-sm text-muted">Aucun incident déclaré.</p>}
           {incidents.map((i) => (

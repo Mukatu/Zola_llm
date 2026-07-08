@@ -113,7 +113,7 @@ export function CommonsOptin() {
                     onClick={() => toggleScope(s.value)}
                     className={
                       "flex items-center gap-1.5 rounded-full px-3 py-1 text-sm transition " +
-                      (on ? "bg-primary text-white" : "bg-black/5 text-ink/60 hover:bg-black/10")
+                      (on ? "bg-forest text-white" : "bg-black/5 text-ink/60 hover:bg-black/10")
                     }
                   >
                     {on && <Check className="h-3.5 w-3.5" />} {s.label}

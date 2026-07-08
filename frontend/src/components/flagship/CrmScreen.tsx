@@ -251,7 +251,7 @@ export function CrmScreen() {
           <Inp value={oppForm.libelle} onChange={(v) => setOppForm({ ...oppForm, libelle: v })} placeholder="Libellé" />
           <Inp value={oppForm.montant_xaf} type="number" onChange={(v) => setOppForm({ ...oppForm, montant_xaf: v })} placeholder="Montant" />
           <Inp value={oppForm.date_cloture_prevue} type="date" onChange={(v) => setOppForm({ ...oppForm, date_cloture_prevue: v })} />
-          <button onClick={addOpp} className="grid place-items-center rounded-lg bg-primary text-white">
+          <button onClick={addOpp} className="grid place-items-center rounded-lg bg-forest text-white">
             <Plus className="h-4 w-4" />
           </button>
         </div>
@@ -379,7 +379,7 @@ export function CrmScreen() {
                   ))}
                 </select>
                 <Inp value={inter.resume} onChange={(v) => setInter({ ...inter, resume: v })} placeholder="Résumé du contact" />
-                <button onClick={logInteraction} className="grid place-items-center rounded-lg bg-primary text-white">
+                <button onClick={logInteraction} className="grid place-items-center rounded-lg bg-forest text-white">
                   <Plus className="h-4 w-4" />
                 </button>
               </div>

@@ -94,7 +94,7 @@ export function RegistreScreen() {
             <Inp value={form.numero} onChange={(v) => setForm({ ...form, numero: v })} placeholder="N°" />
             <Inp value={form.tiers} onChange={(v) => setForm({ ...form, tiers: v })} placeholder="Client" />
             <Inp value={form.montant_ttc_xaf} type="number" onChange={(v) => setForm({ ...form, montant_ttc_xaf: v })} placeholder="TTC" />
-            <button onClick={add} className="grid place-items-center rounded-lg bg-primary text-white"><Plus className="h-4 w-4" /></button>
+            <button onClick={add} className="grid place-items-center rounded-lg bg-forest text-white"><Plus className="h-4 w-4" /></button>
           </div>
           {invoices.length === 0 && <p className="text-sm text-muted">Aucune facture. Ajoutez-en une.</p>}
           {invoices.map((inv) => (
