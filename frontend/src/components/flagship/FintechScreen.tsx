@@ -16,6 +16,8 @@ import {
   CheckCircle2,
   Save,
   Info,
+  Download,
+  Upload,
 } from "lucide-react";
 import { Card, Button, Skeleton } from "../ui";
 import { FlagshipHeader, Inp } from "./_shared";
@@ -37,6 +39,8 @@ import {
   getSchedule,
   payInstallment,
   getCohortes,
+  importApplications,
+  importTemplateUrl,
   PIECES_KYC,
   type CreditScore,
   type KycResult,
@@ -419,9 +423,24 @@ function RegistreTab() {
     refresh();
   }, [refresh]);
 
+  const [importMsg, setImportMsg] = useState<string | null>(null);
   const appDecide = async (id: string, statut: string) => { await decideApplication(id, statut); await refresh(); };
   const appDisburse = async (id: string) => { await disburse(id); await refresh(); setOpenSchedule(id); };
   const appDelete = async (id: string) => { await deleteApplication(id); await refresh(); };
+
+  async function handleImport(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setImportMsg("Import en cours…");
+    try {
+      const rep = await importApplications(file);
+      setImportMsg(`${rep.importes ?? 0} dossier(s) importé(s) et scoré(s), ${rep.rejetes} rejeté(s).`);
+      await refresh();
+    } catch {
+      setImportMsg("Import impossible (fichier .xlsx invalide ?).");
+    }
+  }
   const kycDecide = async (id: string, statut: string) => { await decideKycRecord(id, statut); await refresh(); };
   const kycDelete = async (id: string) => { await deleteKycRecord(id); await refresh(); };
 
@@ -430,6 +449,19 @@ function RegistreTab() {
   return (
     <div className="flex flex-col gap-4">
       {err && <Card className="ring-amber-200"><p className="text-sm text-amber-700">{err}</p></Card>}
+
+      <Card className="flex flex-wrap items-center gap-3">
+        <span className="text-sm font-semibold">Import Excel</span>
+        <a href={importTemplateUrl()} className="flex items-center gap-1.5 text-sm text-forest hover:underline">
+          <Download className="h-4 w-4" /> Modèle
+        </a>
+        <label className="flex cursor-pointer items-center gap-1.5 rounded-lg bg-forest/10 px-3 py-1.5 text-sm font-medium text-forest transition hover:bg-forest/20">
+          <Upload className="h-4 w-4" /> Importer des dossiers
+          <input type="file" accept=".xlsx" className="hidden" onChange={handleImport} />
+        </label>
+        <span className="text-xs text-muted">Chaque ligne est scorée automatiquement.</span>
+        {importMsg && <span className="ml-auto text-sm font-medium text-ink">{importMsg}</span>}
+      </Card>
 
       <Card className="flex flex-col gap-2">
         <div className="mb-1 flex items-center gap-2 text-sm font-semibold"><Gauge className="h-4 w-4 text-forest" /> Dossiers de crédit ({apps.length})</div>

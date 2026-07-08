@@ -12,8 +12,8 @@ from datetime import UTC, date, datetime
 from decimal import Decimal
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel, Field
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
+from pydantic import BaseModel, Field, ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from zolaos.agents.fintech.amortization import build_schedule
@@ -28,6 +28,7 @@ from zolaos.agents.fintech.portfolio import portfolio_stats
 from zolaos.agents.fintech.scoring import (
     BAREME_DEFAUT,
     CreditRequest,
+    CreditScore,
     ScoringBareme,
     score_credit,
 )
@@ -37,8 +38,86 @@ from zolaos.db.store_repo import (
     KycRecordRepository,
     LoanInstallmentRepository,
 )
+from zolaos.imports.framework import Column, EntitySpec, build_template, parse_sheet, validate_row
 
 router = APIRouter(prefix="/v1/fintech", tags=["fintech"])
+
+_XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+
+# Colonnes d'admission d'un dossier (le score et la décision sont CALCULÉS à
+# l'import, jamais saisis). Sert au modèle .xlsx, au parsing et à la validation.
+_INTAKE = EntitySpec(
+    entity="credit_applications",
+    label="Dossiers de credit",
+    model=CreditRequest,
+    columns=(
+        Column("client", "str", required=True, aliases=("demandeur", "nom", "emprunteur")),
+        Column(
+            "revenu_mensuel_xaf",
+            "decimal",
+            required=True,
+            help="Revenu mensuel net (XAF)",
+            aliases=("revenu", "revenu mensuel", "salaire"),
+        ),
+        Column(
+            "charges_mensuelles_xaf",
+            "decimal",
+            help="Dettes/loyers mensuels existants (XAF)",
+            aliases=("charges", "charges mensuelles", "dettes"),
+        ),
+        Column(
+            "montant_demande_xaf",
+            "decimal",
+            required=True,
+            help="Montant du crédit demandé (XAF)",
+            aliases=("montant", "montant demande", "credit demande"),
+        ),
+        Column("duree_mois", "int", required=True, help="Durée (mois)", aliases=("duree", "nb mois")),
+        Column(
+            "anciennete_activite_mois",
+            "int",
+            help="Ancienneté de l'activité (mois)",
+            aliases=("anciennete", "anciennete mois"),
+        ),
+        Column(
+            "incidents_paiement",
+            "int",
+            help="Nb d'incidents passés connus",
+            aliases=("incidents", "impayes anterieurs"),
+        ),
+        Column("epargne_xaf", "decimal", help="Épargne / apport (XAF)", aliases=("epargne", "apport")),
+        Column("garanties_xaf", "decimal", help="Valeur des garanties (XAF)", aliases=("garanties", "caution")),
+        Column(
+            "type_emploi",
+            "str",
+            enum=("salarie_public", "salarie_prive", "independant", "informel"),
+            help="Type d'emploi",
+            aliases=("emploi", "statut emploi", "profession"),
+        ),
+    ),
+)
+
+
+def _application_record(
+    tenant_id: str, client: str, dossier: CreditRequest, res: CreditScore, numero: str
+) -> dict[str, Any]:
+    """Instantané persistable d'un dossier scoré (partagé création/import)."""
+    return {
+        "tenant_id": tenant_id,
+        "numero": numero,
+        "client": client,
+        "montant_demande_xaf": dossier.montant_demande_xaf,
+        "duree_mois": dossier.duree_mois,
+        "score": res.score,
+        "grade": res.grade,
+        "decision": res.decision,
+        "statut": "evaluee",
+        "taux_endettement_pct": res.taux_endettement_pct,
+        "mensualite_xaf": res.mensualite_estimee_xaf,
+        "montant_max_xaf": res.montant_max_suggere_xaf,
+        "dossier": dossier.model_dump(mode="json"),
+        "resultat": res.model_dump(mode="json"),
+    }
 
 _STATUTS_CREDIT = {"evaluee", "accordee", "refusee", "decaissee", "cloturee"}
 _STATUTS_KYC = {"a_valider", "valide", "refuse"}
@@ -99,22 +178,7 @@ async def create_application(
     res = score_credit(body.dossier, body.bareme)
     numero = body.numero or f"CR-{int(datetime.now(UTC).timestamp())}"
     rec = await CreditApplicationRepository(session).create(
-        {
-            "tenant_id": tenant_id,
-            "numero": numero,
-            "client": body.client,
-            "montant_demande_xaf": body.dossier.montant_demande_xaf,
-            "duree_mois": body.dossier.duree_mois,
-            "score": res.score,
-            "grade": res.grade,
-            "decision": res.decision,
-            "statut": "evaluee",
-            "taux_endettement_pct": res.taux_endettement_pct,
-            "mensualite_xaf": res.mensualite_estimee_xaf,
-            "montant_max_xaf": res.montant_max_suggere_xaf,
-            "dossier": body.dossier.model_dump(mode="json"),
-            "resultat": res.model_dump(mode="json"),
-        }
+        _application_record(tenant_id, body.client, body.dossier, res, numero)
     )
     await session.commit()
     return rec.to_dict()
@@ -380,3 +444,75 @@ async def get_cohortes(
     installments = await LoanInstallmentRepository(session).list(tenant_id=tenant_id)
     rows = cohortes(apps, installments, datetime.now(UTC).date())
     return {"cohortes": [c.model_dump(mode="json") for c in rows]}
+
+
+# ------------------------------------------------------- import Excel (classeur)
+
+
+@router.get("/import/template", summary="Modèle .xlsx d'import des dossiers de crédit")
+def import_template() -> Response:
+    return Response(
+        content=build_template(_INTAKE),
+        media_type=_XLSX,
+        headers={"Content-Disposition": 'attachment; filename="modele_dossiers_credit.xlsx"'},
+    )
+
+
+@router.post(
+    "/import/applications",
+    summary="Importer un classeur de dossiers (chaque ligne est scorée ; dry_run pour simuler)",
+)
+async def import_applications(
+    request: Request,
+    dry_run: bool = False,
+    tenant_id: str = "local",
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    content = await request.body()
+    if not content:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="empty_file")
+    try:
+        rows = parse_sheet(content, _INTAKE.label[:31])
+    except Exception as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="invalid_xlsx") from exc
+
+    scores: list[tuple[str, CreditRequest, CreditScore]] = []
+    erreurs: list[dict[str, Any]] = []
+    for i, raw in enumerate(rows, start=2):  # ligne 1 = en-têtes
+        record, errs = validate_row(_INTAKE, raw)
+        if errs or record is None:
+            erreurs.append({"ligne": i, "motifs": errs})
+            continue
+        client = str(record.pop("client"))
+        try:
+            dossier = CreditRequest(**record)
+        except ValidationError as exc:
+            erreurs.append({"ligne": i, "motifs": [e["msg"] for e in exc.errors()][:3]})
+            continue
+        scores.append((client, dossier, score_credit(dossier)))
+
+    apercu = [
+        {"client": c, "score": r.score, "grade": r.grade, "decision": r.decision}
+        for c, _d, r in scores[:20]
+    ]
+    if dry_run:
+        return {
+            "total": len(rows),
+            "valides": len(scores),
+            "rejetes": len(erreurs),
+            "erreurs": erreurs,
+            "apercu": apercu,
+        }
+
+    repo = CreditApplicationRepository(session)
+    base = int(datetime.now(UTC).timestamp())
+    for idx, (client, dossier, res) in enumerate(scores):
+        await repo.create(_application_record(tenant_id, client, dossier, res, f"CR-{base}-{idx}"))
+    await session.commit()
+    return {
+        "total": len(rows),
+        "importes": len(scores),
+        "rejetes": len(erreurs),
+        "erreurs": erreurs,
+        "apercu": apercu,
+    }

@@ -1,6 +1,9 @@
 // Client API du pôle Fintech (/v1/fintech) — scoring crédit + KYC/AML.
 // Les montants XAF sont sérialisés en chaînes (Decimal) côté backend.
-import { api } from "./api";
+import { api, ApiError } from "./api";
+import { fetchDevToken, getToken } from "./auth";
+
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000";
 
 export interface Facteur {
   code: string;
@@ -252,6 +255,40 @@ export interface CohortStat {
 
 export async function getCohortes(): Promise<CohortStat[]> {
   return (await api<{ cohortes: CohortStat[] }>("/v1/fintech/cohortes")).cohortes;
+}
+
+// --- Import Excel (FINTECH-9) ----------------------------------------------
+
+export interface ImportReport {
+  total: number;
+  valides?: number;
+  importes?: number;
+  rejetes: number;
+  erreurs: { ligne: number; motifs: string[] }[];
+  apercu: { client: string; score: number; grade: string; decision: string }[];
+}
+
+export const importTemplateUrl = (): string => `${API_BASE}/v1/fintech/import/template`;
+
+export async function importApplications(file: File, dryRun = false): Promise<ImportReport> {
+  const send = async (tok?: string): Promise<Response> => {
+    const t = tok ?? getToken();
+    return fetch(`${API_BASE}/v1/fintech/import/applications?dry_run=${dryRun}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/octet-stream",
+        ...(t ? { Authorization: `Bearer ${t}` } : {}),
+      },
+      body: file,
+    });
+  };
+  let r = await send();
+  if (r.status === 401) {
+    const fresh = await fetchDevToken();
+    if (fresh) r = await send(fresh);
+  }
+  if (!r.ok) throw new ApiError(r.status, await r.text().catch(() => ""));
+  return (await r.json()) as ImportReport;
 }
 
 // Pièces requises par type de client (miroir du backend, pour l'UI).

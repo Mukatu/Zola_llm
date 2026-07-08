@@ -482,3 +482,65 @@ async def test_cohortes_endpoint(tmp_path) -> None:  # type: ignore[no-untyped-d
         assert len(cos) == 1
         assert cos[0]["periode"] == "2026-01"
         assert cos[0]["nb_prets"] == 1
+
+
+# --- Import Excel (FINTECH-9) -----------------------------------------------
+
+_IMPORT_HEADERS = [
+    "client",
+    "revenu_mensuel_xaf",
+    "charges_mensuelles_xaf",
+    "montant_demande_xaf",
+    "duree_mois",
+    "anciennete_activite_mois",
+    "incidents_paiement",
+    "epargne_xaf",
+    "garanties_xaf",
+    "type_emploi",
+]
+
+
+def _xlsx(rows: list[list[str]]) -> bytes:
+    import openpyxl
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Dossiers de credit"
+    ws.append(_IMPORT_HEADERS)
+    for r in rows:
+        ws.append(r)
+    from io import BytesIO
+
+    bio = BytesIO()
+    wb.save(bio)
+    return bio.getvalue()
+
+
+async def test_import_applications(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    async with _client(tmp_path) as ac:
+        t = await ac.get("/v1/fintech/import/template")
+        assert t.status_code == 200
+        assert "spreadsheetml" in t.headers["content-type"]
+
+        data = _xlsx(
+            [
+                ["Alpha", "800000", "100000", "1500000", "24", "36", "0", "400000", "1500000", "salarie_public"],
+                ["Beta", "200000", "150000", "2000000", "12", "6", "2", "0", "0", "informel"],
+                ["", "", "", "", "", "", "", "", "", ""],  # ligne vide → ignorée
+                ["Delta", "500000", "50000", "0", "12", "10", "0", "0", "0", "informel"],  # montant 0 → rejet
+            ]
+        )
+        dr = (await ac.post("/v1/fintech/import/applications?dry_run=true", content=data)).json()
+        assert dr["valides"] == 2 and dr["rejetes"] == 1
+        assert {a["client"] for a in dr["apercu"]} == {"Alpha", "Beta"}
+        # rien de persisté en dry_run
+        assert (await ac.get("/v1/fintech/applications")).json()["applications"] == []
+
+        r = (await ac.post("/v1/fintech/import/applications", content=data)).json()
+        assert r["importes"] == 2 and r["rejetes"] == 1
+        apps = (await ac.get("/v1/fintech/applications")).json()["applications"]
+        assert len(apps) == 2
+        # Alpha (bon dossier) accordé, Beta (surendetté) refusé — scoring appliqué à l'import.
+        by = {a["client"]: a for a in apps}
+        assert by["Alpha"]["decision"] == "accorde"
+        assert by["Beta"]["decision"] == "refuse"
