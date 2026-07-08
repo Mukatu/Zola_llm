@@ -95,6 +95,81 @@ export async function evaluateAml(transactions: TransactionInput[]): Promise<Aml
   return api<AmlResult>("/v1/fintech/aml", { body: { transactions } });
 }
 
+// --- Persistance (FINTECH-3/4) --------------------------------------------
+
+export interface CreditApplication {
+  id: string;
+  numero: string;
+  client: string;
+  montant_demande_xaf: string;
+  duree_mois: number;
+  score: number;
+  grade: string;
+  decision: string;
+  statut: string;
+  taux_endettement_pct: string;
+  mensualite_xaf: string;
+  montant_max_xaf: string;
+  commentaire: string | null;
+  created_at: string | null;
+}
+
+export async function createApplication(
+  client: string,
+  dossier: CreditInput,
+): Promise<CreditApplication> {
+  return api<CreditApplication>("/v1/fintech/applications", { body: { client, dossier } });
+}
+
+export async function listApplications(): Promise<CreditApplication[]> {
+  return (await api<{ applications: CreditApplication[] }>("/v1/fintech/applications")).applications;
+}
+
+export async function decideApplication(
+  id: string,
+  statut: string,
+  commentaire?: string,
+): Promise<CreditApplication> {
+  return api<CreditApplication>(`/v1/fintech/applications/${id}/decision`, {
+    body: { statut, commentaire },
+  });
+}
+
+export async function deleteApplication(id: string): Promise<void> {
+  await api(`/v1/fintech/applications/${id}`, { method: "DELETE" });
+}
+
+export interface KycRecordItem {
+  id: string;
+  nom: string;
+  type_client: string;
+  niveau_risque: string;
+  score_risque: number;
+  vigilance: string;
+  complet: boolean;
+  peut_entrer_en_relation: boolean;
+  pep: boolean;
+  statut: string;
+  commentaire: string | null;
+  created_at: string | null;
+}
+
+export async function createKycRecord(profile: KycInput): Promise<KycRecordItem> {
+  return api<KycRecordItem>("/v1/fintech/kyc-records", { body: profile });
+}
+
+export async function listKycRecords(): Promise<KycRecordItem[]> {
+  return (await api<{ kyc_records: KycRecordItem[] }>("/v1/fintech/kyc-records")).kyc_records;
+}
+
+export async function decideKycRecord(id: string, statut: string): Promise<KycRecordItem> {
+  return api<KycRecordItem>(`/v1/fintech/kyc-records/${id}/decision`, { body: { statut } });
+}
+
+export async function deleteKycRecord(id: string): Promise<void> {
+  await api(`/v1/fintech/kyc-records/${id}`, { method: "DELETE" });
+}
+
 // Pièces requises par type de client (miroir du backend, pour l'UI).
 export const PIECES_KYC: Record<string, { id: string; label: string }[]> = {
   particulier: [

@@ -1,16 +1,18 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import clsx from "clsx";
 import {
   Landmark,
   Gauge,
   ShieldCheck,
   ScanSearch,
+  ClipboardList,
   Plus,
   Trash2,
   AlertTriangle,
   CheckCircle2,
+  Save,
   Info,
 } from "lucide-react";
 import { Card, Button, Skeleton } from "../ui";
@@ -20,21 +22,37 @@ import {
   scoreCredit,
   evaluateKyc,
   evaluateAml,
+  createApplication,
+  listApplications,
+  decideApplication,
+  deleteApplication,
+  createKycRecord,
+  listKycRecords,
+  decideKycRecord,
+  deleteKycRecord,
   PIECES_KYC,
   type CreditScore,
   type KycResult,
   type AmlResult,
   type TransactionInput,
+  type CreditApplication,
+  type KycRecordItem,
 } from "@/lib/fintech";
 
-type Tab = "scoring" | "kyc" | "aml";
+type Tab = "scoring" | "kyc" | "aml" | "registre";
 const EMPLOIS = ["salarie_public", "salarie_prive", "independant", "informel"];
 const SECTEURS = ["", "change_manuel", "immobilier", "transfert_fonds", "or_metaux_precieux", "jeux_paris"];
 
 const fmt = (s: string) => Number(s).toLocaleString("fr-FR");
 
 export function FintechScreen() {
-  const [tab, setTab] = useState<Tab>("scoring");
+  const [tab, setTab] = useState<Tab>(() => {
+    if (typeof window !== "undefined") {
+      const t = new URLSearchParams(window.location.search).get("tab");
+      if (t === "kyc" || t === "aml" || t === "registre") return t;
+    }
+    return "scoring";
+  });
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-4">
       <FlagshipHeader
@@ -46,10 +64,12 @@ export function FintechScreen() {
         <TabBtn active={tab === "scoring"} onClick={() => setTab("scoring")} icon={Gauge} label="Scoring crédit" />
         <TabBtn active={tab === "kyc"} onClick={() => setTab("kyc")} icon={ShieldCheck} label="KYC" />
         <TabBtn active={tab === "aml"} onClick={() => setTab("aml")} icon={ScanSearch} label="Surveillance AML" />
+        <TabBtn active={tab === "registre"} onClick={() => setTab("registre")} icon={ClipboardList} label="Registre" />
       </div>
       {tab === "scoring" && <ScoringTab />}
       {tab === "kyc" && <KycTab />}
       {tab === "aml" && <AmlTab />}
+      {tab === "registre" && <RegistreTab />}
     </div>
   );
 }
@@ -68,8 +88,11 @@ function ScoringTab() {
     garanties_xaf: "1000000",
     type_emploi: "salarie_prive",
   });
+  const [client, setClient] = useState("");
   const [res, setRes] = useState<CreditScore | null>(null);
   const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const set = (k: keyof typeof f) => (v: string) => setF((s) => ({ ...s, [k]: v }));
 
@@ -77,6 +100,7 @@ function ScoringTab() {
     setLoading(true);
     setErr(null);
     setRes(null);
+    setSaved(null);
     try {
       setRes(await scoreCredit(f));
     } catch (e) {
@@ -86,9 +110,23 @@ function ScoringTab() {
     }
   }
 
+  async function save() {
+    setSaving(true);
+    setErr(null);
+    try {
+      const rec = await createApplication(client.trim() || "Demandeur", f);
+      setSaved(rec.numero);
+    } catch (e) {
+      setErr(e instanceof ApiError ? e.message : "Enregistrement impossible.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
   return (
     <>
       <Card className="grid gap-3 sm:grid-cols-2">
+        <div className="col-span-full"><Field label="Nom du demandeur"><Inp className="w-full" value={client} onChange={setClient} placeholder="ex : Jean Mabiala" /></Field></div>
         <Field label="Revenu mensuel (XAF)"><Inp className="w-full" value={f.revenu_mensuel_xaf} onChange={set("revenu_mensuel_xaf")} type="number" /></Field>
         <Field label="Charges mensuelles (XAF)"><Inp className="w-full" value={f.charges_mensuelles_xaf} onChange={set("charges_mensuelles_xaf")} type="number" /></Field>
         <Field label="Montant demandé (XAF)"><Inp className="w-full" value={f.montant_demande_xaf} onChange={set("montant_demande_xaf")} type="number" /></Field>
@@ -147,6 +185,11 @@ function ScoringTab() {
           {res.bareme_indicatif && (
             <p className="flex items-center gap-1.5 text-xs text-muted"><Info className="h-3.5 w-3.5" /> Barème indicatif paramétrable — aide à la décision, l'octroi reste soumis à l'analyse de l'agent de crédit.</p>
           )}
+
+          <div className="flex items-center gap-3 border-t border-black/5 pt-3">
+            <Button onClick={save} disabled={saving}><Save className="h-4 w-4" /> Enregistrer le dossier</Button>
+            {saved && <span className="flex items-center gap-1.5 text-sm font-medium text-forest"><CheckCircle2 className="h-4 w-4" /> Enregistré — {saved}</span>}
+          </div>
         </Card>
       )}
     </>
@@ -165,17 +208,32 @@ function KycTab() {
   const [pays, setPays] = useState("CG");
   const [res, setRes] = useState<KycResult | null>(null);
   const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const togglePiece = (id: string) => setPieces((s) => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  const profile = () => ({ nom: nom || "Client", type_client: type, pieces_fournies: [...pieces], pep, pays_residence: pays, secteur_activite: secteur || undefined, correspondance_liste: sanction });
 
   async function run() {
-    setLoading(true); setErr(null); setRes(null);
+    setLoading(true); setErr(null); setRes(null); setSaved(false);
     try {
-      setRes(await evaluateKyc({ nom: nom || "Client", type_client: type, pieces_fournies: [...pieces], pep, pays_residence: pays, secteur_activite: secteur || undefined, correspondance_liste: sanction }));
+      setRes(await evaluateKyc(profile()));
     } catch (e) {
       setErr(e instanceof ApiError ? e.message : "Service indisponible.");
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function save() {
+    setSaving(true); setErr(null);
+    try {
+      await createKycRecord(profile());
+      setSaved(true);
+    } catch (e) {
+      setErr(e instanceof ApiError ? e.message : "Enregistrement impossible.");
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -242,6 +300,10 @@ function KycTab() {
             </ul>
           )}
           <p className="text-xs text-muted">{res.reference_cadre}</p>
+          <div className="flex items-center gap-3 border-t border-black/5 pt-3">
+            <Button onClick={save} disabled={saving}><Save className="h-4 w-4" /> Enregistrer au registre</Button>
+            {saved && <span className="flex items-center gap-1.5 text-sm font-medium text-forest"><CheckCircle2 className="h-4 w-4" /> Enregistré</span>}
+          </div>
         </Card>
       )}
     </>
@@ -316,6 +378,117 @@ function AmlTab() {
         </Card>
       )}
     </>
+  );
+}
+
+// --- Registre --------------------------------------------------------------
+
+function RegistreTab() {
+  const [apps, setApps] = useState<CreditApplication[]>([]);
+  const [kyc, setKyc] = useState<KycRecordItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState<string | null>(null);
+
+  const refresh = useCallback(async () => {
+    setLoading(true);
+    setErr(null);
+    try {
+      const [a, k] = await Promise.all([listApplications(), listKycRecords()]);
+      setApps(a);
+      setKyc(k);
+    } catch (e) {
+      setErr(e instanceof ApiError ? e.message : "Chargement impossible.");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
+
+  const appDecide = async (id: string, statut: string) => { await decideApplication(id, statut); await refresh(); };
+  const appDelete = async (id: string) => { await deleteApplication(id); await refresh(); };
+  const kycDecide = async (id: string, statut: string) => { await decideKycRecord(id, statut); await refresh(); };
+  const kycDelete = async (id: string) => { await deleteKycRecord(id); await refresh(); };
+
+  if (loading) return <Card><Skeleton className="mb-2 h-5 w-1/3" /><Skeleton className="h-4 w-full" /></Card>;
+
+  return (
+    <div className="flex flex-col gap-4">
+      {err && <Card className="ring-amber-200"><p className="text-sm text-amber-700">{err}</p></Card>}
+
+      <Card className="flex flex-col gap-2">
+        <div className="mb-1 flex items-center gap-2 text-sm font-semibold"><Gauge className="h-4 w-4 text-forest" /> Dossiers de crédit ({apps.length})</div>
+        {apps.length === 0 && <p className="text-sm text-muted">Aucun dossier enregistré.</p>}
+        {apps.map((a) => (
+          <div key={a.id} className="flex flex-wrap items-center gap-3 rounded-lg border border-black/5 p-2.5 text-sm">
+            <div className="min-w-40">
+              <div className="font-medium">{a.client}</div>
+              <div className="text-xs text-muted">{a.numero} · {fmt(a.montant_demande_xaf)} XAF · {a.duree_mois} mois</div>
+            </div>
+            <span className="rounded-full bg-black/5 px-2 py-0.5 text-xs font-semibold">Score {a.score} · {a.grade}</span>
+            <StatutBadge statut={a.statut} />
+            <div className="ml-auto flex items-center gap-1.5">
+              {a.statut === "evaluee" && (
+                <>
+                  <MiniBtn onClick={() => appDecide(a.id, "accordee")} tone="forest">Accorder</MiniBtn>
+                  <MiniBtn onClick={() => appDecide(a.id, "refusee")} tone="red">Refuser</MiniBtn>
+                </>
+              )}
+              {a.statut === "accordee" && <MiniBtn onClick={() => appDecide(a.id, "decaissee")} tone="forest">Décaisser</MiniBtn>}
+              <button onClick={() => appDelete(a.id)} className="grid h-7 w-7 place-items-center rounded-lg text-muted hover:bg-black/5 hover:text-red-600"><Trash2 className="h-3.5 w-3.5" /></button>
+            </div>
+          </div>
+        ))}
+      </Card>
+
+      <Card className="flex flex-col gap-2">
+        <div className="mb-1 flex items-center gap-2 text-sm font-semibold"><ShieldCheck className="h-4 w-4 text-forest" /> Registre KYC ({kyc.length})</div>
+        {kyc.length === 0 && <p className="text-sm text-muted">Aucun dossier KYC enregistré.</p>}
+        {kyc.map((k) => (
+          <div key={k.id} className="flex flex-wrap items-center gap-3 rounded-lg border border-black/5 p-2.5 text-sm">
+            <div className="min-w-40">
+              <div className="font-medium">{k.nom}</div>
+              <div className="text-xs text-muted">{k.type_client} · risque {k.niveau_risque} · vigilance {k.vigilance}</div>
+            </div>
+            <StatutBadge statut={k.statut} />
+            <div className="ml-auto flex items-center gap-1.5">
+              {k.statut === "a_valider" && (
+                <>
+                  <MiniBtn onClick={() => kycDecide(k.id, "valide")} tone="forest">Valider</MiniBtn>
+                  <MiniBtn onClick={() => kycDecide(k.id, "refuse")} tone="red">Refuser</MiniBtn>
+                </>
+              )}
+              <button onClick={() => kycDelete(k.id)} className="grid h-7 w-7 place-items-center rounded-lg text-muted hover:bg-black/5 hover:text-red-600"><Trash2 className="h-3.5 w-3.5" /></button>
+            </div>
+          </div>
+        ))}
+      </Card>
+    </div>
+  );
+}
+
+const STATUT_MAP: Record<string, { c: string; t: string }> = {
+  evaluee: { c: "bg-black/5 text-ink/70", t: "Évaluée" },
+  accordee: { c: "bg-forest text-white", t: "Accordée" },
+  decaissee: { c: "bg-mint/30 text-forest", t: "Décaissée" },
+  refusee: { c: "bg-red-100 text-red-700", t: "Refusée" },
+  cloturee: { c: "bg-black/5 text-ink/50", t: "Clôturée" },
+  a_valider: { c: "bg-amber-100 text-amber-800", t: "À valider" },
+  valide: { c: "bg-forest text-white", t: "Validé" },
+  refuse: { c: "bg-red-100 text-red-700", t: "Refusé" },
+};
+
+function StatutBadge({ statut }: { statut: string }) {
+  const m = STATUT_MAP[statut] ?? { c: "bg-black/5 text-ink/70", t: statut };
+  return <span className={clsx("rounded-full px-2.5 py-0.5 text-xs font-semibold", m.c)}>{m.t}</span>;
+}
+
+function MiniBtn({ onClick, tone, children }: { onClick: () => void; tone: "forest" | "red"; children: React.ReactNode }) {
+  return (
+    <button onClick={onClick} className={clsx("rounded-lg px-2.5 py-1 text-xs font-medium transition", tone === "forest" ? "bg-forest/10 text-forest hover:bg-forest/20" : "bg-red-50 text-red-600 hover:bg-red-100")}>
+      {children}
+    </button>
   );
 }
 
