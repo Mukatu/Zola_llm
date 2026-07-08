@@ -9,6 +9,7 @@ import {
   ScanSearch,
   ClipboardList,
   BarChart3,
+  CalendarClock,
   Plus,
   Trash2,
   AlertTriangle,
@@ -32,6 +33,9 @@ import {
   decideKycRecord,
   deleteKycRecord,
   getPortfolio,
+  disburse,
+  getSchedule,
+  payInstallment,
   PIECES_KYC,
   type CreditScore,
   type KycResult,
@@ -40,6 +44,7 @@ import {
   type CreditApplication,
   type KycRecordItem,
   type PortfolioStats,
+  type ScheduleResult,
 } from "@/lib/fintech";
 
 type Tab = "scoring" | "kyc" | "aml" | "registre" | "pilotage";
@@ -392,6 +397,7 @@ function RegistreTab() {
   const [apps, setApps] = useState<CreditApplication[]>([]);
   const [kyc, setKyc] = useState<KycRecordItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [openSchedule, setOpenSchedule] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
@@ -412,6 +418,7 @@ function RegistreTab() {
   }, [refresh]);
 
   const appDecide = async (id: string, statut: string) => { await decideApplication(id, statut); await refresh(); };
+  const appDisburse = async (id: string) => { await disburse(id); await refresh(); setOpenSchedule(id); };
   const appDelete = async (id: string) => { await deleteApplication(id); await refresh(); };
   const kycDecide = async (id: string, statut: string) => { await decideKycRecord(id, statut); await refresh(); };
   const kycDelete = async (id: string) => { await deleteKycRecord(id); await refresh(); };
@@ -426,23 +433,31 @@ function RegistreTab() {
         <div className="mb-1 flex items-center gap-2 text-sm font-semibold"><Gauge className="h-4 w-4 text-forest" /> Dossiers de crédit ({apps.length})</div>
         {apps.length === 0 && <p className="text-sm text-muted">Aucun dossier enregistré.</p>}
         {apps.map((a) => (
-          <div key={a.id} className="flex flex-wrap items-center gap-3 rounded-lg border border-black/5 p-2.5 text-sm">
-            <div className="min-w-40">
-              <div className="font-medium">{a.client}</div>
-              <div className="text-xs text-muted">{a.numero} · {fmt(a.montant_demande_xaf)} XAF · {a.duree_mois} mois</div>
+          <div key={a.id} className="rounded-lg border border-black/5">
+            <div className="flex flex-wrap items-center gap-3 p-2.5 text-sm">
+              <div className="min-w-40">
+                <div className="font-medium">{a.client}</div>
+                <div className="text-xs text-muted">{a.numero} · {fmt(a.montant_demande_xaf)} XAF · {a.duree_mois} mois</div>
+              </div>
+              <span className="rounded-full bg-black/5 px-2 py-0.5 text-xs font-semibold">Score {a.score} · {a.grade}</span>
+              <StatutBadge statut={a.statut} />
+              <div className="ml-auto flex items-center gap-1.5">
+                {a.statut === "evaluee" && (
+                  <>
+                    <MiniBtn onClick={() => appDecide(a.id, "accordee")} tone="forest">Accorder</MiniBtn>
+                    <MiniBtn onClick={() => appDecide(a.id, "refusee")} tone="red">Refuser</MiniBtn>
+                  </>
+                )}
+                {a.statut === "accordee" && <MiniBtn onClick={() => appDisburse(a.id)} tone="forest">Décaisser</MiniBtn>}
+                {a.statut === "decaissee" && (
+                  <button onClick={() => setOpenSchedule(openSchedule === a.id ? null : a.id)} className="flex items-center gap-1 rounded-lg bg-mint/20 px-2.5 py-1 text-xs font-medium text-forest hover:bg-mint/30">
+                    <CalendarClock className="h-3.5 w-3.5" /> Échéancier
+                  </button>
+                )}
+                <button onClick={() => appDelete(a.id)} className="grid h-7 w-7 place-items-center rounded-lg text-muted hover:bg-black/5 hover:text-red-600"><Trash2 className="h-3.5 w-3.5" /></button>
+              </div>
             </div>
-            <span className="rounded-full bg-black/5 px-2 py-0.5 text-xs font-semibold">Score {a.score} · {a.grade}</span>
-            <StatutBadge statut={a.statut} />
-            <div className="ml-auto flex items-center gap-1.5">
-              {a.statut === "evaluee" && (
-                <>
-                  <MiniBtn onClick={() => appDecide(a.id, "accordee")} tone="forest">Accorder</MiniBtn>
-                  <MiniBtn onClick={() => appDecide(a.id, "refusee")} tone="red">Refuser</MiniBtn>
-                </>
-              )}
-              {a.statut === "accordee" && <MiniBtn onClick={() => appDecide(a.id, "decaissee")} tone="forest">Décaisser</MiniBtn>}
-              <button onClick={() => appDelete(a.id)} className="grid h-7 w-7 place-items-center rounded-lg text-muted hover:bg-black/5 hover:text-red-600"><Trash2 className="h-3.5 w-3.5" /></button>
-            </div>
+            {openSchedule === a.id && <SchedulePanel appId={a.id} />}
           </div>
         ))}
       </Card>
@@ -469,6 +484,77 @@ function RegistreTab() {
           </div>
         ))}
       </Card>
+    </div>
+  );
+}
+
+function SchedulePanel({ appId }: { appId: string }) {
+  const [sch, setSch] = useState<ScheduleResult | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      setSch(await getSchedule(appId));
+    } finally {
+      setLoading(false);
+    }
+  }, [appId]);
+  useEffect(() => {
+    load();
+  }, [load]);
+  const pay = async (id: string) => { await payInstallment(id); await load(); };
+
+  if (loading) return <div className="border-t border-black/5 p-3"><Skeleton className="h-4 w-1/2" /></div>;
+  if (!sch) return null;
+
+  return (
+    <div className="border-t border-black/5 bg-black/[0.015] p-3">
+      <div className="mb-2 flex flex-wrap gap-4 text-xs">
+        <span className="text-muted">Total : <b className="text-ink">{fmt(sch.total_xaf)} XAF</b></span>
+        <span className="text-muted">Payé : <b className="text-forest">{fmt(sch.paye_xaf)} XAF</b></span>
+        <span className="text-muted">Reste dû : <b className="text-ink">{fmt(sch.reste_xaf)} XAF</b></span>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full text-xs">
+          <thead className="text-muted">
+            <tr className="text-left">
+              <th className="py-1 pr-3">#</th>
+              <th className="pr-3">Échéance</th>
+              <th className="pr-3 text-right">Principal</th>
+              <th className="pr-3 text-right">Intérêt</th>
+              <th className="pr-3 text-right">Montant</th>
+              <th className="pr-3">Statut</th>
+              <th />
+            </tr>
+          </thead>
+          <tbody>
+            {sch.echeances.map((e) => (
+              <tr key={e.id} className="border-t border-black/5">
+                <td className="py-1.5 pr-3 tabular-nums">{e.numero}</td>
+                <td className="pr-3">{e.date_echeance}</td>
+                <td className="pr-3 text-right tabular-nums">{fmt(e.principal_xaf)}</td>
+                <td className="pr-3 text-right tabular-nums">{fmt(e.interet_xaf)}</td>
+                <td className="pr-3 text-right font-medium tabular-nums">{fmt(e.montant_xaf)}</td>
+                <td className="pr-3">
+                  {e.statut === "paye" ? (
+                    <span className="text-forest">Payée</span>
+                  ) : e.en_retard ? (
+                    <span className="font-medium text-red-600">En retard</span>
+                  ) : e.statut === "partiel" ? (
+                    <span className="text-amber-700">Partielle</span>
+                  ) : (
+                    <span className="text-muted">À venir</span>
+                  )}
+                </td>
+                <td className="text-right">
+                  {e.statut !== "paye" && <MiniBtn onClick={() => pay(e.id)} tone="forest">Encaisser</MiniBtn>}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
@@ -545,6 +631,20 @@ function PilotageTab() {
             </div>
           ))}
         </div>
+      </Card>
+
+      <Card className="flex flex-col gap-3">
+        <div className="text-sm font-semibold">Qualité du portefeuille — risque (PAR)</div>
+        {p.echeancier_disponible ? (
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <Stat label="Encours restant dû" value={`${fmt(p.encours_restant_du_xaf)} XAF`} />
+            <Stat label="Impayés" value={`${fmt(p.montant_en_retard_xaf)} XAF`} />
+            <Stat label="PAR 30 j" value={`${p.par30_pct} %`} />
+            <Stat label="PAR 90 j" value={`${p.par90_pct} %`} />
+          </div>
+        ) : (
+          <p className="text-sm text-muted">{p.note}</p>
+        )}
       </Card>
 
       <Card className="flex flex-col gap-2">

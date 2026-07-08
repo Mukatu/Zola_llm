@@ -185,12 +185,57 @@ export interface PortfolioStats {
   kyc_par_statut: Record<string, number>;
   kyc_par_risque: Record<string, number>;
   nb_vigilance_renforcee: number;
+  encours_restant_du_xaf: string;
+  montant_en_retard_xaf: string;
+  nb_prets_en_retard: number;
+  par30_pct: string;
+  par90_pct: string;
+  echeancier_disponible: boolean;
   signaux: string[];
   note: string;
 }
 
 export async function getPortfolio(): Promise<PortfolioStats> {
   return api<PortfolioStats>("/v1/fintech/portfolio");
+}
+
+// --- Échéancier de remboursement (FINTECH-6) -------------------------------
+
+export interface Echeance {
+  id: string;
+  numero: number;
+  date_echeance: string;
+  principal_xaf: string;
+  interet_xaf: string;
+  montant_xaf: string;
+  montant_paye_xaf: string;
+  reste_xaf: string;
+  statut: string;
+  en_retard: boolean;
+  paye_le: string | null;
+}
+
+export interface ScheduleResult {
+  echeances: Echeance[];
+  total_xaf: string;
+  paye_xaf: string;
+  reste_xaf: string;
+}
+
+export async function disburse(id: string, dateDecaissement?: string): Promise<void> {
+  await api(`/v1/fintech/applications/${id}/disburse`, {
+    body: { date_decaissement: dateDecaissement ?? null },
+  });
+}
+
+export async function getSchedule(id: string): Promise<ScheduleResult> {
+  return api<ScheduleResult>(`/v1/fintech/applications/${id}/schedule`);
+}
+
+export async function payInstallment(id: string, montant?: string): Promise<Echeance> {
+  return api<Echeance>(`/v1/fintech/installments/${id}/pay`, {
+    body: { montant: montant ?? null },
+  });
 }
 
 // Pièces requises par type de client (miroir du backend, pour l'UI).
