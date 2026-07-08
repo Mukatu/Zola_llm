@@ -16,6 +16,7 @@ from zolaos.agents.fintech.kyc import (
     evaluate_aml,
     evaluate_kyc,
 )
+from zolaos.agents.fintech.portfolio import portfolio_stats
 from zolaos.agents.fintech.scoring import CreditRequest, score_credit
 from zolaos.api.main import create_app
 from zolaos.core.settings import Settings
@@ -349,3 +350,68 @@ async def test_portfolio_endpoint(tmp_path) -> None:  # type: ignore[no-untyped-
         assert p["par_statut"]["evaluee"] == 1
         assert p["encours_decaisse_xaf"] == "1500000"
         assert p["nb_kyc"] == 1
+
+
+# --- Échéancier & PAR (FINTECH-6) -------------------------------------------
+
+
+def test_build_schedule_amortissement() -> None:
+    from datetime import date as _date
+
+    from zolaos.agents.fintech.amortization import build_schedule
+
+    sched = build_schedule(Decimal("1200000"), Decimal("0.18"), 12, _date(2026, 1, 15))
+    assert len(sched) == 12
+    assert sched[0].numero == 1 and sched[0].date_echeance == _date(2026, 2, 15)
+    # le principal cumulé rembourse exactement le capital
+    assert sum((e.principal_xaf for e in sched), Decimal("0")) == Decimal("1200000")
+    # amortissement : intérêts décroissants
+    assert sched[0].interet_xaf > sched[-1].interet_xaf
+
+
+class _Inst:
+    def __init__(self, app_id, montant, paye, statut, date_ech) -> None:  # type: ignore[no-untyped-def]
+        self.application_id = app_id
+        self.montant_xaf = Decimal(montant)
+        self.montant_paye_xaf = Decimal(paye)
+        self.statut = statut
+        self.date_echeance = date_ech
+
+
+def test_portfolio_par() -> None:
+    as_of = date(2026, 6, 1)
+    inst = [
+        _Inst("L1", "100000", "0", "a_venir", date(2026, 3, 1)),  # ~92 j de retard
+        _Inst("L1", "100000", "0", "a_venir", date(2026, 7, 1)),  # à venir
+        _Inst("L2", "100000", "100000", "paye", date(2026, 4, 1)),  # soldée
+    ]
+    s = portfolio_stats([], [], inst, as_of=as_of)
+    assert s.echeancier_disponible is True
+    assert s.encours_restant_du_xaf == Decimal("200000")
+    assert s.nb_prets_en_retard == 1
+    assert s.montant_en_retard_xaf == Decimal("100000")
+    assert s.par90_pct == Decimal("100")  # L1 (retard > 90 j) = tout l'encours restant
+    assert s.par30_pct == Decimal("100")
+
+
+async def test_disburse_schedule_pay(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    async with _client(tmp_path) as ac:
+        aid = (await ac.post("/v1/fintech/applications", json={"client": "X", "dossier": _DOSSIER})).json()["id"]
+        # décaissement réservé aux dossiers accordés
+        assert (await ac.post(f"/v1/fintech/applications/{aid}/disburse", json={})).status_code == 409
+        await ac.post(f"/v1/fintech/applications/{aid}/decision", json={"statut": "accordee"})
+        d = await ac.post(f"/v1/fintech/applications/{aid}/disburse", json={"date_decaissement": "2026-01-15"})
+        assert d.status_code == 200
+        assert len(d.json()["echeances"]) == 24
+        # dossier passé à décaissé
+        assert (await ac.get(f"/v1/fintech/applications/{aid}")).json()["statut"] == "decaissee"
+
+        sched = (await ac.get(f"/v1/fintech/applications/{aid}/schedule")).json()
+        assert len(sched["echeances"]) == 24
+        first = sched["echeances"][0]["id"]
+        p = await ac.post(f"/v1/fintech/installments/{first}/pay", json={})
+        assert p.status_code == 200 and p.json()["statut"] == "paye"
+
+        pf = (await ac.get("/v1/fintech/portfolio")).json()
+        assert pf["echeancier_disponible"] is True
+        assert Decimal(pf["encours_restant_du_xaf"]) > 0

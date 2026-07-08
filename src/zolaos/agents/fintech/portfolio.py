@@ -13,6 +13,7 @@ donc **pas** calculé (ce serait une valeur fabriquée) mais signalé comme suit
 from __future__ import annotations
 
 from collections.abc import Sequence
+from datetime import UTC, date, datetime
 from decimal import ROUND_HALF_UP, Decimal
 from typing import Any
 
@@ -44,8 +45,72 @@ class PortfolioStats(BaseModel):
     kyc_par_statut: dict[str, int]
     kyc_par_risque: dict[str, int]
     nb_vigilance_renforcee: int
+    # Qualité du portefeuille (échéancier de remboursement).
+    encours_restant_du_xaf: Decimal
+    montant_en_retard_xaf: Decimal
+    nb_prets_en_retard: int
+    par30_pct: Decimal
+    par90_pct: Decimal
+    echeancier_disponible: bool
     signaux: list[str]
     note: str
+
+
+class ParStats(BaseModel):
+    encours_restant_du_xaf: Decimal
+    montant_en_retard_xaf: Decimal
+    nb_prets_en_retard: int
+    par30_pct: Decimal
+    par90_pct: Decimal
+
+
+def _par(installments: Sequence[Any], as_of: date) -> ParStats:
+    """PAR (Portfolio At Risk) à partir des échéances persistées.
+
+    Un prêt est « à risque à N jours » s'il porte au moins une échéance impayée
+    dont l'échéance est dépassée de plus de N jours. PAR_N = encours restant dû
+    des prêts à risque / encours restant dû total.
+    """
+    par_loan: dict[str, list[Any]] = {}
+    for e in installments:
+        par_loan.setdefault(e.application_id, []).append(e)
+
+    encours_total = _ZERO
+    en_retard_total = _ZERO
+    at_risk30 = _ZERO
+    at_risk90 = _ZERO
+    nb_retard = 0
+    for lignes in par_loan.values():
+        reste_pret = sum(((e.montant_xaf - e.montant_paye_xaf) for e in lignes), _ZERO)
+        encours_total += reste_pret
+        pire_retard = 0
+        for e in lignes:
+            reste = e.montant_xaf - e.montant_paye_xaf
+            if e.statut != "paye" and reste > 0 and e.date_echeance < as_of:
+                en_retard_total += reste
+                pire_retard = max(pire_retard, (as_of - e.date_echeance).days)
+        if pire_retard > 0:
+            nb_retard += 1
+        if pire_retard > 30:
+            at_risk30 += reste_pret
+        if pire_retard > 90:
+            at_risk90 += reste_pret
+
+    return ParStats(
+        encours_restant_du_xaf=_q0(encours_total),
+        montant_en_retard_xaf=_q0(en_retard_total),
+        nb_prets_en_retard=nb_retard,
+        par30_pct=(
+            (at_risk30 / encours_total * _CENT).quantize(_Q, rounding=ROUND_HALF_UP)
+            if encours_total > 0
+            else _ZERO
+        ),
+        par90_pct=(
+            (at_risk90 / encours_total * _CENT).quantize(_Q, rounding=ROUND_HALF_UP)
+            if encours_total > 0
+            else _ZERO
+        ),
+    )
 
 
 def _q0(v: Decimal) -> Decimal:
@@ -59,9 +124,15 @@ def _pct(part: int, total: int) -> Decimal:
 
 
 def portfolio_stats(
-    apps: Sequence[Any], kyc: Sequence[Any]
+    apps: Sequence[Any],
+    kyc: Sequence[Any],
+    installments: Sequence[Any] = (),
+    as_of: date | None = None,
 ) -> PortfolioStats:
     """Agrège les indicateurs de portefeuille (déterministe)."""
+    today = as_of or datetime.now(UTC).date()
+    par = _par(installments, today)
+    echeancier = len(installments) > 0
     par_statut = {s: 0 for s in _STATUTS_CREDIT}
     repartition = {g: 0 for g in _GRADES}
     montant_total = _ZERO
@@ -118,6 +189,11 @@ def portfolio_stats(
         )
     if kyc_statut.get("a_valider", 0) >= 3:
         signaux.append(f"{kyc_statut['a_valider']} dossiers KYC à valider (conformité).")
+    if par.nb_prets_en_retard > 0:
+        signaux.append(
+            f"{par.nb_prets_en_retard} prêt(s) en retard — {_q0(par.montant_en_retard_xaf)} XAF "
+            f"impayés (PAR30 {par.par30_pct} %)."
+        )
     if not signaux:
         signaux.append("Aucun signal de pilotage particulier.")
 
@@ -136,9 +212,16 @@ def portfolio_stats(
         kyc_par_statut=kyc_statut,
         kyc_par_risque=kyc_risque,
         nb_vigilance_renforcee=vigilance_renforcee,
+        encours_restant_du_xaf=par.encours_restant_du_xaf,
+        montant_en_retard_xaf=par.montant_en_retard_xaf,
+        nb_prets_en_retard=par.nb_prets_en_retard,
+        par30_pct=par.par30_pct,
+        par90_pct=par.par90_pct,
+        echeancier_disponible=echeancier,
         signaux=signaux,
         note=(
-            "Le PAR (impayés) nécessite un échéancier de remboursement et des "
-            "paiements constatés — non disponibles à ce stade."
+            "PAR calculé sur l'échéancier (retard > 30/90 j, encours restant dû)."
+            if echeancier
+            else "Décaissez des prêts pour générer un échéancier et suivre le PAR."
         ),
     )

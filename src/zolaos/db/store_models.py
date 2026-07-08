@@ -1830,3 +1830,48 @@ class KycRecordRecord(StoreBase):
             "country": self.country,
             "created_at": self.created_at.isoformat() if self.created_at else None,
         }
+
+
+class LoanInstallmentRecord(StoreBase):
+    """Échéance d'un prêt décaissé (échéancier de remboursement) — FINTECH-6.
+
+    Rattachée à un dossier de crédit (`application_id`). `statut` porte le suivi de
+    paiement (a_venir | partiel | paye) ; le retard est **dérivé** à la lecture
+    (date d'échéance passée + solde non nul) pour rester juste dans le temps.
+    """
+
+    __tablename__ = "store_loan_installments"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    tenant_id: Mapped[str] = mapped_column(String(64), index=True)
+    application_id: Mapped[str] = mapped_column(String(36), index=True)
+    numero: Mapped[int] = mapped_column(Integer)
+    date_echeance: Mapped[date] = mapped_column(Date)
+    principal_xaf: Mapped[Decimal] = mapped_column(Numeric(18, 2), default=Decimal("0"))
+    interet_xaf: Mapped[Decimal] = mapped_column(Numeric(18, 2), default=Decimal("0"))
+    montant_xaf: Mapped[Decimal] = mapped_column(Numeric(18, 2), default=Decimal("0"))
+    montant_paye_xaf: Mapped[Decimal] = mapped_column(Numeric(18, 2), default=Decimal("0"))
+    statut: Mapped[str] = mapped_column(String(12), default="a_venir")  # a_venir|partiel|paye
+    paye_le: Mapped[date | None] = mapped_column(Date, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_now, onupdate=_now
+    )
+
+    def to_dict(self) -> dict[str, Any]:
+        reste = self.montant_xaf - self.montant_paye_xaf
+        en_retard = self.statut != "paye" and reste > 0 and self.date_echeance < _now().date()
+        return {
+            "id": self.id,
+            "application_id": self.application_id,
+            "numero": self.numero,
+            "date_echeance": self.date_echeance.isoformat() if self.date_echeance else None,
+            "principal_xaf": str(self.principal_xaf),
+            "interet_xaf": str(self.interet_xaf),
+            "montant_xaf": str(self.montant_xaf),
+            "montant_paye_xaf": str(self.montant_paye_xaf),
+            "reste_xaf": str(reste),
+            "statut": self.statut,
+            "en_retard": en_retard,
+            "paye_le": self.paye_le.isoformat() if self.paye_le else None,
+        }

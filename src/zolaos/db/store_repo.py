@@ -39,6 +39,7 @@ from zolaos.db.store_models import (
     JobRoleRecord,
     JournalEntryRecord,
     KycRecordRecord,
+    LoanInstallmentRecord,
     MarketingContactRecord,
     OpportunityRecord,
     PayrollScaleRecord,
@@ -444,6 +445,23 @@ class CreditApplicationRepository(_CrudRepo):
 
 class KycRecordRepository(_CrudRepo):
     model = KycRecordRecord
+
+
+class LoanInstallmentRepository(_CrudRepo):
+    model = LoanInstallmentRecord
+
+    async def list_for_application(
+        self, application_id: str, *, tenant_id: str
+    ) -> list[LoanInstallmentRecord]:
+        stmt = (
+            select(LoanInstallmentRecord)
+            .where(
+                LoanInstallmentRecord.tenant_id == tenant_id,
+                LoanInstallmentRecord.application_id == application_id,
+            )
+            .order_by(LoanInstallmentRecord.numero)
+        )
+        return list(await self._s.scalars(stmt))
 
 
 class PurchaseOrderRepository(_CrudRepo):

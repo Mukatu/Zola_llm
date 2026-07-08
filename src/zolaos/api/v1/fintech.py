@@ -8,13 +8,15 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
+from decimal import Decimal
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from zolaos.agents.fintech.amortization import build_schedule
 from zolaos.agents.fintech.kyc import (
     KycProfile,
     Transaction,
@@ -22,9 +24,18 @@ from zolaos.agents.fintech.kyc import (
     evaluate_kyc,
 )
 from zolaos.agents.fintech.portfolio import portfolio_stats
-from zolaos.agents.fintech.scoring import CreditRequest, ScoringBareme, score_credit
+from zolaos.agents.fintech.scoring import (
+    BAREME_DEFAUT,
+    CreditRequest,
+    ScoringBareme,
+    score_credit,
+)
 from zolaos.db.session import get_session
-from zolaos.db.store_repo import CreditApplicationRepository, KycRecordRepository
+from zolaos.db.store_repo import (
+    CreditApplicationRepository,
+    KycRecordRepository,
+    LoanInstallmentRepository,
+)
 
 router = APIRouter(prefix="/v1/fintech", tags=["fintech"])
 
@@ -164,6 +175,107 @@ async def delete_application(
     return {"status": "deleted"}
 
 
+# --------------------------------------------------- échéancier de remboursement
+
+
+class DisburseIn(BaseModel):
+    date_decaissement: date | None = None
+    taux_annuel: Decimal | None = None  # indicatif, défaut = barème
+
+
+class PayIn(BaseModel):
+    montant: Decimal | None = None  # None → solde intégral de l'échéance
+    date_paiement: date | None = None
+
+
+@router.post("/applications/{app_id}/disburse", summary="Décaisser + générer l'échéancier")
+async def disburse(
+    app_id: str,
+    body: DisburseIn,
+    tenant_id: str = "local",
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    apps = CreditApplicationRepository(session)
+    app = await apps.get(app_id, tenant_id=tenant_id)
+    if app is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="application_not_found")
+    if app.statut != "accordee":
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="dossier_non_accorde (décaissement réservé aux dossiers accordés)",
+        )
+    taux = body.taux_annuel if body.taux_annuel is not None else BAREME_DEFAUT.taux_annuel_indicatif
+    debut = body.date_decaissement or datetime.now(UTC).date()
+    schedule = build_schedule(app.montant_demande_xaf, taux, app.duree_mois, debut)
+    inst_repo = LoanInstallmentRepository(session)
+    for e in schedule:
+        await inst_repo.create(
+            {
+                "tenant_id": tenant_id,
+                "application_id": app_id,
+                "numero": e.numero,
+                "date_echeance": e.date_echeance,
+                "principal_xaf": e.principal_xaf,
+                "interet_xaf": e.interet_xaf,
+                "montant_xaf": e.montant_xaf,
+                "statut": "a_venir",
+            }
+        )
+    await apps.update(app_id, tenant_id=tenant_id, fields={"statut": "decaissee"})
+    await session.commit()
+    rows = await inst_repo.list_for_application(app_id, tenant_id=tenant_id)
+    return {"statut": "decaissee", "echeances": [r.to_dict() for r in rows]}
+
+
+@router.get("/applications/{app_id}/schedule", summary="Échéancier d'un prêt")
+async def get_schedule(
+    app_id: str,
+    tenant_id: str = "local",
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    rows = await LoanInstallmentRepository(session).list_for_application(
+        app_id, tenant_id=tenant_id
+    )
+    total = sum((r.montant_xaf for r in rows), Decimal("0"))
+    paye = sum((r.montant_paye_xaf for r in rows), Decimal("0"))
+    return {
+        "echeances": [r.to_dict() for r in rows],
+        "total_xaf": str(total),
+        "paye_xaf": str(paye),
+        "reste_xaf": str(total - paye),
+    }
+
+
+@router.post("/installments/{inst_id}/pay", summary="Encaisser une échéance")
+async def pay_installment(
+    inst_id: str,
+    body: PayIn,
+    tenant_id: str = "local",
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    repo = LoanInstallmentRepository(session)
+    inst = await repo.get(inst_id, tenant_id=tenant_id)
+    if inst is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="installment_not_found")
+    reste = inst.montant_xaf - inst.montant_paye_xaf
+    montant = body.montant if body.montant is not None else reste
+    if montant <= 0:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="montant_invalide"
+        )
+    nouveau_paye = min(inst.montant_xaf, inst.montant_paye_xaf + montant)
+    solde = nouveau_paye >= inst.montant_xaf
+    fields: dict[str, Any] = {
+        "montant_paye_xaf": nouveau_paye,
+        "statut": "paye" if solde else "partiel",
+    }
+    if solde:
+        fields["paye_le"] = body.date_paiement or datetime.now(UTC).date()
+    rec = await repo.update(inst_id, tenant_id=tenant_id, fields=fields)
+    await session.commit()
+    return rec.to_dict()
+
+
 # --------------------------------------------------------------- registres KYC
 
 
@@ -252,4 +364,5 @@ async def portfolio(
 ) -> dict[str, Any]:
     apps = await CreditApplicationRepository(session).list(tenant_id=tenant_id)
     kyc = await KycRecordRepository(session).list(tenant_id=tenant_id)
-    return portfolio_stats(apps, kyc).model_dump(mode="json")
+    installments = await LoanInstallmentRepository(session).list(tenant_id=tenant_id)
+    return portfolio_stats(apps, kyc, installments).model_dump(mode="json")
