@@ -3,14 +3,21 @@
 import { useEffect, useState } from "react";
 import { Wifi, WifiOff, Search, KeyRound } from "lucide-react";
 import { useZola } from "./ConfigProvider";
-import { getToken, setToken } from "@/lib/auth";
+import { getToken, setToken, fetchDevToken } from "@/lib/auth";
 
 export function TopBar() {
   const { config, online } = useZola();
   const surface = config.profil === "cortex" ? "Zolacortex" : "Zolabox";
   const [authed, setAuthed] = useState(false);
 
-  useEffect(() => { setAuthed(Boolean(getToken())); }, []);
+  useEffect(() => {
+    if (getToken()) {
+      setAuthed(true);
+    } else {
+      // Auto-login de développement : l'app se connecte seule (aucun jeton à coller).
+      void fetchDevToken().then((t) => setAuthed(Boolean(t)));
+    }
+  }, []);
 
   function manageToken() {
     const current = getToken() ?? "";

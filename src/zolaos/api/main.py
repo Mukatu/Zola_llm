@@ -163,6 +163,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     app.include_router(commons_router)
 
+    # Auto-login de développement (jeton local, 404 hors dev).
+    from zolaos.api.v1.auth_dev import router as auth_dev_router
+
+    app.include_router(auth_dev_router)
+
     # Routes Zolabox (Polaris-8) : exposées uniquement en profil `box`. En
     # profil `cortex`, le router n'est pas monté → 404 sur /v1/box/* (préférable
     # à un 500 ProfileError qui révélerait l'existence des routes).
