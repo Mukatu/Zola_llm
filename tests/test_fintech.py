@@ -2,8 +2,12 @@
 
 from __future__ import annotations
 
+from contextlib import asynccontextmanager
 from datetime import date
 from decimal import Decimal
+
+from httpx import ASGITransport, AsyncClient
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from zolaos.agents.fintech.kyc import (
     AmlBareme,
@@ -13,6 +17,50 @@ from zolaos.agents.fintech.kyc import (
     evaluate_kyc,
 )
 from zolaos.agents.fintech.scoring import CreditRequest, score_credit
+from zolaos.api.main import create_app
+from zolaos.core.settings import Settings
+from zolaos.db.session import get_session
+from zolaos.db.store_models import StoreBase
+
+
+def _settings() -> Settings:
+    return Settings(
+        POSTGRES_PASSWORD_APP="x", POSTGRES_PASSWORD_MIGRATIONS="x", JWT_SECRET="x" * 32
+    )
+
+
+@asynccontextmanager
+async def _client(tmp_path):  # type: ignore[no-untyped-def]
+    engine = create_async_engine(f"sqlite+aiosqlite:///{tmp_path}/fintech.db")
+    async with engine.begin() as conn:
+        await conn.run_sync(StoreBase.metadata.create_all)
+    factory = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+
+    async def _override():  # type: ignore[no-untyped-def]
+        async with factory() as s:
+            yield s
+
+    app = create_app(settings=_settings())
+    app.dependency_overrides[get_session] = _override
+    client = AsyncClient(transport=ASGITransport(app=app), base_url="http://test")
+    try:
+        yield client
+    finally:
+        await client.aclose()
+        await engine.dispose()
+
+
+_DOSSIER = {
+    "revenu_mensuel_xaf": "800000",
+    "charges_mensuelles_xaf": "100000",
+    "montant_demande_xaf": "1500000",
+    "duree_mois": 24,
+    "anciennete_activite_mois": 36,
+    "incidents_paiement": 0,
+    "epargne_xaf": "400000",
+    "garanties_xaf": "1500000",
+    "type_emploi": "salarie_public",
+}
 
 # --- Scoring crédit ---------------------------------------------------------
 
@@ -179,3 +227,64 @@ def test_aml_bareme_personnalise() -> None:
     txs = [Transaction(date=date(2026, 7, 1), montant_xaf=Decimal("1200000"))]
     r = evaluate_aml(txs, bareme)
     assert any(a.code == "seuil_unitaire" for a in r.alertes)
+
+
+# --- Persistance (FINTECH-3) ------------------------------------------------
+
+
+async def test_application_crud_et_decision(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    async with _client(tmp_path) as ac:
+        r = await ac.post("/v1/fintech/applications", json={"client": "Jean M.", "dossier": _DOSSIER})
+        assert r.status_code == 201, r.text
+        app_id = r.json()["id"]
+        assert r.json()["decision"] == "accorde"
+        assert r.json()["statut"] == "evaluee"
+        assert r.json()["score"] >= 70
+        assert r.json()["numero"].startswith("CR-")
+        # Snapshot figé du dossier + résultat.
+        assert r.json()["dossier"]["montant_demande_xaf"] == "1500000"
+        assert len(r.json()["resultat"]["facteurs"]) == 6
+
+        lst = await ac.get("/v1/fintech/applications")
+        assert len(lst.json()["applications"]) == 1
+
+        got = await ac.get(f"/v1/fintech/applications/{app_id}")
+        assert got.status_code == 200
+
+        dec = await ac.post(f"/v1/fintech/applications/{app_id}/decision", json={"statut": "accordee", "commentaire": "OK CA"})
+        assert dec.status_code == 200
+        assert dec.json()["statut"] == "accordee"
+        assert dec.json()["commentaire"] == "OK CA"
+
+        bad = await ac.post(f"/v1/fintech/applications/{app_id}/decision", json={"statut": "n_importe_quoi"})
+        assert bad.status_code == 422
+
+        d = await ac.delete(f"/v1/fintech/applications/{app_id}")
+        assert d.status_code == 200
+        assert (await ac.get("/v1/fintech/applications")).json()["applications"] == []
+
+
+async def test_application_isolation_tenant(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    async with _client(tmp_path) as ac:
+        await ac.post("/v1/fintech/applications", params={"tenant_id": "A"}, json={"client": "A", "dossier": _DOSSIER})
+        assert len((await ac.get("/v1/fintech/applications", params={"tenant_id": "A"})).json()["applications"]) == 1
+        assert (await ac.get("/v1/fintech/applications", params={"tenant_id": "B"})).json()["applications"] == []
+
+
+async def test_kyc_record_persistance_et_decision(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    async with _client(tmp_path) as ac:
+        r = await ac.post(
+            "/v1/fintech/kyc-records",
+            json={"nom": "ACME", "type_client": "entreprise", "pieces_fournies": ["rccm"]},
+        )
+        assert r.status_code == 201, r.text
+        rec_id = r.json()["id"]
+        assert r.json()["complet"] is False
+        assert r.json()["statut"] == "a_valider"
+        assert set(r.json()["resultat"]["pieces_manquantes"]) == {"niu", "statuts", "piece_dirigeant"}
+
+        dec = await ac.post(f"/v1/fintech/kyc-records/{rec_id}/decision", json={"statut": "refuse"})
+        assert dec.status_code == 200
+        assert dec.json()["statut"] == "refuse"
+
+        assert len((await ac.get("/v1/fintech/kyc-records")).json()["kyc_records"]) == 1

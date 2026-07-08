@@ -23,6 +23,7 @@ from zolaos.db.store_models import (
     CandidateRecord,
     CashFlowRecord,
     ContractRecord,
+    CreditApplicationRecord,
     CustomerRecord,
     DocumentRecord,
     EcheanceRecord,
@@ -37,6 +38,7 @@ from zolaos.db.store_models import (
     InvoiceRecord,
     JobRoleRecord,
     JournalEntryRecord,
+    KycRecordRecord,
     MarketingContactRecord,
     OpportunityRecord,
     PayrollScaleRecord,
@@ -434,6 +436,14 @@ class QuoteRepository(_CrudRepo):
 
 class SupplierRepository(_CrudRepo):
     model = SupplierRecord
+
+
+class CreditApplicationRepository(_CrudRepo):
+    model = CreditApplicationRecord
+
+
+class KycRecordRepository(_CrudRepo):
+    model = KycRecordRecord
 
 
 class PurchaseOrderRepository(_CrudRepo):

@@ -1726,3 +1726,107 @@ class CommonsAudit(StoreBase):
     source_uri: Mapped[str | None] = mapped_column(Text, nullable=True)
     validated_by: Mapped[str | None] = mapped_column(String(120), nullable=True)
     promoted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+class CreditApplicationRecord(StoreBase):
+    """Dossier de crédit persisté (score figé + workflow d'octroi) — FINTECH-3.
+
+    On stocke l'instantané du dossier (`dossier`) et du résultat de scoring
+    (`resultat` : facteurs + avertissements) au moment de l'évaluation, plus les
+    champs saillants pour le pilotage. Le `statut` porte la décision humaine, la
+    `decision` reste la recommandation déterministe du moteur.
+    """
+
+    __tablename__ = "store_credit_applications"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    tenant_id: Mapped[str] = mapped_column(String(64), index=True)
+    numero: Mapped[str] = mapped_column(String(64))
+    client: Mapped[str] = mapped_column(String(200))
+    montant_demande_xaf: Mapped[Decimal] = mapped_column(Numeric(18, 2), default=Decimal("0"))
+    duree_mois: Mapped[int] = mapped_column(Integer, default=0)
+    score: Mapped[int] = mapped_column(Integer, default=0)
+    grade: Mapped[str] = mapped_column(String(2), default="E")
+    decision: Mapped[str] = mapped_column(String(12), default="refuse")  # recommandation moteur
+    # evaluee | accordee | refusee | decaissee | cloturee (décision/suivi humain)
+    statut: Mapped[str] = mapped_column(String(16), default="evaluee")
+    taux_endettement_pct: Mapped[Decimal] = mapped_column(Numeric(6, 2), default=Decimal("0"))
+    mensualite_xaf: Mapped[Decimal] = mapped_column(Numeric(18, 2), default=Decimal("0"))
+    montant_max_xaf: Mapped[Decimal] = mapped_column(Numeric(18, 2), default=Decimal("0"))
+    dossier: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    resultat: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    commentaire: Mapped[str | None] = mapped_column(Text, nullable=True)
+    country: Mapped[str] = mapped_column(String(2), default="cg")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_now, onupdate=_now
+    )
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "tenant_id": self.tenant_id,
+            "numero": self.numero,
+            "client": self.client,
+            "montant_demande_xaf": str(self.montant_demande_xaf),
+            "duree_mois": self.duree_mois,
+            "score": self.score,
+            "grade": self.grade,
+            "decision": self.decision,
+            "statut": self.statut,
+            "taux_endettement_pct": str(self.taux_endettement_pct),
+            "mensualite_xaf": str(self.mensualite_xaf),
+            "montant_max_xaf": str(self.montant_max_xaf),
+            "dossier": self.dossier,
+            "resultat": self.resultat,
+            "commentaire": self.commentaire,
+            "country": self.country,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
+
+
+class KycRecordRecord(StoreBase):
+    """Registre KYC persisté (évaluation figée + décision) — FINTECH-3."""
+
+    __tablename__ = "store_kyc_records"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    tenant_id: Mapped[str] = mapped_column(String(64), index=True)
+    nom: Mapped[str] = mapped_column(String(200))
+    type_client: Mapped[str] = mapped_column(String(16), default="particulier")
+    niveau_risque: Mapped[str] = mapped_column(String(8), default="faible")
+    score_risque: Mapped[int] = mapped_column(Integer, default=0)
+    vigilance: Mapped[str] = mapped_column(String(12), default="standard")
+    complet: Mapped[bool] = mapped_column(Boolean, default=False)
+    peut_entrer_en_relation: Mapped[bool] = mapped_column(Boolean, default=False)
+    pep: Mapped[bool] = mapped_column(Boolean, default=False)
+    # a_valider | valide | refuse (décision conformité)
+    statut: Mapped[str] = mapped_column(String(16), default="a_valider")
+    profil: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    resultat: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    commentaire: Mapped[str | None] = mapped_column(Text, nullable=True)
+    country: Mapped[str] = mapped_column(String(2), default="cg")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_now, onupdate=_now
+    )
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "tenant_id": self.tenant_id,
+            "nom": self.nom,
+            "type_client": self.type_client,
+            "niveau_risque": self.niveau_risque,
+            "score_risque": self.score_risque,
+            "vigilance": self.vigilance,
+            "complet": self.complet,
+            "peut_entrer_en_relation": self.peut_entrer_en_relation,
+            "pep": self.pep,
+            "statut": self.statut,
+            "profil": self.profil,
+            "resultat": self.resultat,
+            "commentaire": self.commentaire,
+            "country": self.country,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
