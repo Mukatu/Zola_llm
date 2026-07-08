@@ -21,6 +21,7 @@ import {
 const SCHEMAS: { id: string; label: string }[] = [
   { id: "rag_legal", label: "Droit & OHADA" },
   { id: "rag_erp", label: "Comptable / ERP" },
+  { id: "rag_fintech", label: "Fintech (COBAC/GABAC)" },
   { id: "rag_health", label: "Santé" },
   { id: "rag_tenant", label: "Mes documents" },
 ];

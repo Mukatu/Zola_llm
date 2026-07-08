@@ -324,6 +324,16 @@ class RagCommonsDocument(_RagDocumentMixin, Base):
     __table_args__ = _rag_doc_table_args("rag_commons")
 
 
+class RagFintechDocument(_RagDocumentMixin, Base):
+    """Corpus RAG **réglementaire fintech** : microfinance (COBAC/EMF), LBC-FT
+    (CEMAC/GABAC), Mobile Money (BEAC). Textes **publics** (pas de PII) → corpus
+    de référence en lecture seule pour l'app. Ancre l'assistant du pôle fintech.
+    """
+
+    __tablename__ = "documents"
+    __table_args__ = _rag_doc_table_args("rag_fintech")
+
+
 # Lookup pour code générique (pipeline ingest/retrieve qui prend un schéma).
 RAG_MODELS: dict[str, type[Base]] = {
     "rag_health": RagHealthDocument,
@@ -331,4 +341,5 @@ RAG_MODELS: dict[str, type[Base]] = {
     "rag_erp": RagErpDocument,
     "rag_tenant": RagTenantDocument,
     "rag_commons": RagCommonsDocument,
+    "rag_fintech": RagFintechDocument,
 }

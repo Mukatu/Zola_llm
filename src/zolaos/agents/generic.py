@@ -47,3 +47,17 @@ class GenericHealthAgent(RAGAgent):
     top_k = 6
     max_tokens = 1200
     temperature = 0.15
+
+
+class GenericFintechAgent(RAGAgent):
+    """Ancre les questions fintech sur le corpus réglementaire (COBAC/GABAC/BEAC)."""
+
+    name = "fintech.generique"
+    rag_schema = "rag_fintech"
+    prompt_file = "fintech/generique.md"
+    default_tags = ("country:cg",)
+    requires_citation = True
+    min_confidence = 0.5
+    top_k = 6
+    max_tokens = 1200
+    temperature = 0.15

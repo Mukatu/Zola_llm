@@ -14,7 +14,12 @@ from __future__ import annotations
 from zolaos.agents.erp.compta import ComptaAgent
 from zolaos.agents.erp.projets_ong import ProjetsOngAgent
 from zolaos.agents.erp.rh import RhAgent
-from zolaos.agents.generic import GenericErpAgent, GenericHealthAgent, GenericLegalAgent
+from zolaos.agents.generic import (
+    GenericErpAgent,
+    GenericFintechAgent,
+    GenericHealthAgent,
+    GenericLegalAgent,
+)
 from zolaos.agents.grc.reporting_bailleurs import ReportingBailleursAgent
 from zolaos.agents.health.pharmacology import PharmacologyAgent
 from zolaos.agents.legal.admin_cg import AdminCgAgent
@@ -52,6 +57,7 @@ POLE_DEFAULT_AGENTS: dict[Pole, type[RAGAgent]] = {
     Pole.LEGAL: GenericLegalAgent,
     Pole.ERP: GenericErpAgent,
     Pole.HEALTH: GenericHealthAgent,
+    Pole.FINTECH: GenericFintechAgent,
 }
 
 

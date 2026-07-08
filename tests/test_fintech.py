@@ -417,6 +417,21 @@ async def test_disburse_schedule_pay(tmp_path) -> None:  # type: ignore[no-untyp
         assert Decimal(pf["encours_restant_du_xaf"]) > 0
 
 
+# --- Corpus RAG réglementaire (FINTECH-8) -----------------------------------
+
+
+def test_rag_fintech_wiring() -> None:
+    from zolaos.agents.generic import GenericFintechAgent
+    from zolaos.agents.registry import POLE_DEFAULT_AGENTS, default_rag_agent_for
+    from zolaos.agents.router import Pole
+    from zolaos.db.models import RAG_MODELS
+
+    assert "rag_fintech" in RAG_MODELS
+    assert GenericFintechAgent.rag_schema == "rag_fintech"
+    assert POLE_DEFAULT_AGENTS[Pole.FINTECH] is GenericFintechAgent
+    assert default_rag_agent_for(Pole.FINTECH) is GenericFintechAgent
+
+
 # --- Cohortes / millésimes (FINTECH-7) --------------------------------------
 
 

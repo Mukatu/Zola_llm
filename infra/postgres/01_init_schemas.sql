@@ -22,6 +22,7 @@ CREATE SCHEMA IF NOT EXISTS rag_erp;
 CREATE SCHEMA IF NOT EXISTS rag_code;
 CREATE SCHEMA IF NOT EXISTS rag_tenant;  -- documents téléversés par le client (cloisonnés par tenant)
 CREATE SCHEMA IF NOT EXISTS rag_commons; -- savoir promu (communs niveau 3) — anonymisé, partagé, R seule pour l'app
+CREATE SCHEMA IF NOT EXISTS rag_fintech; -- corpus réglementaire fintech (COBAC/GABAC/BEAC) — public, R seule pour l'app
 CREATE SCHEMA IF NOT EXISTS audit;
 
 -- =========================================================================
@@ -73,6 +74,7 @@ ALTER SCHEMA rag_erp    OWNER TO zolaos_migrator;
 ALTER SCHEMA rag_code   OWNER TO zolaos_migrator;
 ALTER SCHEMA rag_tenant OWNER TO zolaos_migrator;
 ALTER SCHEMA rag_commons OWNER TO zolaos_migrator;
+ALTER SCHEMA rag_fintech OWNER TO zolaos_migrator;
 ALTER SCHEMA audit      OWNER TO zolaos_migrator;
 
 -- =========================================================================
@@ -91,7 +93,7 @@ ALTER ROLE zolaos_app      SET search_path = core, public;
 -- =========================================================================
 -- 5. Révocation par défaut (zero-trust)
 -- =========================================================================
-REVOKE ALL ON SCHEMA core, memory, rag_health, rag_legal, rag_erp, rag_code, rag_tenant, rag_commons, audit FROM PUBLIC;
+REVOKE ALL ON SCHEMA core, memory, rag_health, rag_legal, rag_erp, rag_code, rag_tenant, rag_commons, rag_fintech, audit FROM PUBLIC;
 
 -- =========================================================================
 -- 6. Privilèges fins par rôle
