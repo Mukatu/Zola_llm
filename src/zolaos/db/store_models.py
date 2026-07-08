@@ -1750,6 +1750,7 @@ class CreditApplicationRecord(StoreBase):
     decision: Mapped[str] = mapped_column(String(12), default="refuse")  # recommandation moteur
     # evaluee | accordee | refusee | decaissee | cloturee (décision/suivi humain)
     statut: Mapped[str] = mapped_column(String(16), default="evaluee")
+    date_decaissement: Mapped[date | None] = mapped_column(Date, nullable=True)
     taux_endettement_pct: Mapped[Decimal] = mapped_column(Numeric(6, 2), default=Decimal("0"))
     mensualite_xaf: Mapped[Decimal] = mapped_column(Numeric(18, 2), default=Decimal("0"))
     montant_max_xaf: Mapped[Decimal] = mapped_column(Numeric(18, 2), default=Decimal("0"))
@@ -1774,6 +1775,9 @@ class CreditApplicationRecord(StoreBase):
             "grade": self.grade,
             "decision": self.decision,
             "statut": self.statut,
+            "date_decaissement": (
+                self.date_decaissement.isoformat() if self.date_decaissement else None
+            ),
             "taux_endettement_pct": str(self.taux_endettement_pct),
             "mensualite_xaf": str(self.mensualite_xaf),
             "montant_max_xaf": str(self.montant_max_xaf),

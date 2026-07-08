@@ -36,6 +36,7 @@ import {
   disburse,
   getSchedule,
   payInstallment,
+  getCohortes,
   PIECES_KYC,
   type CreditScore,
   type KycResult,
@@ -45,6 +46,7 @@ import {
   type KycRecordItem,
   type PortfolioStats,
   type ScheduleResult,
+  type CohortStat,
 } from "@/lib/fintech";
 
 type Tab = "scoring" | "kyc" | "aml" | "registre" | "pilotage";
@@ -587,13 +589,16 @@ function MiniBtn({ onClick, tone, children }: { onClick: () => void; tone: "fore
 
 function PilotageTab() {
   const [p, setP] = useState<PortfolioStats | null>(null);
+  const [cohortes, setCohortes] = useState<CohortStat[]>([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
       try {
-        setP(await getPortfolio());
+        const [pf, co] = await Promise.all([getPortfolio(), getCohortes()]);
+        setP(pf);
+        setCohortes(co);
       } catch (e) {
         setErr(e instanceof ApiError ? e.message : "Chargement impossible.");
       } finally {
@@ -657,6 +662,42 @@ function PilotageTab() {
           <Chip label={`Vigilance renforcée ${p.nb_vigilance_renforcee}`} tone="amber" />
         </div>
       </Card>
+
+      {cohortes.length > 0 && (
+        <Card>
+          <div className="mb-2 text-sm font-semibold">Cohortes (millésimes de décaissement)</div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead className="text-muted">
+                <tr className="text-left">
+                  <th className="py-1 pr-3">Millésime</th>
+                  <th className="pr-3 text-right">Prêts</th>
+                  <th className="pr-3 text-right">Décaissé</th>
+                  <th className="pr-3 text-right">Remboursé</th>
+                  <th className="pr-3 text-right">Reste dû</th>
+                  <th className="pr-3 text-right">Impayés</th>
+                  <th className="pr-3 text-right">Taux remb.</th>
+                  <th className="pr-3 text-right">PAR30</th>
+                </tr>
+              </thead>
+              <tbody>
+                {cohortes.map((c) => (
+                  <tr key={c.periode} className="border-t border-black/5">
+                    <td className="py-1.5 pr-3 font-medium">{c.periode}</td>
+                    <td className="pr-3 text-right tabular-nums">{c.nb_prets}</td>
+                    <td className="pr-3 text-right tabular-nums">{fmt(c.montant_decaisse_xaf)}</td>
+                    <td className="pr-3 text-right tabular-nums text-forest">{fmt(c.montant_rembourse_xaf)}</td>
+                    <td className="pr-3 text-right tabular-nums">{fmt(c.encours_restant_xaf)}</td>
+                    <td className="pr-3 text-right tabular-nums text-red-600">{fmt(c.montant_en_retard_xaf)}</td>
+                    <td className="pr-3 text-right tabular-nums">{c.taux_remboursement_pct} %</td>
+                    <td className={"pr-3 text-right font-medium tabular-nums " + (Number(c.par30_pct) > 0 ? "text-red-600" : "text-forest")}>{c.par30_pct} %</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      )}
 
       {p.signaux.length > 0 && (
         <Card className="flex flex-col gap-1.5">

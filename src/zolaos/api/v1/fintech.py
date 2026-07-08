@@ -17,6 +17,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from zolaos.agents.fintech.amortization import build_schedule
+from zolaos.agents.fintech.cohortes import cohortes
 from zolaos.agents.fintech.kyc import (
     KycProfile,
     Transaction,
@@ -221,7 +222,9 @@ async def disburse(
                 "statut": "a_venir",
             }
         )
-    await apps.update(app_id, tenant_id=tenant_id, fields={"statut": "decaissee"})
+    await apps.update(
+        app_id, tenant_id=tenant_id, fields={"statut": "decaissee", "date_decaissement": debut}
+    )
     await session.commit()
     rows = await inst_repo.list_for_application(app_id, tenant_id=tenant_id)
     return {"statut": "decaissee", "echeances": [r.to_dict() for r in rows]}
@@ -366,3 +369,14 @@ async def portfolio(
     kyc = await KycRecordRepository(session).list(tenant_id=tenant_id)
     installments = await LoanInstallmentRepository(session).list(tenant_id=tenant_id)
     return portfolio_stats(apps, kyc, installments).model_dump(mode="json")
+
+
+@router.get("/cohortes", summary="Cohortes (millésimes) : performance par mois de décaissement")
+async def get_cohortes(
+    tenant_id: str = "local",
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    apps = await CreditApplicationRepository(session).list(tenant_id=tenant_id)
+    installments = await LoanInstallmentRepository(session).list(tenant_id=tenant_id)
+    rows = cohortes(apps, installments, datetime.now(UTC).date())
+    return {"cohortes": [c.model_dump(mode="json") for c in rows]}

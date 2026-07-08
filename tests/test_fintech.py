@@ -415,3 +415,55 @@ async def test_disburse_schedule_pay(tmp_path) -> None:  # type: ignore[no-untyp
         pf = (await ac.get("/v1/fintech/portfolio")).json()
         assert pf["echeancier_disponible"] is True
         assert Decimal(pf["encours_restant_du_xaf"]) > 0
+
+
+# --- Cohortes / millésimes (FINTECH-7) --------------------------------------
+
+
+class _CApp:
+    def __init__(self, id_, montant, date_dec) -> None:  # type: ignore[no-untyped-def]
+        self.id = id_
+        self.statut = "decaissee"
+        self.montant_demande_xaf = Decimal(montant)
+        self.date_decaissement = date_dec
+
+
+def test_cohortes() -> None:
+    from zolaos.agents.fintech.cohortes import cohortes
+
+    apps = [
+        _CApp("L1", "1000000", date(2026, 1, 10)),
+        _CApp("L2", "500000", date(2026, 1, 20)),
+        _CApp("L3", "800000", date(2026, 2, 5)),
+    ]
+    inst = [
+        _Inst("L1", "100000", "100000", "paye", date(2026, 2, 10)),
+        _Inst("L1", "100000", "0", "a_venir", date(2026, 3, 10)),
+        _Inst("L3", "80000", "80000", "paye", date(2026, 3, 5)),
+    ]
+    cos = cohortes(apps, inst, date(2026, 6, 1))
+    assert [c.periode for c in cos] == ["2026-01", "2026-02"]
+    jan = cos[0]
+    assert jan.nb_prets == 2
+    assert jan.montant_decaisse_xaf == Decimal("1500000")
+    assert jan.montant_du_echu_xaf == Decimal("200000")
+    assert jan.montant_rembourse_xaf == Decimal("100000")
+    assert jan.encours_restant_xaf == Decimal("100000")
+    assert jan.montant_en_retard_xaf == Decimal("100000")
+    assert jan.taux_remboursement_pct == Decimal("50")
+    assert jan.par30_pct == Decimal("100")
+    feb = cos[1]
+    assert feb.nb_prets == 1
+    assert feb.montant_en_retard_xaf == Decimal("0")
+    assert feb.taux_remboursement_pct == Decimal("100")
+
+
+async def test_cohortes_endpoint(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    async with _client(tmp_path) as ac:
+        aid = (await ac.post("/v1/fintech/applications", json={"client": "C", "dossier": _DOSSIER})).json()["id"]
+        await ac.post(f"/v1/fintech/applications/{aid}/decision", json={"statut": "accordee"})
+        await ac.post(f"/v1/fintech/applications/{aid}/disburse", json={"date_decaissement": "2026-01-15"})
+        cos = (await ac.get("/v1/fintech/cohortes")).json()["cohortes"]
+        assert len(cos) == 1
+        assert cos[0]["periode"] == "2026-01"
+        assert cos[0]["nb_prets"] == 1

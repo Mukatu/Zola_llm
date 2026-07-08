@@ -238,6 +238,22 @@ export async function payInstallment(id: string, montant?: string): Promise<Eche
   });
 }
 
+export interface CohortStat {
+  periode: string;
+  nb_prets: number;
+  montant_decaisse_xaf: string;
+  montant_du_echu_xaf: string;
+  montant_rembourse_xaf: string;
+  encours_restant_xaf: string;
+  montant_en_retard_xaf: string;
+  taux_remboursement_pct: string;
+  par30_pct: string;
+}
+
+export async function getCohortes(): Promise<CohortStat[]> {
+  return (await api<{ cohortes: CohortStat[] }>("/v1/fintech/cohortes")).cohortes;
+}
+
 // Pièces requises par type de client (miroir du backend, pour l'UI).
 export const PIECES_KYC: Record<string, { id: string; label: string }[]> = {
   particulier: [
