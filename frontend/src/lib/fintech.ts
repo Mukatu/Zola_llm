@@ -170,6 +170,29 @@ export async function deleteKycRecord(id: string): Promise<void> {
   await api(`/v1/fintech/kyc-records/${id}`, { method: "DELETE" });
 }
 
+export interface PortfolioStats {
+  nb_dossiers: number;
+  par_statut: Record<string, number>;
+  montant_demande_total_xaf: string;
+  montant_accorde_xaf: string;
+  encours_decaisse_xaf: string;
+  service_dette_mensuel_xaf: string;
+  taux_acceptation_pct: string;
+  taux_decaissement_pct: string;
+  score_moyen: number;
+  repartition_grade: Record<string, number>;
+  nb_kyc: number;
+  kyc_par_statut: Record<string, number>;
+  kyc_par_risque: Record<string, number>;
+  nb_vigilance_renforcee: number;
+  signaux: string[];
+  note: string;
+}
+
+export async function getPortfolio(): Promise<PortfolioStats> {
+  return api<PortfolioStats>("/v1/fintech/portfolio");
+}
+
 // Pièces requises par type de client (miroir du backend, pour l'UI).
 export const PIECES_KYC: Record<string, { id: string; label: string }[]> = {
   particulier: [

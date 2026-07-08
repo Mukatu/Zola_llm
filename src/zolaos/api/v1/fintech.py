@@ -21,6 +21,7 @@ from zolaos.agents.fintech.kyc import (
     evaluate_aml,
     evaluate_kyc,
 )
+from zolaos.agents.fintech.portfolio import portfolio_stats
 from zolaos.agents.fintech.scoring import CreditRequest, ScoringBareme, score_credit
 from zolaos.db.session import get_session
 from zolaos.db.store_repo import CreditApplicationRepository, KycRecordRepository
@@ -239,3 +240,16 @@ async def delete_kyc_record(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="kyc_record_not_found")
     await session.commit()
     return {"status": "deleted"}
+
+
+# ------------------------------------------------------------ pilotage portefeuille
+
+
+@router.get("/portfolio", summary="Pilotage du portefeuille de crédit (agrégé)")
+async def portfolio(
+    tenant_id: str = "local",
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    apps = await CreditApplicationRepository(session).list(tenant_id=tenant_id)
+    kyc = await KycRecordRepository(session).list(tenant_id=tenant_id)
+    return portfolio_stats(apps, kyc).model_dump(mode="json")

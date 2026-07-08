@@ -288,3 +288,64 @@ async def test_kyc_record_persistance_et_decision(tmp_path) -> None:  # type: ig
         assert dec.json()["statut"] == "refuse"
 
         assert len((await ac.get("/v1/fintech/kyc-records")).json()["kyc_records"]) == 1
+
+
+# --- Pilotage portefeuille (FINTECH-5) --------------------------------------
+
+
+class _App:  # objet duck-typé pour le moteur d'agrégation
+    def __init__(self, statut, montant, score, grade, mensualite) -> None:  # type: ignore[no-untyped-def]
+        self.statut = statut
+        self.montant_demande_xaf = Decimal(montant)
+        self.score = score
+        self.grade = grade
+        self.mensualite_xaf = Decimal(mensualite)
+
+
+class _Kyc:
+    def __init__(self, statut, niveau_risque, vigilance) -> None:  # type: ignore[no-untyped-def]
+        self.statut = statut
+        self.niveau_risque = niveau_risque
+        self.vigilance = vigilance
+
+
+def test_portfolio_stats_agregation() -> None:
+    from zolaos.agents.fintech.portfolio import portfolio_stats
+
+    apps = [
+        _App("decaissee", "1000000", 85, "A", "50000"),
+        _App("accordee", "2000000", 72, "B", "95000"),
+        _App("refusee", "500000", 30, "E", "0"),
+        _App("evaluee", "800000", 60, "C", "40000"),
+    ]
+    kyc = [_Kyc("a_valider", "eleve", "renforcee"), _Kyc("valide", "faible", "standard")]
+    s = portfolio_stats(apps, kyc)
+    assert s.nb_dossiers == 4
+    assert s.par_statut["decaissee"] == 1 and s.par_statut["refusee"] == 1
+    assert s.encours_decaisse_xaf == Decimal("1000000")
+    assert s.service_dette_mensuel_xaf == Decimal("50000")
+    assert s.montant_accorde_xaf == Decimal("3000000")  # accordee + decaissee
+    # décidés = accordee+refusee+decaissee = 3 ; acceptés = 2 → 67 %
+    assert s.taux_acceptation_pct == Decimal("67")
+    assert s.taux_decaissement_pct == Decimal("50")  # 1 décaissée / 2 accordées
+    assert s.repartition_grade["A"] == 1 and s.repartition_grade["B"] == 1
+    assert s.nb_kyc == 2 and s.nb_vigilance_renforcee == 1
+    assert s.kyc_par_risque["eleve"] == 1
+    assert "PAR" in s.note  # limite assumée signalée
+
+
+async def test_portfolio_endpoint(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    async with _client(tmp_path) as ac:
+        # 2 dossiers évalués (accorde), on en décaisse un.
+        a1 = (await ac.post("/v1/fintech/applications", json={"client": "A", "dossier": _DOSSIER})).json()
+        await ac.post("/v1/fintech/applications", json={"client": "B", "dossier": _DOSSIER})
+        await ac.post(f"/v1/fintech/applications/{a1['id']}/decision", json={"statut": "accordee"})
+        await ac.post(f"/v1/fintech/applications/{a1['id']}/decision", json={"statut": "decaissee"})
+        await ac.post("/v1/fintech/kyc-records", json={"nom": "K", "type_client": "particulier", "pieces_fournies": ["piece_identite", "justificatif_domicile"]})
+
+        p = (await ac.get("/v1/fintech/portfolio")).json()
+        assert p["nb_dossiers"] == 2
+        assert p["par_statut"]["decaissee"] == 1
+        assert p["par_statut"]["evaluee"] == 1
+        assert p["encours_decaisse_xaf"] == "1500000"
+        assert p["nb_kyc"] == 1

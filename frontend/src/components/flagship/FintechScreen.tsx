@@ -8,6 +8,7 @@ import {
   ShieldCheck,
   ScanSearch,
   ClipboardList,
+  BarChart3,
   Plus,
   Trash2,
   AlertTriangle,
@@ -30,6 +31,7 @@ import {
   listKycRecords,
   decideKycRecord,
   deleteKycRecord,
+  getPortfolio,
   PIECES_KYC,
   type CreditScore,
   type KycResult,
@@ -37,9 +39,10 @@ import {
   type TransactionInput,
   type CreditApplication,
   type KycRecordItem,
+  type PortfolioStats,
 } from "@/lib/fintech";
 
-type Tab = "scoring" | "kyc" | "aml" | "registre";
+type Tab = "scoring" | "kyc" | "aml" | "registre" | "pilotage";
 const EMPLOIS = ["salarie_public", "salarie_prive", "independant", "informel"];
 const SECTEURS = ["", "change_manuel", "immobilier", "transfert_fonds", "or_metaux_precieux", "jeux_paris"];
 
@@ -49,7 +52,7 @@ export function FintechScreen() {
   const [tab, setTab] = useState<Tab>(() => {
     if (typeof window !== "undefined") {
       const t = new URLSearchParams(window.location.search).get("tab");
-      if (t === "kyc" || t === "aml" || t === "registre") return t;
+      if (t === "kyc" || t === "aml" || t === "registre" || t === "pilotage") return t;
     }
     return "scoring";
   });
@@ -65,11 +68,13 @@ export function FintechScreen() {
         <TabBtn active={tab === "kyc"} onClick={() => setTab("kyc")} icon={ShieldCheck} label="KYC" />
         <TabBtn active={tab === "aml"} onClick={() => setTab("aml")} icon={ScanSearch} label="Surveillance AML" />
         <TabBtn active={tab === "registre"} onClick={() => setTab("registre")} icon={ClipboardList} label="Registre" />
+        <TabBtn active={tab === "pilotage"} onClick={() => setTab("pilotage")} icon={BarChart3} label="Pilotage" />
       </div>
       {tab === "scoring" && <ScoringTab />}
       {tab === "kyc" && <KycTab />}
       {tab === "aml" && <AmlTab />}
       {tab === "registre" && <RegistreTab />}
+      {tab === "pilotage" && <PilotageTab />}
     </div>
   );
 }
@@ -490,6 +495,95 @@ function MiniBtn({ onClick, tone, children }: { onClick: () => void; tone: "fore
       {children}
     </button>
   );
+}
+
+// --- Pilotage --------------------------------------------------------------
+
+function PilotageTab() {
+  const [p, setP] = useState<PortfolioStats | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState<string | null>(null);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        setP(await getPortfolio());
+      } catch (e) {
+        setErr(e instanceof ApiError ? e.message : "Chargement impossible.");
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
+
+  if (loading) return <Card><Skeleton className="mb-2 h-6 w-1/3" /><Skeleton className="h-4 w-full" /></Card>;
+  if (err) return <Card className="ring-amber-200"><p className="text-sm text-amber-700">{err}</p></Card>;
+  if (!p) return null;
+  const maxGrade = Math.max(1, ...Object.values(p.repartition_grade));
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <Kpi label="Dossiers" value={String(p.nb_dossiers)} />
+        <Kpi label="Encours décaissé" value={`${fmt(p.encours_decaisse_xaf)} XAF`} />
+        <Kpi label="Montant accordé" value={`${fmt(p.montant_accorde_xaf)} XAF`} />
+        <Kpi label="Taux d'acceptation" value={`${p.taux_acceptation_pct} %`} />
+        <Kpi label="Service dette / mois" value={`${fmt(p.service_dette_mensuel_xaf)} XAF`} />
+        <Kpi label="Score moyen" value={String(p.score_moyen)} />
+      </div>
+
+      <Card>
+        <div className="mb-2 text-sm font-semibold">Répartition du portefeuille par grade</div>
+        <div className="flex flex-col gap-1.5">
+          {["A", "B", "C", "D", "E"].map((g) => (
+            <div key={g} className="flex items-center gap-2 text-sm">
+              <span className="w-4 font-semibold">{g}</span>
+              <div className="h-3 flex-1 rounded bg-black/5">
+                <div className="h-3 rounded bg-forest" style={{ width: `${((p.repartition_grade[g] || 0) / maxGrade) * 100}%` }} />
+              </div>
+              <span className="w-6 text-right tabular-nums text-muted">{p.repartition_grade[g] || 0}</span>
+            </div>
+          ))}
+        </div>
+      </Card>
+
+      <Card className="flex flex-col gap-2">
+        <div className="text-sm font-semibold">Conformité KYC ({p.nb_kyc})</div>
+        <div className="flex flex-wrap gap-2 text-xs">
+          <Chip label={`À valider ${p.kyc_par_statut.a_valider || 0}`} tone="amber" />
+          <Chip label={`Validés ${p.kyc_par_statut.valide || 0}`} tone="forest" />
+          <Chip label={`Refusés ${p.kyc_par_statut.refuse || 0}`} tone="red" />
+          <Chip label={`Risque élevé ${p.kyc_par_risque.eleve || 0}`} tone="red" />
+          <Chip label={`Vigilance renforcée ${p.nb_vigilance_renforcee}`} tone="amber" />
+        </div>
+      </Card>
+
+      {p.signaux.length > 0 && (
+        <Card className="flex flex-col gap-1.5">
+          <div className="text-sm font-semibold">Signaux de pilotage</div>
+          {p.signaux.map((s, i) => (
+            <div key={i} className="flex items-start gap-2 text-sm text-ink/80"><span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-forest" />{s}</div>
+          ))}
+        </Card>
+      )}
+
+      <p className="flex items-start gap-1.5 text-xs text-muted"><Info className="mt-0.5 h-3.5 w-3.5 shrink-0" /> {p.note}</p>
+    </div>
+  );
+}
+
+function Kpi({ label, value }: { label: string; value: string }) {
+  return (
+    <Card className="py-3">
+      <div className="text-xs text-muted">{label}</div>
+      <div className="text-lg font-bold tabular-nums text-ink">{value}</div>
+    </Card>
+  );
+}
+
+function Chip({ label, tone }: { label: string; tone: "forest" | "amber" | "red" }) {
+  const c = tone === "forest" ? "bg-mint/25 text-forest" : tone === "amber" ? "bg-amber-100 text-amber-800" : "bg-red-100 text-red-700";
+  return <span className={"rounded-full px-2.5 py-1 font-medium " + c}>{label}</span>;
 }
 
 // --- primitives ------------------------------------------------------------
