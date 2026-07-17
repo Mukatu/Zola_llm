@@ -7,7 +7,7 @@ import { Card, Button, Skeleton } from "../ui";
 import { FlagshipHeader, Inp } from "./_shared";
 import { ContractTranslator } from "../ContractTranslator";
 import { Prose } from "../Prose";
-import { runQuery } from "@/lib/query";
+import { streamQuery } from "@/lib/query";
 import { ApiError } from "@/lib/api";
 import { captureCorrection, learnedLookup } from "@/lib/commons";
 
@@ -50,7 +50,10 @@ export function DroitScreen() {
         + `Cite les articles applicables et signale les clauses à risque (sécurisation).`
       : `Analyse juridique (droit OHADA / CG) de la situation suivante, avec base légale, jurisprudence si pertinente, et évaluation du risque :\n\n${situation}`;
     try {
-      setOut((await runQuery(q)).content);
+      // Streamé : un contrat fait souvent 1000+ tokens, l'attente en bloc est
+      // insupportable. Le texte s'écrit au fil de l'eau.
+      setOut("");
+      await streamQuery(q, { onToken: (t) => setOut((prev) => (prev ?? "") + t) });
       // Apprentissage : type de contrat → régime OHADA applicable (opt-in serveur).
       if (mode === "rediger" && regime.trim()) {
         void captureCorrection("legal.doctype", type, regime).catch(() => {});

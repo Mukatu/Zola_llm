@@ -4,8 +4,9 @@ import { useState } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { Sparkles, X, Send } from "lucide-react";
-import { runQuery, type Citation } from "@/lib/query";
+import { streamQuery, type Citation, type Grounding } from "@/lib/query";
 import { FeedbackBar } from "@/components/FeedbackBar";
+import { GroundingBadge } from "@/components/GroundingBadge";
 import { Prose } from "@/components/Prose";
 import { ApiError } from "@/lib/api";
 
@@ -46,6 +47,8 @@ interface Msg {
   requestId?: string;
   citations?: Citation[];
   error?: boolean;
+  streaming?: boolean; // réponse encore en cours d'écriture
+  grounding?: Grounding; // "unsourced" → avertissement affiché
 }
 
 /** Assistant contextuel réutilisable, docké sur chaque écran métier. */
@@ -63,25 +66,38 @@ export function AssistantDock() {
   async function send() {
     const q = input.trim();
     if (!q || busy) return;
-    setMsgs((m) => [...m, { role: "user", content: q }]);
+    // Bulle assistant poussée vide : elle se remplit au fil du flux.
+    setMsgs((m) => [
+      ...m,
+      { role: "user", content: q },
+      { role: "assistant", content: "", query: q, streaming: true },
+    ]);
     setInput("");
     setBusy(true);
+
+    const patchLast = (patch: Partial<Msg>) =>
+      setMsgs((m) => m.map((msg, i) => (i === m.length - 1 ? { ...msg, ...patch } : msg)));
+
     try {
-      const r = await runQuery(ctx ? `${ctx.prefix} : ${q}` : q);
-      setMsgs((m) => [
-        ...m,
-        {
-          role: "assistant",
-          content: r.content,
-          query: q,
-          pole: r.pole,
-          requestId: r.requestId,
-          citations: r.citations,
-        },
-      ]);
+      const r = await streamQuery(ctx ? `${ctx.prefix} : ${q}` : q, {
+        onRouting: (pole) => patchLast({ pole }),
+        onCitations: (citations) => patchLast({ citations }),
+        onToken: (text) =>
+          setMsgs((m) =>
+            m.map((msg, i) => (i === m.length - 1 ? { ...msg, content: msg.content + text } : msg)),
+          ),
+      });
+      patchLast({
+        content: r.content,
+        pole: r.pole,
+        requestId: r.requestId,
+        citations: r.citations,
+        grounding: r.grounding,
+        streaming: false,
+      });
     } catch (e) {
       const msg = e instanceof ApiError ? e.message : "Service indisponible (LLM requis).";
-      setMsgs((m) => [...m, { role: "assistant", content: "⚠️ " + msg, error: true }]);
+      patchLast({ content: "⚠️ " + msg, error: true, streaming: false });
     } finally {
       setBusy(false);
     }
@@ -129,10 +145,20 @@ export function AssistantDock() {
             >
               {m.role === "user" ? (
                 <p className="whitespace-pre-wrap">{m.content}</p>
+              ) : m.streaming && !m.content ? (
+                // Le routage tourne : rien à afficher encore, mais on montre que ça vit.
+                <span className="flex items-center gap-1 py-1 text-muted">
+                  <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-forest" />
+                  <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-forest [animation-delay:150ms]" />
+                  <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-forest [animation-delay:300ms]" />
+                </span>
               ) : (
                 <Prose text={m.content} compact />
               )}
             </div>
+            {m.role === "assistant" && !m.streaming && !m.error && (
+              <GroundingBadge grounding={m.grounding} />
+            )}
             {m.role === "assistant" && m.citations && m.citations.length > 0 && (
               <div className="flex flex-wrap items-center gap-1 text-xs text-muted">
                 <span className="font-medium">Sources :</span>
@@ -153,7 +179,7 @@ export function AssistantDock() {
                 )}
               </div>
             )}
-            {m.role === "assistant" && !m.error && (
+            {m.role === "assistant" && !m.error && !m.streaming && (
               <FeedbackBar
                 agent={m.pole ?? "general"}
                 query={m.query ?? ""}

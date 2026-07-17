@@ -26,6 +26,7 @@ Garde-fou anti-hallucination :
 
 from __future__ import annotations
 
+from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
 from functools import cached_property
 from typing import TYPE_CHECKING, ClassVar
@@ -65,6 +66,21 @@ class RAGAgentResponse:
     citations: list[Citation]
     matches: list[Match] = field(default_factory=list)  # chunks bruts pour audit
     duration_seconds: float = 0.0
+
+
+@dataclass(frozen=True)
+class RAGPrepared:
+    """Contexte prêt à générer : retrieve effectué, garde-fous déjà franchis.
+
+    Sépare le « quoi répondre » (retrieve + citations, connu d'avance) du « comment
+    le dire » (génération). C'est ce qui permet de streamer : on peut envoyer les
+    citations à l'écran avant le premier token du modèle.
+    """
+
+    matches: list[Match]
+    citations: list[Citation]
+    messages: list[Message]
+    options: GenerationOptions
 
 
 class InsufficientContextError(RuntimeError):
@@ -126,6 +142,80 @@ class RAGAgent:
         parts = self.prompt_file.split("/")
         return load_prompt(*parts)
 
+    async def prepare(
+        self,
+        query: str,
+        *,
+        extra_tags: list[str] | None = None,
+        k: int | None = None,
+    ) -> RAGPrepared:
+        """Étapes 1-2 : retrieve + garde-fous + construction du contexte.
+
+        Lève `InsufficientContextError` si le garde-fou est actif et le corpus
+        n'a pas de quoi répondre — **avant** toute génération, donc sans qu'un
+        seul token inventé n'ait pu être produit.
+        """
+        tags = list(self.default_tags) + (extra_tags or [])
+        kk = k or self.top_k
+
+        # --- 1. Retrieve : local (DB directe) OU remote (via MissionClient) ---
+        matches = await self._do_retrieve(query=query, tags=tags, k=kk)
+
+        if self.requires_citation and not matches:
+            raise InsufficientContextError(
+                f"[{self.name}] aucun match RAG pour la requête "
+                f"(tags={tags}, schema={self.rag_schema})"
+            )
+        if (
+            self.min_confidence is not None
+            and matches
+            and matches[0].similarity < self.min_confidence
+        ):
+            raise InsufficientContextError(
+                f"[{self.name}] similarité top-1 ({matches[0].similarity:.2f}) "
+                f"< seuil {self.min_confidence:.2f}"
+            )
+
+        # --- 2. Build context ---
+        context = self._format_context(matches)
+        user_msg = (
+            f"{context}\n\n"
+            f"--- Question utilisateur ---\n{query}\n\n"
+            "Réponds en t'appuyant **strictement** sur les textes ci-dessus. "
+            "Cite tes sources avec leur numéro entre crochets, ex: [1], [2]. "
+            "Si l'information n'y figure pas, dis-le explicitement. "
+            "N'évoque aucun mécanisme interne (ne dis pas « RAG » ni « extraits »)."
+        )
+        opts = GenerationOptions(
+            temperature=self.temperature,
+            max_tokens=self.max_tokens,
+            json_mode=self.response_schema is not None,
+            json_schema=(
+                self.response_schema.model_json_schema()
+                if self.response_schema is not None
+                else None
+            ),
+        )
+        citations = [
+            Citation(
+                index=i + 1,
+                source_uri=m.source_uri,
+                source_id=m.source_id,
+                chunk_index=m.chunk_index,
+                similarity=m.similarity,
+            )
+            for i, m in enumerate(matches)
+        ]
+        return RAGPrepared(
+            matches=matches,
+            citations=citations,
+            messages=[
+                Message(role="system", content=self._system_prompt),
+                Message(role="user", content=user_msg),
+            ],
+            options=opts,
+        )
+
     async def answer(
         self,
         query: str,
@@ -136,88 +226,55 @@ class RAGAgent:
         """Question/réponse RAG. Lève `InsufficientContextError` si garde-fou actif et pas assez de contexte."""
         import time
 
-        tags = list(self.default_tags) + (extra_tags or [])
-        kk = k or self.top_k
-
         start = time.perf_counter()
         outcome = "error"
         try:
-            # --- 1. Retrieve : local (DB directe) OU remote (via MissionClient) ---
-            matches = await self._do_retrieve(query=query, tags=tags, k=kk)
-
-            if self.requires_citation and not matches:
-                raise InsufficientContextError(
-                    f"[{self.name}] aucun match RAG pour la requête "
-                    f"(tags={tags}, schema={self.rag_schema})"
-                )
-            if (
-                self.min_confidence is not None
-                and matches
-                and matches[0].similarity < self.min_confidence
-            ):
-                raise InsufficientContextError(
-                    f"[{self.name}] similarité top-1 ({matches[0].similarity:.2f}) "
-                    f"< seuil {self.min_confidence:.2f}"
-                )
-
-            # --- 2. Build context ---
-            context = self._format_context(matches)
-            user_msg = (
-                f"{context}\n\n"
-                f"--- Question utilisateur ---\n{query}\n\n"
-                "Réponds en t'appuyant **strictement** sur les textes ci-dessus. "
-                "Cite tes sources avec leur numéro entre crochets, ex: [1], [2]. "
-                "Si l'information n'y figure pas, dis-le explicitement. "
-                "N'évoque aucun mécanisme interne (ne dis pas « RAG » ni « extraits »)."
-            )
+            prepared = await self.prepare(query, extra_tags=extra_tags, k=k)
 
             # --- 3. Generate ---
-            opts = GenerationOptions(
-                temperature=self.temperature,
-                max_tokens=self.max_tokens,
-                json_mode=self.response_schema is not None,
-                json_schema=(
-                    self.response_schema.model_json_schema()
-                    if self.response_schema is not None
-                    else None
-                ),
-            )
             result = await self._client.generate(
-                [
-                    Message(role="system", content=self._system_prompt),
-                    Message(role="user", content=user_msg),
-                ],
+                prepared.messages,
                 model=self._settings.LLM_MODEL_BRIGADE,
-                options=opts,
+                options=prepared.options,
             )
 
             # --- 4. Build response ---
-            citations = [
-                Citation(
-                    index=i + 1,
-                    source_uri=m.source_uri,
-                    source_id=m.source_id,
-                    chunk_index=m.chunk_index,
-                    similarity=m.similarity,
-                )
-                for i, m in enumerate(matches)
-            ]
             outcome = "ok"
             duration = time.perf_counter() - start
             _log.info(
                 "rag_agent.answer",
                 agent=self.name,
-                matches=len(matches),
-                top_similarity=matches[0].similarity if matches else None,
+                matches=len(prepared.matches),
+                top_similarity=(
+                    prepared.matches[0].similarity if prepared.matches else None
+                ),
                 duration_seconds=duration,
             )
             return RAGAgentResponse(
                 agent=self.name,
                 content=result.content,
-                citations=citations,
-                matches=matches,
+                citations=prepared.citations,
+                matches=prepared.matches,
                 duration_seconds=duration,
             )
+        finally:
+            AGENT_INVOCATIONS_TOTAL.labels(agent=self.name, outcome=outcome).inc()
+
+    async def stream_prepared(self, prepared: RAGPrepared) -> AsyncIterator[str]:
+        """Étape 3, en streaming : yield les fragments de texte au fil de l'eau.
+
+        Prend un `RAGPrepared` (donc garde-fous déjà franchis) pour que l'appelant
+        puisse afficher les citations avant le premier token.
+        """
+        outcome = "error"
+        try:
+            async for chunk in self._client.stream(
+                prepared.messages,
+                model=self._settings.LLM_MODEL_BRIGADE,
+                options=prepared.options,
+            ):
+                yield chunk
+            outcome = "ok"
         finally:
             AGENT_INVOCATIONS_TOTAL.labels(agent=self.name, outcome=outcome).inc()
 

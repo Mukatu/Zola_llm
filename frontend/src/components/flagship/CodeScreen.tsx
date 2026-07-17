@@ -5,7 +5,7 @@ import clsx from "clsx";
 import { Code2, Play, Copy, Check } from "lucide-react";
 import { Card, Button, Skeleton } from "../ui";
 import { FlagshipHeader } from "./_shared";
-import { runQuery } from "@/lib/query";
+import { streamQuery } from "@/lib/query";
 import { ApiError } from "@/lib/api";
 
 const INTENTS = [
@@ -28,7 +28,10 @@ export function CodeScreen() {
     if (!input.trim()) return;
     setLoading(true); setErr(null); setOut(null);
     const q = `Code Agent — intent: ${intent}, langage: ${lang}.\n\n${input}`;
-    try { setOut((await runQuery(q)).content); }
+    try {
+      setOut("");
+      await streamQuery(q, { onToken: (t) => setOut((prev) => (prev ?? "") + t) });
+    }
     catch (e) { setErr(e instanceof ApiError ? e.message : "Service indisponible (LLM/auth requis ou hors-ligne)."); }
     finally { setLoading(false); }
   }

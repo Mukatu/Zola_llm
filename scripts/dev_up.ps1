@@ -137,8 +137,9 @@ if ($llmUp) {
   Write-Host "  Pour l'activer, dans un terminal SÉPARÉ :" -ForegroundColor Yellow
   Write-Host "    ollama pull llama3:8b" -ForegroundColor Gray
   Write-Host "    ollama cp llama3:8b llama3-8b" -ForegroundColor Gray
-  Write-Host "    `$env:OLLAMA_HOST='0.0.0.0:11435'; ollama serve" -ForegroundColor Gray
-  Write-Host "  (CPU sans GPU : ~20-50 s par réponse, fonctionnel pour une démo.)" -ForegroundColor DarkGray
+  Write-Host "    `$env:OLLAMA_HOST='0.0.0.0:11435'; `$env:OLLAMA_KEEP_ALIVE='-1'; ollama serve" -ForegroundColor Gray
+  Write-Host "  KEEP_ALIVE=-1 garde le modèle résident : sans lui, Ollama le décharge" -ForegroundColor DarkGray
+  Write-Host "  après 5 min d'inactivité et la requête suivante paie ~6,5 s de rechargement." -ForegroundColor DarkGray
 }
 
 # --- 7. Récapitulatif -----------------------------------------------------

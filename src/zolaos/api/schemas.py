@@ -55,6 +55,9 @@ class AgentResponseOut(BaseModel):
     model: str
     duration_seconds: float
     citations: list[CitationOut] = []
+    # "sourced" | "abstained" | "unsourced" — voir AgentResponse.grounding.
+    # L'UI doit avertir sur "unsourced" : réponse libre, sans aucune source.
+    grounding: Literal["sourced", "abstained", "unsourced"] = "unsourced"
 
 
 class QueryResponse(BaseModel):

@@ -7,7 +7,7 @@ import { Card, Button, Skeleton, SeverityBadge } from "./ui";
 import { Prose } from "./Prose";
 import { useZola } from "./ConfigProvider";
 import { ApiError } from "@/lib/api";
-import { runQuery } from "@/lib/query";
+import { streamQuery } from "@/lib/query";
 import type { Capability, Intent } from "@/lib/capabilities";
 
 interface Finding { [k: string]: unknown; severity?: string; severite?: string }
@@ -35,8 +35,10 @@ export function CapabilityScreen({ capability }: { capability: Capability }) {
     const label = capability.intents.find((it: Intent) => it.id === intent)?.label;
     const q = `[${capability.label}${label ? " · " + label : ""}]\n${input}`;
     try {
-      const r = await runQuery(q);
-      setResult({ content: r.content });
+      setResult({ content: "" });
+      await streamQuery(q, {
+        onToken: (t) => setResult((prev) => ({ content: (prev?.content ?? "") + t })),
+      });
     } catch (e) {
       setError(e instanceof ApiError ? e.message : "Service indisponible (LLM/auth requis ou hors-ligne).");
     } finally {

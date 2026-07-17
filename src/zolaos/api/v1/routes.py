@@ -2,13 +2,17 @@
 
 from __future__ import annotations
 
+from collections.abc import AsyncIterator
 from datetime import UTC, datetime
 
+import orjson
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.responses import StreamingResponse
 
 from zolaos.agents.router import Pole, RouterError
 from zolaos.api.auth import Principal, authenticate
 from zolaos.api.dependencies import get_orchestrator
+from zolaos.core.logging import get_logger
 from zolaos.api.schemas import (
     AgentInfo,
     AgentResponseOut,
@@ -21,6 +25,8 @@ from zolaos.api.schemas import (
     RoutingInfo,
 )
 from zolaos.core.orchestrator import Orchestrator
+
+_log = get_logger("zolaos.api.v1.routes")
 
 router = APIRouter(prefix="/v1", tags=["v1"])
 
@@ -72,6 +78,7 @@ async def query(
                 content=r.content,
                 model=r.model,
                 duration_seconds=r.duration_seconds,
+                grounding=r.grounding,
                 citations=[
                     CitationOut(
                         index=c.index,
@@ -86,6 +93,43 @@ async def query(
             for r in result.responses
         ],
         duration_seconds=result.duration_seconds,
+    )
+
+
+@router.post("/query/stream")
+async def query_stream(
+    payload: QueryRequest,
+    orch: Orchestrator = Depends(get_orchestrator),
+    principal: Principal = Depends(authenticate),
+) -> StreamingResponse:
+    """Même chose que `/v1/query`, mais en SSE — la réponse s'affiche au fil de l'eau.
+
+    Sans streaming l'utilisateur attend la génération complète (plusieurs secondes)
+    devant un écran vide ; ici le premier token part dès que le routage est fait.
+    Événements émis : `routing`, `plan`, `citations`, `token`, `done`, `error`.
+    """
+    tenant_id = principal.tenant_id or "local"
+
+    async def events() -> AsyncIterator[bytes]:
+        try:
+            async for ev in orch.stream(payload.query, tenant_id=tenant_id):
+                yield b"data: " + orjson.dumps(ev) + b"\n\n"
+        except RouterError as exc:
+            yield b"data: " + orjson.dumps(
+                {"type": "error", "detail": f"router_failed: {exc}"}
+            ) + b"\n\n"
+        except Exception as exc:  # le flux est déjà ouvert : on signale dans le flux
+            _log.exception("query_stream.failed")
+            yield b"data: " + orjson.dumps({"type": "error", "detail": str(exc)}) + b"\n\n"
+
+    return StreamingResponse(
+        events(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache, no-transform",
+            "X-Accel-Buffering": "no",  # empêche un proxy de bufferiser et d'annuler le gain
+            "Connection": "keep-alive",
+        },
     )
 
 

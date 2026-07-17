@@ -7,7 +7,9 @@ Phase 2-4.
 
 from __future__ import annotations
 
+from collections.abc import AsyncIterator
 from dataclasses import dataclass
+from typing import Literal
 
 from zolaos.agents.rag_agent import Citation
 from zolaos.agents.router import Pole
@@ -27,6 +29,13 @@ class AgentResponse:
     duration_seconds: float
     citations: tuple[Citation, ...] = ()  # non vide quand la réponse est ancrée RAG
     rag_schema: str | None = None  # schéma RAG des citations (pour lien Bibliothèque)
+    # Trois états, à ne pas confondre :
+    #   "sourced"   → ancrée sur le corpus, citations à l'appui
+    #   "abstained" → corpus muet sur un pôle réglementé, on a refusé de répondre
+    #   "unsourced" → le modèle a parlé librement, sans aucune source (repli brigade)
+    # Seul "unsourced" est trompeur : il faut le signaler à l'écran, sinon une
+    # réponse inventée (routeur qui se trompe de pôle) passe pour une réponse fiable.
+    grounding: Literal["sourced", "abstained", "unsourced"] = "unsourced"
 
 
 # Map pôle → libellé court pour le prompt système.
@@ -58,15 +67,36 @@ class SimulatedAgent:
         """Client LLM (8B) — réutilisé par l'orchestrateur pour les agents RAG."""
         return self._client
 
-    async def answer(self, pole: Pole, user_query: str) -> AgentResponse:
+    @staticmethod
+    def _system_prompt(pole: Pole) -> str:
         label = POLE_LABELS.get(pole, "Assistance générale")
-        system = (
+        return (
             f"Tu es un sous-agent ZolaOS spécialisé en {label}. "
             "Tu réponds en français de manière concise (3 à 6 phrases), "
             "claire et orientée pour un utilisateur en République du Congo. "
             "Si une réponse exige des données précises (loi, posologie, montant) "
             "que tu n'as pas, tu le signales et tu demandes à être enrichi par RAG."
         )
+
+    async def stream(self, pole: Pole, user_query: str) -> AsyncIterator[str]:
+        """Même réponse que `answer`, mais fragment par fragment."""
+        outcome = "error"
+        try:
+            async for chunk in self._client.stream(
+                [
+                    Message(role="system", content=self._system_prompt(pole)),
+                    Message(role="user", content=user_query),
+                ],
+                model=self._settings.LLM_MODEL_BRIGADE,
+                options=GenerationOptions(temperature=0.3, max_tokens=512),
+            ):
+                yield chunk
+            outcome = "ok"
+        finally:
+            AGENT_INVOCATIONS_TOTAL.labels(agent=f"brigade.{pole.value}", outcome=outcome).inc()
+
+    async def answer(self, pole: Pole, user_query: str) -> AgentResponse:
+        system = self._system_prompt(pole)
 
         outcome = "error"
         try:

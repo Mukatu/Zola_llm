@@ -7,7 +7,7 @@ import { Card, Button, Skeleton } from "../ui";
 import { FlagshipHeader, Inp, Urg } from "./_shared";
 import { Prose } from "../Prose";
 import { ApiError } from "@/lib/api";
-import { runQuery } from "@/lib/query";
+import { streamQuery } from "@/lib/query";
 import { hrGeneratePrompt, createDocument } from "@/lib/documents";
 import {
   ETAPES, listVacancies, createVacancy, listCandidates, createCandidate,
@@ -78,8 +78,8 @@ export function RecrutementScreen() {
     try {
       const { titre, prompt } = await hrGeneratePrompt({ type: gType, code_emploi: gEmploi || undefined });
       setGTitre(titre);
-      const r = await runQuery(prompt);
-      setGDraft(r.content);
+      setGDraft("");
+      await streamQuery(prompt, { onToken: (t) => setGDraft((prev) => (prev ?? "") + t) });
     } catch (e) {
       setErr(e instanceof ApiError ? "Génération indisponible (LLM/auth requis ou backend)." : "Service indisponible.");
     } finally { setGLoading(false); }
