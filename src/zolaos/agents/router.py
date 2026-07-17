@@ -55,7 +55,7 @@ KNOWN_MODULES: dict[Pole, tuple[str, ...]] = {
         "compliance_data",
         "audit_sante",
     ),
-    Pole.FINTECH: ("scoring", "kyc"),
+    Pole.FINTECH: ("microfinance", "lbcft", "paiements", "scoring", "kyc"),
     Pole.CYBER: ("defense",),
     Pole.ENGINEERING: ("code",),
     Pole.GENERAL: (),
