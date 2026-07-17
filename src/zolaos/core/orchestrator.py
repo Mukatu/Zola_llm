@@ -13,11 +13,17 @@ from typing import Any
 
 from zolaos.agents.brigade import POLE_LABELS, AgentResponse, SimulatedAgent
 from zolaos.agents.meta.planning import Plan, PlanningAgent
-from zolaos.agents.rag_agent import InsufficientContextError
-from zolaos.agents.registry import default_rag_agent_for, rag_agent_for
+from zolaos.agents.rag_agent import InsufficientContextError, RAGAgent, RAGPrepared
+from zolaos.agents.registry import (
+    default_rag_agent_for,
+    generic_agent_for_schema,
+    public_regulatory_schemas,
+    rag_agent_for,
+)
 from zolaos.agents.router import Pole, RouteDecision, Router
 from zolaos.core.logging import get_logger
 from zolaos.core.settings import Settings
+from zolaos.rag.retrieval import retrieve_multi
 
 _log = get_logger("zolaos.core.orchestrator")
 
@@ -144,24 +150,12 @@ class Orchestrator:
                     "steps": [s.model_dump() for s in plan.steps],
                 }
 
-        # Étape 3 : agent RAG du module, sinon filet structurel du pôle.
-        agent_cls = rag_agent_for(decision.module) or default_rag_agent_for(decision.pole)
-        agent = None
-        prepared = None
-        if agent_cls is not None:
-            agent = agent_cls(self._brigade.client, self._settings, tenant_id=tenant_id)
-            try:
-                prepared = await agent.prepare(user_query)
-            except InsufficientContextError:
-                _log.info(
-                    "orchestrator.rag_fallback", pole=decision.pole.value, module=decision.module
-                )
-                prepared = None
-
+        # Étape 3 : agent du pôle routé, sinon filet de rattrapage multi-schéma.
+        agent, prepared, regulated = await self._resolve_agent(decision, user_query, tenant_id)
         grounding = (
             "sourced"
             if prepared is not None
-            else ("abstained" if agent_cls is not None else "unsourced")
+            else ("abstained" if regulated else "unsourced")
         )
 
         if agent is not None and prepared is not None:
@@ -180,9 +174,9 @@ class Orchestrator:
             }
             async for chunk in agent.stream_prepared(prepared):
                 yield {"type": "token", "text": chunk}
-        elif agent_cls is not None:
-            # Même garde-fou que `_answer` : le pôle a un corpus, il n'a rien donné
-            # → on s'abstient au lieu de laisser le modèle inventer.
+        elif regulated:
+            # Pôle à corpus, rien à citer même après le filet → abstention plutôt
+            # que laisser le modèle inventer.
             yield {"type": "token", "text": refusal_message(decision.pole)}
         else:
             async for chunk in self._brigade.stream(decision.pole, user_query):
@@ -203,49 +197,117 @@ class Orchestrator:
             "duration_seconds": duration,
         }
 
+    async def _resolve_agent(
+        self, decision: RouteDecision, user_query: str, tenant_id: str
+    ) -> tuple[RAGAgent | None, RAGPrepared | None, bool]:
+        """Choisit l'agent qui ancrera la réponse.
+
+        Retourne ``(agent, prepared, regulated)`` :
+        - ``agent``/``prepared`` non None → une réponse sourcée est possible ;
+        - ``regulated`` = le routage visait un pôle doté d'un corpus. S'il n'y a
+          finalement rien à citer, ``regulated`` tranche : abstention (pôle
+          réglementé) vs réponse libre (assistance générale).
+
+        Deux tentatives : (1) l'agent du pôle routé ; (2) si celui-ci n'ancre
+        rien — pôle sans corpus, ou corpus muet sur la requête — un **filet** qui
+        balaie les corpus réglementaires publics. Une erreur de routage (ex. une
+        question COBAC envoyée vers `grc`, sans corpus) ne doit pas priver d'une
+        réponse sourcée quand le texte existe ailleurs.
+        """
+        agent_cls = rag_agent_for(decision.module) or default_rag_agent_for(decision.pole)
+        regulated = agent_cls is not None
+        if agent_cls is not None:
+            agent = agent_cls(self._brigade.client, self._settings, tenant_id=tenant_id)
+            try:
+                return agent, await agent.prepare(user_query), regulated
+            except InsufficientContextError:
+                _log.info(
+                    "orchestrator.rag_fallback", pole=decision.pole.value, module=decision.module
+                )
+
+        # Filet UNIQUEMENT pour un pôle métier sans corpus (grc, cyber…). On
+        # l'exclut pour `general` : c'est le pôle où le routeur juge explicitement
+        # que la question n'est PAS métier. Y balayer les corpus ancrerait un
+        # « bonjour » sur un texte de loi au hasard — bge-m3 donne ~0,5 de
+        # similarité à n'importe quel texte français, un seuil ne les sépare pas.
+        if decision.pole is Pole.GENERAL:
+            return None, None, regulated
+
+        net = await self._safety_net(user_query, tenant_id)
+        if net is not None:
+            agent, prepared = net
+            _log.info(
+                "orchestrator.safety_net_hit",
+                routed_pole=decision.pole.value,
+                rescued_schema=agent.rag_schema,
+            )
+            return agent, prepared, regulated
+        return None, None, regulated
+
+    async def _safety_net(
+        self, user_query: str, tenant_id: str
+    ) -> tuple[RAGAgent, RAGPrepared] | None:
+        """Balaie les corpus réglementaires publics ; ancre sur le meilleur.
+
+        Une seule requête est encodée pour tous les schémas (`retrieve_multi`),
+        donc le coût est ~un embedding + N requêtes pgvector — négligeable, et
+        seulement sur le chemin d'erreur (le routage n'a rien ancré). L'agent
+        générique du schéma gagnant porte le bon prompt (citations) et le seuil
+        `min_confidence` : un meilleur match trop faible lève et on renonce.
+        """
+        found = await retrieve_multi(
+            query=user_query,
+            schemas=public_regulatory_schemas(),
+            required_tags=["country:cg"],
+            k=6,
+        )
+        if not found:
+            return None
+        best_schema = max(found, key=lambda s: found[s][0].similarity)
+        agent_cls = generic_agent_for_schema(best_schema)
+        if agent_cls is None:
+            return None
+        agent = agent_cls(self._brigade.client, self._settings, tenant_id=tenant_id)
+        try:
+            return agent, agent.assemble(user_query, found[best_schema])
+        except InsufficientContextError:
+            return None
+
     async def _answer(
         self, decision: RouteDecision, user_query: str, tenant_id: str = "local"
     ) -> AgentResponse:
-        """Répond via l'agent RAG du module, ou l'agent générique en repli.
+        """Répond via l'agent RAG du pôle, le filet de rattrapage, ou en repli.
 
         `tenant_id` : transmis à l'agent RAG pour fusionner le corpus de référence
         avec les documents téléversés par le client (« la loi + VOS règles »).
         """
-        # Agent du module précis, sinon filet structurel : agent générique du pôle
-        # (tout le corpus du pôle). Sinon seulement, agent placeholder.
-        agent_cls = rag_agent_for(decision.module) or default_rag_agent_for(decision.pole)
-        if agent_cls is not None:
-            agent = agent_cls(self._brigade.client, self._settings, tenant_id=tenant_id)
-            try:
-                rr = await agent.answer(user_query)
-                return AgentResponse(
-                    pole=decision.pole,
-                    content=rr.content,
-                    model=self._settings.LLM_MODEL_BRIGADE,
-                    duration_seconds=rr.duration_seconds,
-                    citations=tuple(rr.citations),
-                    rag_schema=agent.rag_schema,
-                    grounding="sourced",
-                )
-            except InsufficientContextError:
-                # Un agent RAG existait pour cette question : le pôle est censé être
-                # couvert par un corpus, et ce corpus n'a rien. Retomber ici sur la
-                # brigade (aucune source) revenait à laisser le modèle inventer une
-                # règle plausible — on refuse à la place.
-                _log.info(
-                    "orchestrator.rag_refusal", pole=decision.pole.value, module=decision.module
-                )
-                return AgentResponse(
-                    pole=decision.pole,
-                    content=refusal_message(decision.pole),
-                    model=self._settings.LLM_MODEL_BRIGADE,
-                    duration_seconds=0.0,
-                    citations=(),
-                    rag_schema=agent.rag_schema,
-                    grounding="abstained",
-                )
-        # Aucun agent RAG pour ce pôle (assistance générale, ingénierie…) : pas de
-        # prétention réglementaire, la réponse libre reste légitime.
+        agent, prepared, regulated = await self._resolve_agent(decision, user_query, tenant_id)
+
+        if agent is not None and prepared is not None:
+            rr = await agent.answer_prepared(prepared)
+            return AgentResponse(
+                pole=decision.pole,
+                content=rr.content,
+                model=self._settings.LLM_MODEL_BRIGADE,
+                duration_seconds=rr.duration_seconds,
+                citations=tuple(rr.citations),
+                rag_schema=agent.rag_schema,
+                grounding="sourced",
+            )
+        if regulated:
+            # Pôle à corpus, mais rien à citer même après le filet → on s'abstient
+            # au lieu de laisser le modèle inventer une règle plausible.
+            _log.info("orchestrator.rag_refusal", pole=decision.pole.value)
+            return AgentResponse(
+                pole=decision.pole,
+                content=refusal_message(decision.pole),
+                model=self._settings.LLM_MODEL_BRIGADE,
+                duration_seconds=0.0,
+                citations=(),
+                grounding="abstained",
+            )
+        # Pôle sans corpus (assistance générale…) et rien trouvé ailleurs : pas de
+        # prétention réglementaire, la réponse libre reste légitime (signalée unsourced).
         return await self._brigade.answer(decision.pole, user_query)
 
     # Helper de construction par défaut.

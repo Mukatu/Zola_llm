@@ -15,9 +15,11 @@ import pytest
 
 from zolaos.agents import rag_agent as rag_agent_mod
 from zolaos.agents.router import Pole, RouteDecision
+from zolaos.core import orchestrator as orch_mod
 from zolaos.core.orchestrator import Orchestrator
 from zolaos.core.settings import Settings
 from zolaos.llm.base import GenerationResult, LLMClient
+from zolaos.rag.retrieval import Match
 
 pytestmark = pytest.mark.asyncio
 
@@ -56,11 +58,31 @@ def _orchestrator(settings: Settings, decision: RouteDecision, monkeypatch) -> O
 
 
 def _empty_corpus(monkeypatch) -> None:
+    """Aucun corpus nulle part : ni le retrieve des agents, ni le filet multi-schéma."""
+
     async def empty_retrieve(*, query, schema, required_tags, k):  # type: ignore[no-untyped-def]
         _ = query, schema, required_tags, k
         return []
 
+    async def empty_multi(*, query, schemas, required_tags, k):  # type: ignore[no-untyped-def]
+        _ = query, schemas, required_tags, k
+        return {}
+
     monkeypatch.setattr(rag_agent_mod, "retrieve", empty_retrieve)
+    monkeypatch.setattr(orch_mod, "retrieve_multi", empty_multi)
+
+
+def _match(source_id: str, sim: float) -> Match:
+    """Un match RAG factice de similarité `sim` (score = 1 - sim)."""
+    return Match(
+        content=f"Texte réglementaire {source_id} — article pertinent.",
+        score=1.0 - sim,
+        source_uri=f"https://officiel.example/{source_id}.pdf",
+        source_id=source_id,
+        chunk_index=0,
+        tags=["country:cg"],
+        extra_metadata={},
+    )
 
 
 async def test_regulated_pole_without_corpus_refuses_instead_of_inventing(
@@ -109,3 +131,72 @@ async def test_stream_path_applies_the_same_guardrail(
 
     assert "Je n'ai aucune source" in text
     assert _INVENTION not in text
+
+
+async def test_safety_net_rescues_question_routed_to_pole_without_corpus(
+    settings: Settings, monkeypatch
+) -> None:
+    """Question COBAC mal routée vers `grc` (sans agent RAG) : le filet la rattrape.
+
+    Sans filet, elle tombait sur la brigade sans source alors que le règlement est
+    dans rag_fintech. Le filet balaie les corpus publics et ancre la réponse.
+    """
+    # L'agent direct ne trouve rien (grc n'a de toute façon pas d'agent), mais le
+    # balayage multi-schéma remonte un extrait solide dans rag_fintech.
+    async def multi(*, query, schemas, required_tags, k):  # type: ignore[no-untyped-def]
+        _ = query, schemas, required_tags, k
+        return {"rag_fintech": [_match("cemac_microfinance_2017", sim=0.62)]}
+
+    monkeypatch.setattr(orch_mod, "retrieve_multi", multi)
+    decision = RouteDecision(pole=Pole.GRC, module=None, confidence=0.9, complexity="simple")
+    orch = _orchestrator(settings, decision, monkeypatch)
+
+    result = await orch.handle("Comment la COBAC supervise-t-elle les EMF ?")
+
+    resp = result.responses[0]
+    assert resp.grounding == "sourced"
+    assert resp.citations  # ancrée : au moins une citation
+    assert resp.rag_schema == "rag_fintech"
+
+
+async def test_safety_net_skips_general_pole(settings: Settings, monkeypatch) -> None:
+    """`general` = le routeur juge la question NON métier → le filet ne s'exécute pas.
+
+    Sinon un « bonjour » se ferait ancrer sur un texte de loi au hasard (bge-m3
+    donne ~0,5 de similarité à tout texte français). On respecte ce jugement.
+    """
+    appele = {"multi": False}
+
+    async def multi(*, query, schemas, required_tags, k):  # type: ignore[no-untyped-def]
+        _ = query, schemas, required_tags, k
+        appele["multi"] = True
+        return {"rag_legal": [_match("convention_mines", sim=0.6)]}
+
+    monkeypatch.setattr(orch_mod, "retrieve_multi", multi)
+    decision = RouteDecision(pole=Pole.GENERAL, module=None, confidence=0.9, complexity="simple")
+    orch = _orchestrator(settings, decision, monkeypatch)
+
+    result = await orch.handle("Bonjour, peux-tu te présenter ?")
+
+    assert appele["multi"] is False  # le filet n'a pas tourné
+    assert result.responses[0].grounding == "unsourced"
+
+
+async def test_safety_net_gives_up_below_confidence(settings: Settings, monkeypatch) -> None:
+    """Meilleur match trop faible → le filet renonce, on n'invente pas une source.
+
+    Le seuil `min_confidence` de l'agent générique (0.5) tranche : un match à 0.3
+    ne doit pas produire une réponse d'apparence sourcée.
+    """
+    async def multi(*, query, schemas, required_tags, k):  # type: ignore[no-untyped-def]
+        _ = query, schemas, required_tags, k
+        return {"rag_fintech": [_match("cemac_microfinance_2017", sim=0.3)]}
+
+    monkeypatch.setattr(orch_mod, "retrieve_multi", multi)
+    decision = RouteDecision(pole=Pole.GRC, module=None, confidence=0.9, complexity="simple")
+    orch = _orchestrator(settings, decision, monkeypatch)
+
+    result = await orch.handle("Question de gouvernance sans réponse dans le corpus")
+
+    # grc n'est pas un pôle réglementé (pas d'agent) → repli brigade, unsourced.
+    assert result.responses[0].grounding == "unsourced"

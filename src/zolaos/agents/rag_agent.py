@@ -160,11 +160,19 @@ class RAGAgent:
 
         # --- 1. Retrieve : local (DB directe) OU remote (via MissionClient) ---
         matches = await self._do_retrieve(query=query, tags=tags, k=kk)
+        return self.assemble(query, matches)
 
+    def assemble(self, query: str, matches: list[Match]) -> RAGPrepared:
+        """Applique garde-fous + contexte à des matches DÉJÀ récupérés.
+
+        Séparé de `prepare()` pour que le filet de rattrapage de l'orchestrateur
+        puisse réutiliser des matches obtenus par un balayage multi-schéma, sans
+        re-chercher. Les garde-fous (`requires_citation`, `min_confidence`) de
+        l'agent restent appliqués — un match trop faible lève quand même.
+        """
         if self.requires_citation and not matches:
             raise InsufficientContextError(
-                f"[{self.name}] aucun match RAG pour la requête "
-                f"(tags={tags}, schema={self.rag_schema})"
+                f"[{self.name}] aucun match RAG pour la requête (schema={self.rag_schema})"
             )
         if (
             self.min_confidence is not None
@@ -226,19 +234,25 @@ class RAGAgent:
         """Question/réponse RAG. Lève `InsufficientContextError` si garde-fou actif et pas assez de contexte."""
         import time
 
+        prepared = await self.prepare(query, extra_tags=extra_tags, k=k)
+        return await self.answer_prepared(prepared)
+
+    async def answer_prepared(self, prepared: RAGPrepared) -> RAGAgentResponse:
+        """Étape 3-4 : génère à partir d'un contexte déjà préparé (retrieve fait).
+
+        Permet à l'orchestrateur de générer depuis des matches obtenus autrement
+        (filet de rattrapage multi-schéma) sans re-chercher.
+        """
+        import time
+
         start = time.perf_counter()
         outcome = "error"
         try:
-            prepared = await self.prepare(query, extra_tags=extra_tags, k=k)
-
-            # --- 3. Generate ---
             result = await self._client.generate(
                 prepared.messages,
                 model=self._settings.LLM_MODEL_BRIGADE,
                 options=prepared.options,
             )
-
-            # --- 4. Build response ---
             outcome = "ok"
             duration = time.perf_counter() - start
             _log.info(

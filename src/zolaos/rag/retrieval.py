@@ -115,3 +115,80 @@ async def retrieve(
         best_similarity=matches[0].similarity if matches else None,
     )
     return matches
+
+
+async def retrieve_multi(
+    *,
+    query: str,
+    schemas: list[str],
+    required_tags: list[str],
+    k: int = 6,
+    session: AsyncSession | None = None,
+    embeddings: EmbeddingService | None = None,
+) -> dict[str, list[Match]]:
+    """Top-k dans **plusieurs** schémas, en n'encodant la requête qu'UNE fois.
+
+    Sert le filet de rattrapage de l'orchestrateur : quand le routeur envoie une
+    requête vers un pôle sans corpus, on balaie les corpus réglementaires publics
+    pour retrouver l'ancrage plutôt que de laisser le modèle répondre sans source.
+    L'embedding domine le coût d'un retrieve ; le mutualiser rend le balayage de
+    N schémas quasi gratuit (une requête pgvector chacun, quelques ms).
+
+    Retourne {schéma: matches} pour les seuls schémas ayant au moins un résultat.
+    """
+    if not required_tags:
+        raise ValueError("required_tags est obligatoire (RBAC anti-leak).")
+    embeddings = embeddings or get_embedding_service()
+    qvec = await embeddings.aencode_one(query)
+
+    async def _run(sess: AsyncSession) -> dict[str, list[Match]]:
+        out: dict[str, list[Match]] = {}
+        for schema in schemas:
+            if schema not in RAG_MODELS:
+                raise ValueError(f"Schéma RAG inconnu: {schema!r}")
+            model = RAG_MODELS[schema]
+            stmt = (
+                select(
+                    model.content,
+                    (model.embedding.cosine_distance(qvec)).label("score"),
+                    model.source_uri,
+                    model.source_id,
+                    model.chunk_index,
+                    model.tags,
+                    model.extra_metadata,
+                )
+                .where(model.tags.op("@>")(required_tags))
+                .order_by("score")
+                .limit(k)
+            )
+            rows = (await sess.execute(stmt)).all()
+            if rows:
+                out[schema] = [
+                    Match(
+                        content=r.content,
+                        score=float(r.score),
+                        source_uri=r.source_uri,
+                        source_id=r.source_id,
+                        chunk_index=r.chunk_index,
+                        tags=list(r.tags),
+                        extra_metadata=dict(r.extra_metadata or {}),
+                    )
+                    for r in rows
+                ]
+        return out
+
+    if session is not None:
+        found = await _run(session)
+    else:
+        factory = get_session_factory()
+        async with factory() as new_session:
+            found = await _run(new_session)
+
+    _log.info(
+        "rag.retrieve_multi",
+        schemas=schemas,
+        query_len=len(query),
+        hits={s: len(m) for s, m in found.items()},
+        best={s: round(m[0].similarity, 3) for s, m in found.items()},
+    )
+    return found

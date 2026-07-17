@@ -64,3 +64,26 @@ POLE_DEFAULT_AGENTS: dict[Pole, type[RAGAgent]] = {
 def default_rag_agent_for(pole: Pole) -> type[RAGAgent] | None:
     """Agent RAG générique du pôle (filet quand `module` est absent), ou None."""
     return POLE_DEFAULT_AGENTS.get(pole)
+
+
+# Corpus réglementaires **publics** (référence, pas de données client) balayés par
+# le filet de rattrapage de l'orchestrateur quand le routeur envoie une requête
+# vers un pôle sans corpus. Chaque schéma → l'agent générique qui porte le bon
+# prompt (citations) et les bons garde-fous. `rag_tenant` en est exclu : il est
+# cloisonné par client et ne doit jamais fuiter via un balayage transverse.
+SCHEMA_GENERIC_AGENTS: dict[str, type[RAGAgent]] = {
+    "rag_legal": GenericLegalAgent,
+    "rag_fintech": GenericFintechAgent,
+    "rag_erp": GenericErpAgent,
+    "rag_health": GenericHealthAgent,
+}
+
+
+def public_regulatory_schemas() -> list[str]:
+    """Schémas publics à balayer en rattrapage (ordre = priorité en cas d'égalité)."""
+    return list(SCHEMA_GENERIC_AGENTS)
+
+
+def generic_agent_for_schema(schema: str) -> type[RAGAgent] | None:
+    """Agent générique portant le prompt/garde-fous d'un schéma public, ou None."""
+    return SCHEMA_GENERIC_AGENTS.get(schema)
