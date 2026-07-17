@@ -19,6 +19,11 @@ class GenericLegalAgent(RAGAgent):
     prompt_file = "legal/generique.md"
     default_tags = ("country:cg",)  # tout le corpus juridique, pas de filtre module
     requires_citation = True
+    # Une question de droit du travail non pinnée sur `travail_cg` (ex. « congés
+    # dans le secteur minier » → legal/None) peut quand même nommer un secteur :
+    # on écarte alors le bruit des autres conventions. Sans effet hors travail_cg
+    # (les textes OHADA/fiscaux ne portent pas de tag `secteur:`).
+    sector_aware = True
     min_confidence = 0.5
     top_k = 6
     max_tokens = 1200

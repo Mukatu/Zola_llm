@@ -39,6 +39,7 @@ from zolaos.core.metrics import AGENT_INVOCATIONS_TOTAL
 from zolaos.core.settings import Settings
 from zolaos.llm.base import GenerationOptions, LLMClient, Message
 from zolaos.rag.retrieval import Match, retrieve
+from zolaos.rag.sectors import detect_sector
 
 if TYPE_CHECKING:
     from zolaos.missions.client import MissionClient
@@ -108,6 +109,10 @@ class RAGAgent:
     response_schema: ClassVar[type[BaseModel] | None] = None
     min_confidence: ClassVar[float | None] = None  # ex: 0.55 pour Droit (refus si < seuil)
     requires_citation: ClassVar[bool] = True  # False = autorise réponse hors RAG
+    # True = la question peut nommer un secteur d'activité doté d'une convention
+    # collective dédiée (droit du travail) → retrieve boosté par secteur pour
+    # ancrer sur la bonne convention plutôt qu'un mélange. Cf. `_primary_retrieve`.
+    sector_aware: ClassVar[bool] = False
     top_k: ClassVar[int] = 5
     max_tokens: ClassVar[int] = 800
     temperature: ClassVar[float] = 0.2
@@ -315,12 +320,7 @@ class RAGAgent:
                 )
                 for m in raw
             ]
-        matches = await retrieve(
-            query=query,
-            schema=self.rag_schema,
-            required_tags=tags,
-            k=k,
-        )
+        matches = await self._primary_retrieve(query=query, tags=tags, k=k)
         # Union avec : le communs partagé (savoir promu, niveau 3) + le corpus du
         # client (documents téléversés, si tenant connu). Chaque source dégrade
         # proprement si indisponible.
@@ -338,6 +338,59 @@ class RAGAgent:
                 merged.sort(key=lambda m: m.score)  # score = distance cosine (plus petit = mieux)
                 matches = merged[:k]
         return matches
+
+    async def _primary_retrieve(self, *, query: str, tags: list[str], k: int) -> list[Match]:
+        """Retrieve dans le schéma de l'agent, avec **boost secteur** si applicable.
+
+        Sans secteur (ou agent non `sector_aware`) : retrieve normal.
+
+        Avec un secteur détecté (ex. « secteur bancaire ») : double détente pour
+        ancrer sur la BONNE convention plutôt qu'un mélange de toutes —
+          1. un retrieve scopé `secteur:<x>` garantit la présence de la convention
+             du secteur, même si elle n'aurait pas atteint le top-k globalement ;
+          2. un retrieve général fournit le droit commun (Code du travail, non
+             tagué secteur), duquel on **écarte les conventions d'AUTRES secteurs**
+             (le bruit : une convention minière n'a rien à faire dans une réponse
+             sur les banques).
+        On réserve la moitié de `k` au secteur, l'autre au droit commun.
+        """
+        sector = detect_sector(query) if self.sector_aware else None
+        if sector is None:
+            return await retrieve(
+                query=query, schema=self.rag_schema, required_tags=tags, k=k
+            )
+
+        sector_tag = f"secteur:{sector}"
+        specific = await retrieve(
+            query=query, schema=self.rag_schema, required_tags=[*tags, sector_tag], k=k
+        )
+        general = await retrieve(
+            query=query, schema=self.rag_schema, required_tags=tags, k=k
+        )
+
+        def _other_sector(m: Match) -> bool:
+            return any(t.startswith("secteur:") and t != sector_tag for t in m.tags)
+
+        n_sector = max(1, k // 2)
+        chosen = list(specific[:n_sector])
+        seen = {(m.source_uri, m.chunk_index) for m in chosen}
+        for m in general:
+            if len(chosen) >= k:
+                break
+            key = (m.source_uri, m.chunk_index)
+            if key in seen or _other_sector(m):
+                continue
+            chosen.append(m)
+            seen.add(key)
+        chosen.sort(key=lambda m: m.score)  # meilleur (distance min) d'abord
+        _log.info(
+            "rag_agent.sector_boost",
+            agent=self.name,
+            sector=sector,
+            n_sector=sum(1 for m in chosen if sector_tag in m.tags),
+            n_total=len(chosen),
+        )
+        return chosen
 
     @staticmethod
     def _format_context(matches: list[Match]) -> str:

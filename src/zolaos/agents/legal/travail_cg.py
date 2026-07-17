@@ -18,6 +18,7 @@ class TravailCgAgent(RAGAgent):
     prompt_file = "legal/travail_cg.md"
     default_tags = ("country:cg", "module:travail_cg")
     requires_citation = True
+    sector_aware = True  # conventions collectives sectorielles (banque, mines…)
     min_confidence = 0.55
     top_k = 6
     max_tokens = 1200
