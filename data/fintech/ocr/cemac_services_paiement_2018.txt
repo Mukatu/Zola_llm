@@ -1,0 +1,1478 @@
+>
+
++
+4
+
+.… COMMUNAUTE ECONOMIQUE ET REGLEMENT N°_: | ‘4 /18/CEMAC/UMAC/COBAC
+MONETAIRE DE L'AFRIQUE CENTRALE
+
+RELATIF AUX SERVICES DE PAIEMENT DANS LA
+
+on QUE CENTRALE COMMUNAUTE ECONOMIQUE ET MONETAIRE DE
+NTI L'AFRIQUE CENRALE
+
+COMITE MINISTERIEL
+
+LE COMITE MINISTERIEL
+
+Vu le Traité révisé du 30 janvier 2009 de la Communauté Economique et Monétaire
+de l'Afrique Centrale (CEMAC) ;
+
+Vu la Convention régissant l’Union Monétaire de l’Afrique Centrale (UMAC) en
+vigueur :
+
+Vu la Convention du 16 octobre 1990 portant création d’une Commission Bancaire de
+l'Afrique Centrale (COBAC), son Annexe et ses texies subséquents ;
+
+Vu la Convention du 17 janvier 1992 portant harmonisation de la réglementation
+bancaire dans les Etats de l’Afrique Centrale, son Annexe et ses textes subséquents ;
+
+Vu le règlement n° 01/1 1/CEMAC/UMAC du 18 septembre 2011 relatif à l'exercice
+de l’activité d'émission de monnaie électronique ;
+
+Vu le règlement n° 01/ 16/CEMAC/UMAC/CM du 11 avril 2016 portant prévention cet
+répression du blanchiment des capitaux et du financement du terrorisme et de la
+prolifération en Afrique Centrale ;
+
+Vu le règlement n° 03/16/CEMAC/UMAC/CM du 21 décembre 2016 relatif aux
+systèmes, moyens et incidents de paiements ;
+
+Vu le règlement n° 01/17/CEMAC/UMAC/COBAC du 27 septembre 2017 relatif aux
+conditions d'exercice ct de contrôle de l’activité de microfinance dans la CEMAC ;
+
+Vu le règlement CÉMAC/UMAC/CM du 21 décembre 2018 portant réforme de la
+réglementation des changes dans les Etats de la CEMAC ;
+
+Vu J'Acte uniforme OHADA relatif au droit des sociétés commerciales et du
+groupement d'intérêt économique ;
+
+Vu l'Acte uniforme OHADA relatif au droit des sociétés coopératives ;
+Considérant la nécessité d'assurer un meilleur développement et encadrement des
+
+services de paiement, en vue de garantir la sécurité des fonds et la confiance du public
+et de contribuer à une inclusion financière maîtrisée dans la CEMAC ; ‘
+
+
+9
+
+Considérant que le développement des services de paiement dans la CEMAC exige un
+cadre règlementaire approprié permettant d’assurer une surveillance cet une
+supervision adéquates par les autorités de contrôle compétentes en la matière ;
+
+Considérant la nécessité de se conformer aux standards internationaux en matière de
+supervision et de surveillance des systèmes et moyens de paiement ;
+
+Vu les résolutions de la Commission Bancaire au cours de sa session du 20 septembre
+2018 à Libreville relatives au projet du règlement CEMAC relatif aux services de
+paiement ;
+
+Après avis conforme du Conseil d'Administration de la BEAC délivré lors de sa
+session extraordinaire du 19 décembre 2018 à Yaoundé, en République du
+Cameroun ;
+
+Réuni en session ordinaire le 21 décembre 2018 à Yaoundé, en République du
+Cameroun ;
+
+Sur proposition du Gouverneur de la BEAC ;
+
+ADOPTE A L'UNANIMITE LE REGLEMENT DONT LA TENEUR SUIT :
+
+TITRE 1:
+
+DISPOSITIONS GENERALES
+
+Article 1- Le présent règlement fixe les conditions d’exercice et de contrôle des
+services de paiement dans la CEMAC.
+
+Ii est applicable aux prestataires de services de paiement qui exercent dans la
+CEMAC, à leurs partenaires techniques et à leurs distributeurs.
+
+Le présent règlement s’applique également aux commissaires aux comptes des
+prestataires de services de paiement.
+
+Sont exclues du champ d'application du présent règlement :
+
+- les opérations de paiement effectuées en espèces directement du payeur au
+bénéficiaire, sans l'intervention d’un intermédiaire ;
+
+- les opérations de paiement effectuées par la Banque Centrale, les Trésors
+publics et les services financiers de la Poste.
+
+19
+
+
+7
+
+Article 2- Au sens du présent règlement, on entend par :
+
+1. Autorité monétaire nationale ou Autorité monétaire : le Ministre en charge
+de la monnaic et du crédit de l'Etat d'implantation ;
+
+2. Banque Centrale ou BEAC : la Banque des Etats de l'Afrique Centrale ;
+
+3. Bénéficiaire : personne physique ou morale destinataire des fonds faisant l'objct
+d'une opération de paiement ;
+
+4, Client : personne physique ou morale qui, en vertu d’un contrat conclu avec un
+prestataire de services de paiement, utilise un service de paiement ;
+
+5. Commission Bancaire où COBAC : la Commission Bancaire de l’Afrique
+Centrale ;
+
+6. Communauté ou CEMAC : la Communauté Economique et Monétaire de
+l'Afrique Centrale ;
+
+7. Compte bancaire : compte ouvert et tenu dans ses livres par un établissement
+de crédit ou de microfinance au nom d’une personne physique ou morale pour la
+réalisation d'opérations de banque ou opérations connexes au sens de l’Annexe
+à la Convention du 17 janvier 1992 ou d'opérations autorisées aux
+établissements de microfinance au sens du règlement n°
+01/17/CEMAC/UMAC/COBAC, à l'exception des opérations liées aux services
+de paicment visés à l’article 3 alinéa 6 ;
+
+8. Compte de paiement : compte détenu au nom d’un ou plusieurs clients, dans
+les livres d’un prestataire de services de paiement, aux fins de l'exécution
+d'opérations de paicment à l'exception des celles liées aux moyens de paiements
+et services visés aux articles 3 alinéa 6 et 7 alinéa 1 ;
+
+9, Distributeur et sous-distributeur : toute personne physique ou morale
+proposant des services de paiement à sa clientèle, au nom ct pour le compte d’un
+ou plusieurs prestataires de service de paiement agréé :
+
+10. Fonds : ia monnaie fiduciaire (billets de banque ct les pièces), la monnaic
+scripturale ct la monnaie électronique ;
+
+11. Instrument de paiement : alternativement ou cumulativement, tout dispositif
+personnalisé ou l'ensemble de procédures qui permettent à un client de donner
+| un ordre de paiement :
+
+12. Ordre de paiement: instruction d’un payeur ou d’un bénéficiaire à un
+prestataire de services de paiement ordonnant l'exécution d’unc opération de
+paiement :
+
+
+
+”
+
+13. Opération de paiement : action consistant à verser. transférer ou retirer des
+fonds, indépendamment de toute obligation sous-jacente entre le payeur et le
+bénéficiaire, ordonnée par le payeur ou le bénéficiaire ;
+
+14. Partenaire technique : personne morale qui fournit à un prestataire de
+services de paiement les services techniques ainsi que les conditions matérielles
+et lagicielles pour le traitement des opérations liées aux services de paiement :
+
+15. Payeur : personne physique ou morale qui ordonne ou autorise l’exécution
+d’unc opération de paiement ;
+
+16. Prestataire de service de paiement : établissement agréé qui fournit à titre de
+profession habituelle des services de paiement.
+
+17. Services de paiement : l'émission, la mise à disposition ou la gestion
+d'instruments ou moyens de paiement ou l'exécution d‘ordres de paiement, tel
+que défini à l’article 3 du présent règlement.
+
+TITRE 2 :
+SERVICES DE PAIEMENT
+Article 3- Sont des services de paiement, les activités suivantes, liées ou connexes à
+la mise à disposition au à la gestion des moyens de paiement définis à l’article 12 du
+
+règlement n° 03/16/CEMAC/UMAC/CM :
+
+1. les services permettant le versement et le retrait d'espèces sur un compte
+bancaire ou de paiement et les opérations de gestion y afférentes ;
+
+2, l'exécution des opérations de paiement suivantes associées à un compte bancaire
+ou de paicment :
+
+a. les prélèvements, y compris les prélèvements autorisés unitairement ;
+
+| b. les opérations de paiement cffectuées avec une carte de paiement ou un
+dispositif similaire permettant de réaliser ces opérations ;
+
+c. les virements, ponctucls ou permanents ;
+. l'exécution des opérations de paiement suivantes associées à un crédit :
+a. les prélèvements, y compris les prélèvements autorisés unitairement ;
+
+b. les opérations de paiement effectuées avec une carte de paiement ou un
+dispositif similaire permettant de réaliser ces opérations ;
+
+}
+ë:
+
+?
+t
+
+
+
+C2
+
+c. les virements, ponctuels ou permanents ;
+
+4, la mise à disposition d’instruments de paiement ou l'acquisition d'ordres de
+paiement ;
+
+5. les services de transmission de fonds, ne faisant pas intervenir de compte soit du
+payeur, soit du bénéficiaire ou des deux ;
+
+6. l'émission et la gestion de la monnaie électronique.
+Article 4- Une opération de paiement peut être ordonnée :
+
+a) par le payeur. qui donne un ordre de paiement à son prestataire de services de
+paiement :
+
+b} par le payeur, qui donne un ordre de paiement par l’intermédiaire du bénéficiaire
+qui, après avoir recueilli l’ordre de paiement du payeur, le transmet au
+prestataire de services de paiement du payeur, le cas échéant, par l'intermédiaire
+de son propre prestataire de services de paiement ;
+
+c} par le bénéficiaire. qui donne un ordre de paicment au prestataire de services de
+paiement du payeur, fondé sur le consentement donné par le payeur au
+bénéficiaire ct. le cas échéant. par l'intermédiaire de son propre prestataire de
+services de paiement.
+
+TITRE 3:
+
+PRESTATAIRES DE SERVICES DE PAIEMENT ET ACTIVITES
+AUTORISÉES
+
+Article 5- Sont habilités à exercer en qualité de prestataire de services de
+paiement. les établissements de crédit, les établissements de microfinance et les
+
+établissements de paiement agréés ou habilités conformément aux dispositions du
+présent règlement.
+
+Les prestataires de service de paiement peuvent fournir un ou plusieurs des services de
+paiement prévus à l’article 3 du présent règlement.
+
+Article 6- Les établissements de paiement sont des établissements qui, à titre de
+profession habituelle, fournissent exclusivement des services de paiement et des
+services connexes. dans les conditions fixées par le présent règlement.
+
+La réglementation relative aux conditions d'exercice et à la supervision des
+établissements financiers s’applique mutatis mutandis aux établissements . de
+paiement, sauf dérogation du présent règlement et de ses textes subséquents. |
+
+La Commission Bancaire fixe par règlement les dérogations spécifiques aux règles
+LU
+
+S
+
+
+
+d'exercice et de contrôle de chaque service de paiement.
+
+Article 7- Les établissements de paiement ne peuvent ni mettre à disposition, ni
+gérer les moyens de paicment cambiaires, notamment le chèque, Ice billet à ordre, la
+lettre de change, ainsi que le crédit documentaire.
+
+Sous réserve des dispositions de l’article 3-5 du présent règlement, les établissements
+de paiement tiennent des comptes de paiement qui sont utilisés cxclusivement pour des
+opérations de paiement.
+
+Article 8 : Les établissements de paiement n'exercent pas l’activité de collecte de
+dépôts. Les fonds reçus par les établissements de paiement de la part de clients restent
+la propriété des clients ; ils ne constituent pas des dépôts au sens des articies 5 de
+l'Annexe à Ja Convention du 17 janvier 1992 et 21 du règlement
+n°01/17/CEMAC/UMAC/COBAC.
+
+Article 9- Les prestataires de services de paiement ne sont pas autorisés à consentir.
+sous quelle que forme que ce sait. des services de crédit dans le cadre de l’émission et
+de la gestion de monnaie électronique, ni à payer des intérêts sur les fonds perçus en
+contrepartie des unités de monnaie électronique émises.
+
+Toutefois, les fonds provenant d’un crédit octroyé à un client par un établissement de
+crédit ou de microfinance peuvent être utilisés pour acquérir des unités de monnaie
+électronique.
+
+Article 10 : Les établissements de paiement peuvent :
+
+l/accorder le débit différé des comptes de leurs clients, pour les opérations de
+paiement effectuées avec une carte de paiement ou un dispositif similaire, dans les
+
+conditions suivantes :
+
+- le montant total des paiements est débité du compte de paiement en une seule
+fois. à une périodicité mensuelle ;
+
+- |e montant total des paiements débités avec différé n’excède pas le plafond
+autorisé de l'encours de l'instrument de paiement utilisé.
+
+2/ consentir un paiement par crédit aux conditions suivantes :
+
+- Ie crédit est autorisé exclusivement dans le cadre d'une opération de
+paiement d’un bien ou d’un service ;
+
+-_|e montant total du crédit n‘excède pas un montant de 100 000 francs CFA ;
+- le délai de remboursement n'excède pas une durée de trois mois.
+Dans la mise en œuvre des dispositions des alinéas précédents, les établissements de
+
+«
+\
+
+
+paiement doivent respecter les règles relatives au taux cffectif global ct au taux
+d'usure applicables aux établissements financiers.
+
+Article 11- Outre les services de paiement, les établissements de paiement sont
+habilités à exercer la prestation de services connexes suivants :
+
+j. le placement de ressources, prélevées de leurs fonds propres, dans un ou
+plusieurs types de comptes et d’actifs à faible risque, liquides et sûrs, tels que
+définis par règlement de la COBAC ;
+
+2. le change de devises en vue d’un versement en francs CFA dans un compte de
+paiement :
+
+3. la garantic de l'exécution d’opérations de paiement pour le comple d’autres
+prestataires de services de paiement ;
+
+4, la gestion ct l'exploitation des automates et terminaux de paiement ;
+
+HN
+
+. les services de gardc. d’enregistrement ct traitement de données pour le compte
+d’autres prestataires de services de paiement.
+
+Article 12- Les prestataires de services de paiement fournissent les services de
+paiement dans le strict respect des dispositions de la réglementation des changes dans
+les Etats de la CEMAC.
+
+Les établissements de microfinance fournissent les services de paiement dans le strict
+respect des dispositions du règlement n° 01/17/CEMAC/
+UMAC/COBAC relatif aux conditions d'exercice et de contrôle de l'activité de
+microfinance dans la CEMAC., notamment en ses articles 19 et 23.
+
+Les services effectués par les établissements de paiement. sont circonscrits à l’intérieur
+de la CEMAC. Les établissements de paiement peuvent recevoir, pour leur compte ou
+pour le compte de leurs clients, des fonds transférés depuis l’extérieur de la CEMAC.
+
+TITRE 4 :
+REGLEMENTATION, SUPERVISION ET SURVEILLANCE
+
+Article 13- La Commission Bancaire fixe, notamment, pour les prestataires de
+services de paiement. les règles relatives :
+
+- à la configuration ct aux modalités fonctionnelles des services de paiement, ainsi
+qu'aux rapports juridiques entre les prestataires de scrvices de paiement et leurs
+clients dans le cadre de la fourniture de ces services ;
+
+- aux modes d'administration et de gestion, notamment le nombre ct;la ‘qualité des
+À
+k «
+N 7
+
+2.
+
+
+
+dirigeants. ainsi qu’au gouvernement d’entreprise dans ces établissements ;
+
+- aux exigences de capital minimum ;
+
+- aux normes de gestion que ces établissements sont tenus de respecter en vue
+notamment de garantir leur liquidité, leur solvabilité, l’équilibre de leur situation
+financière et la pérennité de leurs activités ;
+
+- aux normes de protection de la clientèle ;
+
+- aux normes de supervision et de contrôle applicables à ces établissements,
+notamment en matière de contrôle interne et de gestion des risques, de lutte contre
+
+le blanchiment de capitaux et le financement du terrorisme, de contrôle externe ;
+
+- au plan comptable, à la consolidation des comptes et à la publicité des documents
+comptables et autres informations de ces établissements.
+
+Article 14- La Commission Bancaire est chargée de veiller au respect par les
+
+prestataires de services de paiement des dispositions législatives et réglementaires
+édictées par le Comité Ministériel de l'UMAC, par les Autorités monétaires
+nationales. par la Banque Centrale ou par elle-même et qui leur sont applicables, et de
+sanctionner les manquements constatés.
+
+Article 15- La supervision des prestataires de services de paiement s'exerce à travers
+des contrôles sur pièces et sur place de la Commission Bancaire.
+
+La Commission Bancaire est habilitée à demander aux prestataires de services de
+paiement, à leurs commissaires aux comptes, partenaires techniques, distributeurs,
+sous-distributeurs et à toute autre personne ou organisme dont le concours peut être
+requis, tous renseignements ou justificatifs utiles à l'exercice de sa mission. Les
+intéressés sont tenus de satisfaire aux demandes qui leur sont adressées.
+
+Article 16- Les prestataires de services de paiement qui ne satisfont pas dans les
+délais impartis aux obligations prescrites dans le présent titre encourent des astreintes
+dont les modalités de calcul et de recouvrement sont fixées conformément aux
+dispositions de l'Annexe à la Convention du 17 janvier 1992, pour les établissements
+de crédit et les établissemenis de paicment,et du règlement n°
+01/17/CEMAC/UMAC/COBAC du 27 septembre 2017, pour les établissements de
+microfinance.
+
+Article 17- Lorsque la COBAC constate des dysfonctionnements dans la gestion ou le
+contrôle d'un prestataire de services de paiement, elle prend toutes les mesures
+d'assainissement, de restructuration ou disciplinaires prévues par le règlement n°
+O2: 1J{CEMAC/UMAC{COBAC/CM. pour les établissements de crèdi et Îles
+établissements de paiement. et le règlement n° O117CEMACUMAC/COBAC, pour
+les établissements de microfinance. en vue notamment de sanctionner les
+manquements constatés. de préserver où rétablir Îles conitiohs normales
+;
+
+Rk
+
+
+d’exploitation ou, le cas échéant, d'assurer l’apurement du passif de l’établissement.
+Article 18- La Banque Centrale fixe les règles relatives :
+
+- aux normes techniques et fonctionnelles applicables aux solutions technologiques
+utilisées en vue de garantir la sécurité, l'efficacité et la fiabilité des services de
+paiement ;
+
+- au régime juridique de l’émission des moyens de paiement et de la conversion de
+la monnaie électronique en monnaie scripturale ou fiduciaire ;
+
+- à l’intcropérabilité des systèmes ou plateformes techniques de fourniture des
+services de paiement ;
+
+- aux plafonds des instruments de paiement, des opérations de paiement et des
+frais afférents.
+
+Article 19- La Banque Centrale assure la surveillance de la conformité, de la sécurité
+et de la disponibilité des solutions techniques de fourniture des services de paiement
+et de l'utilisation des moyens de paiement.
+
+Conformément à l’article 255 du règlement n° 03/16/CEMAC/UMAC/CM. la Banque
+Centrale institue ou approuve les systèmes de paiement interbancaires de fourniture
+des services de paiement.
+
+Elle est habilitée à demander aux prestataires de services de paiement tous
+renseignements ou justificatifs utiles à l'exercice de la surveillance prévue au présent
+article.
+
+La Banque Centrale communique à la COBAC les manquements relevés dans le cadre
+de la surveillance exercée en application du présent article aux fins :
+
+- de la mise en œuvre des mesures coercitives ou disciplinaires prévues par la
+réglementation,
+
+- ou. le cas échéant, du retrait d'agrément, de la révocation de l'autorisation
+préalable ou de l’avis de non-objection prévus aux titres 5 et 6 du présent
+règlement.
+
+Lorsqu'un service de paiement est fourni via une solution de téléphonie mobile, la
+Banque Centrale peut recourir, pour assurer la surveillance prévuc au présent article,
+à l'organisme public chargé des missions de régulation, de contrôle et de suivi des
+activités des télécommunications et des technologies de l'information et de la
+communication de l’Iitat d'implantation du prestataire de service de paiement, :
+
+?
+
+Article 20- La Commission Bancaire et la Banque Centrale déterminent. chacune en
+
+ce qui la concerne, la liste, la teneur. les modèles. la périodicité. Les modalités et les
+{
+
+à
+
+L
+\
+
+9
+
+
+délais de transmission des documents que les prestataires de services de paiement
+sont tenus de leur adresser.
+
+Les documents visés à l’alinéa précédent sont transmis à la COBAC qui. le cas
+échéant, les communique à la BEAC.
+
+Article 21- L’Autorité monétaire prend, sur avis du Conseil National du Crédit, les
+décisions relatives aux conditions d’implantation des agences et guichets, à
+l’organisation de services communs, à toutes questions concernant l’organisation et le
+fonctionnement des prestataires de services de paiement, autres que celles relevant
+des compétences de la Commission Bancaire et de la Banque Centrale.
+
+Article 22- Le secret professionnel n’est pas opposable à l’ Autorité monétaire, à la
+Commission Bancaire et à la Banque Centrale dans l'exercice de leurs missions
+prévues par le présent règlement.
+
+TITRE 5:
+
+AGREMENT DES PRESTATAIRES DE SERVICES DE PAIEMENT
+
+Article 23: L'exercice en qualité de prestataire de services de paiement sur le
+territoire de l'un des Ftats de la CEMAC cest subordonné à l'agrément de Autorité
+Monétaire Nationale, délivré après avis conforme de la Commission Bancaire.
+L'arrêté d'agrément dit le ou les services de paiement que le prestataire est habilité à
+fournir.
+
+L'exercice des fonctions de dirigeant ou de commissaire aux comptes de prestataire
+de services de paiement est subordonné à l'agrément de l'Autorité Monétaire, délivré
+après avis conforme de la Commission Bancaire.
+
+Les conditions et modalités d'octroi d'agrément des prestataires de services de
+paiement, de leurs dirigeants et commissaires aux comptes sont celles fixées, sous
+réserve des dispositions du présent règlement ou de ses textes subséquents, par :
+
+- le règlement n° 02/15/CEMAC/UMAC/COBAC du 27 mars 201$ et ses textes
+d'application, pour les établissements de crédit et les établissements de paiement ;
+
+- le règlement n°01/17/CEMAC/UMAC/COBAC du 27 septembre 2017 et ses textes
+d'application, pour les établissements de microfinance.
+
+Article 24- Outre les conditions fixées par les textes visés à l’article 23 du présent
+règlement, la COBAC ne peut émettre un avis favorable en vue de l’agrément d’un
+prestataire de services de paiement que si les conditions d'exercice fixées par le
+présent règlement sont réunies.
+
+La COBAC s'assure de la cohérence entre les services de paiement pour ‘lesquels.
+l'agrément est sollicité, la stratégie proposée, le programme d° acyViiés que le
+
+10
+
+
+requérant prévoit de mettre en œuvre ct les moyens envisagés, notamment
+lPadéquation des fonds propres envisagés au profil de risque, afin de déterminer la
+capacité de l'établissement à respecter les normes prudentielles à la création et
+ultérieurement.
+
+Lorsque la cohérence visée à l’alinéa précédent n'est pas établie. la COBAC peut :
+
+- exiger. dans un délai qu’elle fixe, le renforcement des moyens envisagés par le
+requérant ; ou
+
+-_ requalifier la demande d‘agrément en fonction du plan d’affaires présenté par le
+requérant. Dans ce cas, le requérant est informé par simple lettre qu’il dispose
+d'un délai d’un mois pour donner son acceptation. L'absence de réponse dans ce
+délai vaut refus.
+
+A défaut d'appliquer les mesures prévues à l'alinéa précédent. ou si le requérant
+n'accepte pas la requalification, la COBAC émet un avis défavorable.
+
+Pour les établissements de paiement, la COBAC s'assure notamment que
+l'établissement justifie d’un contrat de compte de cantonnement avec une ou plusieurs
+banques, d'un contrat d’assurance ou d’une garantie bancaire, conformes aux
+exigences du titre 9 du présent règlement.
+
+Article 25- Pour l'application de l’article 24 du présent règlement, la Commission
+
+Bancaire saisit la Banque Centrale afin de recueillir son avis sur la conformité de la
+solution technique cnvisagéc pour la fourniture de chaque service de paiement,
+notamment en matière de :
+
+normes techniques et fonctionnelles :
+
+- sécurité el efficacité des systèmes d’information ;
+
+- qualité des transmissions et de l'accès au réseau ;
+
+- _interapérabilité de la solution technique, le cas échéant.
+
+Article 26- Lorsque la fourniture d’un service de paiement est envisagée via unc
+solution de téléphonie mobile, la BEAC s’assure que l'établissement ou son partenaire
+technique justifie d’une autorisation de l'organisme visé à l'article 19 du présent
+règlement pour l’usage de la technologie spécifique à ce service.
+
+Article 27- A compter de la date de saisine, Ja BEAC dispose d’un délai de trois mois
+pour statuer et notifier son avis à la COBAC. L'absence de décision à l'expiration de-
+ce délai vaut avis favorable de la BEAC. L'avis motivé défavorable de la BEAC lie da.
+COBAC. on
+
+f
+
+Le délai prévu à l'alinéa précédent n’est pas suspensif des délais fixés aux articles 8 -
+
+11
+
+
+du règlement n°  02/15/CEMAC/UMAC/COBAC et 51 du règlement
+n°01/17/CEMAC/UMAC/COBAC.
+
+Article 28- La composition du dossier de demande d’agrément est fixée par
+règlement de la COBAC.
+
+TITRE 6:
+
+APPROBATION DE L'OFFRE ET DE L’EXTENSION DES ACTIVITES DES
+PRESTATAIRES DE SERVICES DE PAIEMENT
+
+Article 29- La fourniture par un prestataire de service de paiement. d’un service de
+paiement non visé dans son agrément (changement ou extension d'activité), est
+soumise à l'autorisation préalable de la COBAC. L’établissement ne peut fournir le
+nouveau service qu’à compter de la date de délivrance de l'autorisation préalable de
+la COBAC.
+
+L'utilisation d’une nouvelle solution technique pour un service de paiement dont la
+fourniture est autorisée à un prestataire de services de paiement, est soumise à
+l'information préalable de la COBAC. L'établissement ne peut utiliser la solution
+technique qu'à compter de la date de délivrance de l'avis de non-objection de la
+COBAC.
+
+Article 30- Le dossier de demande d’autorisation ou d'information préalable est
+adressé en double exemplaire par l'établissement requérant au Président de la
+COBAC. contre décharge.
+
+La composition du dossier de demande d'autorisation ou d’information préalable est
+fixéc par règlement de la COBAC.
+
+Article 31- A compter de la date de réception du dossier complet, la COBAC dispose
+d'un délai de trois mois pour statuer et notifier sa décision ou son avis à
+l'établissement. L'absence de décision ou avis à l’expiration de ce délai vaut
+autorisation préalable ou avis de non-objection.
+
+Lorsque le dossier de demande d'autorisation ou d’information préalable esl
+incomplet. la COBAC en informe par écrit le requérant et l’invite à fournir les
+informations ou pièces manquantes. Dans ce cas, le délai de traitement du dossier est
+suspendu jusqu’à réception des informations ou pièces manquantes.
+
+Dans le cadre du processus d'instruction, la COBAC est habilitée à demander à
+l'établissement requérant tous les renseignements jugés utiles à l'examen du dossier.
+
+Article 32- La COBAC ne peut émettre une autorisation préalable ou un avis de non-
+objection visés à l’article 29 du présent règlement que si elle a l’assurance que :
+
+- l'établissement requérant présente des garanties suffisantes de respect des
+
+12
+
+
+conditions d’excrcicc fixées par le présent règlement ;
+
+- la fourniture du service de paiement ou l'utilisation de la solution technique ne
+met pas en péril la pérennité de l’établissement.
+
+La COBAC s’assure de la cohérence entre le service de paiement pour lequel
+l'autorisation visée à l’article 29 alinéa 1 du présent règlement est sollicitée, la
+stratégic proposée, le programme d'activités que le requérant prévoit de mettre en
+œuvre ct les moyens envisagés, notamment l'adéquation des fonds propres envisagés
+au profil de risque. afin de déterminer la capacité de l’établissement à respecter les
+normes prudentielles au lancement de l’activité et ultérieurement.
+
+Lorsque la cohérence visée à l'alinéa précédent n’est pas établie. la COBAC
+peut exiger, dans un délai qu’elle fixe, le renforcement des moyens envisagés par le
+requérant.
+
+A défaut d’appliquer les mesures prévues à l'alinéa précédent la COBAC émet un
+avis défavorable.
+
+Article 33- Pour l'application de l’article 32 du présent règlement. la Commission
+
+Bancaire saisit la Banque Centrale afin qu'elle se prononce sur la conformité de la
+solution technique envisagée pour la fourniture du service de paiement, notamment en
+matière de :
+
+-_ normes techniques et fonctionnelles ;
+
+sécurité et efficacité des systèmes d’information ;
+
+- qualité des transmissions et de l’accès au réseau ;
+- _interopérabilité de la solution technique, le cas échéant.
+
+Article 34- Lorsque la fourniture du service de paiement esl envisagée via une
+solution de téléphonie mobile, la BEAC s'assure que l'établissement justifie d’une
+autorisation de l'organisme visé à l’article 19 du présent règlement pour l'usage de la
+technologie spécifique à ce service.
+
+Article 35- A compter de la date de réception du dossier, la BAC dispose d’un délai
+de deux mois pour statuer et notifier son avis à la COBAC. L'absence de décision à
+l'expiration de ce délai vaut avis favorable de la BEAC. L'avis motivé défavorable de
+la BEAC lic la COBAC.
+
+Article 36- L'autorisation préalable ou l'avis de non-objection de la COBAC cst
+notifié (e) à l'établissement requérant, avec ampliation à l'Autorité monétaire, à la
+Direction Nationale de la BEAC et au Conseil National du Crédit. L'autorisation.
+préalable ou l'avis de non-objection est publié (e) par la COBAC dans au. moins un
+des principaux organes de presse de l'Etat d’implantation aux frais de l' établissement
+requérant.
+
+13
+
+
+Le refus d'autorisation préalable ou l'objection dûment motivé (e) est notifié (e) à
+l'établissement requérant. avec ampliation à l'Autorité monétaire, à la Direction
+Nationale de la BEAC et au Conscil National du Crédit.
+
+La COBAC tient et met à jour la liste des prestataires de services de paiement
+titulaires d’une autorisation préalable ou d'un avis de non-objection pour la fourniture
+de services de paiement.
+
+Article 37- Les établissements de crédit et de microfinance de la CEMAC en activité
+
+à la date d'entrée en vigueur du présent règlement, doivent déclarer à la Commission
+Bancaire, dans un délai de six mois, les services de paiement qu’ils fournissent et les
+solutions techniques utilisées.
+
+Sur la base de cette déclaration. la Commission Bancaire prend acte des services pour
+lesquels l'établissement dispose elfectivement de l'agrément ou de l’autorisation
+requise. ct notifie à chacun de ces établissements, pour chaque service retenu, le
+service correspondant au regard des services prévus à l’article 3 du présent règlement.
+
+L'extension d'activité ou le changement de solution technique, visés à l’article 29 du
+présent règlement, s'apprécient par rapport à la notification prévue à l'alinéa
+précédent.
+
+TITRE 7:
+
+OBLIGATIONS D'INFORMATION ET CONDITIONS D'EXECUTION DES
+OPERATIONS DE PAIEMENT
+
+Article 38- L'ouverture d’un compte de paiement ou la souscription à un service de
+paiement est subordonnée à la conclusion par le prestataire de services de paicment
+ou son distributeur. le cas échéant, et le ciient, d’un contrat qui établit clairement, de
+façon bien lisible, à peine de nullité :
+
+- l'identification du prestataire de services de paiement ;
+
+- le cas échéant. l'identification du distributeur ou du sous distributeur de services
+de paiement, dont la marque, le logo et la dénomination ou raison sociale ;
+
+- L'identité du client, conforme à un document officiel en cours de validité présenté
+par le client ;
+
+- les conditions d'utilisation des services de paiement ;
+- la description des usages possibles des services de paiement :
+
+- les plafonds appliqués aux opérations autorisées ;
+
+
+
+- Ja tarification des services ;
+
+- les obligations et responsabilités respectives du client et du prestataire de
+services de paiement ;
+
+- les risques et les mesures de prudence inhérents à l’utilisation des services de
+paiement ;
+
+- les modalités, les procédures et le délai d'opposition en cas de vol, de perte, de
+falsification d’un instrument de paiement ou de demande de remboursement des
+fonds ;
+
+- les conditions et modalités de Contestation des opérations effectuées ;
+- les conditions et modalités de restitution des fonds, y compris les frais éventuels
+y afférents :
+
+- les conditions et modalités de clôture du compte ;
+
+- les éléments permettant l'identification et la reconnaissance du réseau
+d’acceptation des services du prestataire ou auquel il adhère, constitué des
+distributeurs, des sous distributeurs et commerçants acceptant les opérations de
+paiement effectuées avec les instruments de paiement émis par le prestataire,
+dont la marque, le logo et la vitrophanie.
+
+Le contrat de souscription conclu avec chaque client énonce que le prestataire de
+scrvices de paiement est responsable, vis-à-vis du client, du bon dénouement des
+opérations réalisées par un distributeur ou un sous distributeur.
+
+Le client est informé, par écrit, dans une langue officielle de l'État d'implantation,
+sous une forme claire et aisément compréhensible, des conditions du contrat avant
+qu'il ne soit lié par un contrat ou une offre.
+
+Article 39- Le compte de paiement tenu par un établissement de paiement ne peut
+présenter une position débitrice qu’en cas de crédit dûment consenti par le client.
+
+Article 40- Les services de paiement sont fournis dans la limite des plafonds des
+comptes, instruments, opérations de paiement et des frais afférents fixés par la
+réglementation en vigueur.
+
+Article 41- Toute modification des informations ct conditions du contrat prévues à
+l'article 38 du présent réglement est proposée par le prestataire de services de
+paiement à un client, par écrit laissant trace de sa réception, dans une langue officielle
+de l'État, sous une forme claire ct aisément compréhensible, au plus tard un mois
+avant fa date prévue pour son entrée en vigueur. |
+
+Le client peut accepter ou rejeter la modification avant la date proposée pour son
+
+
+entrée en vigueur. Le prestataire de services de paiement informe le client :
+
+- que le client est réputé avoir accepté la modification s’il ne notifie pas le
+prestataire de services de paiement, avant la date d’entrée en vigueur proposée de
+cette modification, qu’il ne l’accepte pas ;
+
+- qu’au cas où fc client rejette la modification, il a le droit de résilier le contrat sans
+frais et avec effet à tout moment jusqu’à la date à laquelle la modification aurait
+été appliquée.
+
+IL incombe au prestataire de services de paiement de prouver qu’il satisfait aux
+exigences en matière d’information fixées dans le présent titre.
+
+Article 42- Toute opération de paiement ordonnée par un client donne lieu à la mise à
+
+disposition, immédiate, au client/payeur et, le cas échéant, au bénéficiaire, des
+informations suivantes :
+
+- le nom du prestataire de services de paiement ;
+- le numéro de référence du distributeur ou du sous-distributeur, le cas échéant ;
+- Ja nature de l’opération et du service de paiement y afférent ;
+= le montant ct les frais de l'opération ;
+- la date. l’heure et le numéro de référence de l’opération ;
+
+- l'identité du payeur, du bénéficiaire et, le cas échéant. de l’initiateur de
+l'opération ;
+
+- Ja confirmation de la réussite de l'initiation de l’ordre de paiement.
+
+Article 43- Le prestataire de services de paiement met à disposition du client les
+moyens appropriés lui permettant de faire une opposition sur les instruments de
+paiement en sa possession en cas de perte ou de vol et de prendre toutes les
+dispositions nécessaires pour empêcher toute utilisation du moyen de paiement dès
+opposition.
+
+Les services de paiement sont fournis conformément à la réglementation en vigueur
+en matière de régime juridique des moyens de paiement et de protection des
+consommateurs des services financiers, notamment les règles relatives :
+
+- au consentement et à l'autorisation d’une opération de paiement ; Loc
+
+- à la réception d’un ordre de paiement ; :
+
+- aux délais d'exécution d'un ordre de paiement ; noi
+
+
+- au refus d'exécuter un ordre de paiement ;
+
+- à La révocation d’un ordre de paiement ;
+
+- à la date de valeur d’une opération de paiement ;
+
+- aux responsabilités du client et du prestataire en cas de perte, vol, falsification
+d’un instrument de paiement, d’opération de paiement non-autorisée ou mal
+exécutée.
+
+Article 44- Le prestataire de services de paiement met en place un dispositif
+permanent de veille, de réception et de traitement des réclamations des clients.
+
+Ce dispositif doit :
+-_ être accessible par divers canaux à tout moment ;
+- engager l'établissement sur un délai de traitement des réclamations ;
+- assurer la traçabilité des réclamations reçues et traitées.
+TITRE 8 :
+
+EXIGENCES TECHNI :ABILITE, DE CONSERVATION DES
+INFORMATIONS ET DE REPORTING
+
+Article 45- Dans le cadre des opérations et services de paiement prévus par le présent
+
+règlement, l’écrit sous forme électronique, notamment les documents et transmissions
+
+électroniques, peut se substituer à l'écrit sur support papier et est reconnu comme
+équivalent, notamment en ce qui concerne sa validité juridique et sa force probatoire,
+lorsqu'il est établi et maintenu selon un procédé technique fiable, qui garantit, à tout
+moment, l'origine de l'écrit sous forme électronique et son intégrité au cours des
+traitements et des transmissions électroniques.
+
+Article 46- Toute solution technique utilisée pour la fourniture d’un service de
+paiement doit satisfaire aux spécifications ou exigences visant à :
+
+- assurer l'enregistrement et le traitement des opérations de paiement en temps
+réel :
+
+- assurer une haute disponibilité de la plateforme ;
+- assurer l'intégrité des messages ; RES
+
+- maintenir la confidentialité des informations ;
+
+
+
+-_ garantir l'authenticité des transactions ;
+- assurer la non-répudiation des transactions.
+Le prestataire de services de paiement doit notamment :
+- mettre en place un dispositif éprouvé de continuité de ses opérations :
+
+- mettre en œuvre une stratégie de gestion des risques définissant la politique, les
+pratiques et procédures associées aux risques inhérents au syslème et aux moyens
+ou instruments de paiement mis à disposition ;
+
+- prouver l'existence d’une piste d’audit permettant d’assurer une traçabilité des
+opérations depuis l’origine de l’ordre de paiement jusqu’à son dénouement.
+
+Article 47- Toute solution technique ou plateforme de services de paicment choisie
+par tout prestataire de services de paiement doit être conforme aux exigences fixées à
+l'article 46 du présent règlement, accessible et interopérable avec celles d’autres
+prestataires de services de paiement, dans des conditions objectives, non-
+discriminatoires et proportionnées.
+
+La BEAC définit le contenu minimal et obligatoire de l’intcropérabilité des solutions
+techniques, des plateformes et systèmes de paiements mis en place ou utilisées par les
+prestataires de services de paiement.
+
+La compensation et le règlement des opérations liées aux services de paiement ne
+peuvent être réalisés que dans un système de paiement autorisé ou organisé par fa
+Banque Centrale, conformément aux dispositions des articles 253 à 268 du règlement
+n° 03/16/CEMAC/UMAC'/CM.
+
+Article 48- Les fonds reçus par un prestataire de services de paiement de la part de
+clients en vue de la prestation de services de paiement sont distinctement identifiés
+dans la comptabilité de l'établissement, ainsi que dans celle de la banque
+domiciliataire pour les établissements de paiement, suivant les prescriptions édictées
+par règlement de la COBAC. l'intitulé de ces comptes mentionne l'origine et
+l'affectation des sommes qui y sont déposées.
+
+Article 49- L.es fonds reçus par un établissement de paiement de la part de clients
+doivent faire l'objet d’une réconciliation quotidienne avec l'encours du compte de
+
+cantonnement.
+
+Article 50: Le prestataire de services de paiement assure la conservation des
+
+documents liés à l'identification et à la traçabilité des opérations de paiement sur une.
+
+période de dix ans, à compter de la date de leur enregistrement ou de leur réalisation.
+
+So
+
+Article 51- Les établissements de paiement sont astrcints aux mêmes obligafions dé.
+
+ji:
+
+reporting à la Commission Bancaire que les établissements financiers, sous réserves de
+
+18
+
+CS
+DS
+.\
+
+\
+
++
+
+1
+
+
+spécifications particulières édictées par règlement de la COBAC.
+
+TITRE 9 :
+
+PROTECTION DES FONDS ET NORMES PRUDENTIELLES
+APPLICABLES AUX ETABLISSEMENTS DE PAIEMENT
+
+Article 52- [.cs fonds reçus par un établissement de paiement de la part des clients en
+vue de la prestation de services de paiement restent la propriété des clients.
+
+[ls ne doivent pas être utilisés pour le financement des besoins de l’exploitation dudit
+établissement ou des crédits consentis aux clients, tels que définis à l’article 10 du
+présent règlement.
+
+Ils ne peuvent être utilisés qu’aux fins de réalisation d'opérations de paiement.
+
+ls sont protégés contre tout recours d’autres créanciers de l'établissement de
+paiement, y compris en cas de procédure d'exécution ou de procédure collective
+d'apurement du passif ouverte à l'encontre de l'établissement.
+
+Article 53- Les fonds reçus par un établissement de paiement de la part de clients,
+directement ou par l'intermédiaire de distributeurs ou sous distributeur, sont
+domiciliés au plus tard le jour suivant, s'ils n’ont pas encore êté remis au bénéficiaire,
+dans un compte de cantonnement, exclusivement dédié à cette fin, ouvert dans une ou
+plusieurs banques de la CEMAC.
+
+En complément de l'obligation de cantonnement prévue à l'alinéa précédent. la
+COBAC peut également exiger que l'établissement de paiement assure la couverture
+des fonds reçus en vue de la prestation de services de paiement, par un contrat
+d'assurance ou une garantie à première demande d’un établissement de crédit non
+associé à l'établissement de paiement.
+
+| Article 54- Le compte de cantonnement prévu à l’article 53 du présent règlement fait
+l'objet d’une convention de compte spécifique dûment signée par l'établissement de
+paiement et la banque domiciliataire. Ce contrat prévoit au minimum des clauses
+relatives aux éléments ci-après :
+
+| les modalités de son fonctionnement ;
+| - les modalités de gestion des fonds par la banque ;
+i
+
+- es modalités d'information de l'établissement de paiement sur les mouvements.
+ayant affecté le compte de cantonnement ; TT \
+
+la tarification applicable. EE TEA)
+
+
+
+—————————"————"
+
+Le compte de cantonnement répond aux caractéristiques ci-après :
+
+-_ être global : son solde Correspond à la somme des fonds reçus de la clientèle et
+non remis aux bénéficiaires au plus tard le jour ouvrable suivant celui où ils ont
+été reçus ;
+
+- être séparé : il est identifié distinctement de tout autre compte ouvert par
+l'établissement de paiement lui appartenant et que son intitulé mentionne
+l’affectation des sommes qui y sont déposées :
+
+- être individualisé : l'établissement de paiement dispose, à tout moment, de sa
+ventilation par titulaire de compile de paiement.
+
+LC compte de cantonnement est rémunéré par la banque domiciliataire au profit de
+l'établissement de paiement, selon les modalités convenues dans la convention
+régissant le compte de cantonnement.
+
+Article 55- La souscription à un nouveau contrat de compte de cantonnement, à un
+nouveau Contrat d'assurance ou de garantie, la modification d’un contrat de compte de
+Cantonnement, d’un contrat d’assurance ou de garantie, prévus à l’article 53 du
+présent règlement, sont notifiés à la COBAC dans le délai d’un mois à compter de
+leur survenance.
+
+La Commission Bancaire ordonne la résolution des nouveaux contrats ou
+modifications lorsqu'elle estime que ces changements ne sont pas conformes ou ne
+permettent pas le respect des dispositions du présent règlement.
+
+Article 56- Tout établissement de paiement dispose en permanence d’une trésorerie
+suffisante pour couvrir les besoins en liquidité de ses clients.
+
+Article 57- Les établissements de paiement se dotent d’un dispositif adéquat de lutte
+contre le blanchiment de capitaux et le financement du terrorisme, conforme au
+réglement n° 01/16/CEMAC/UMAC/CM portant prévention et répression du
+blanchiment des capitaux et du financement du férrorisme ct de la prolifération en
+Afrique Centrale.
+
+Pour toute souscription à un compte bancaire ou de paicment ou opération de
+paiement, le prestataire de services de paiement, le distributeur ou sous-distributeur
+accomplit les diligences relatives à la connaissance de la clientèle, notamment
+l'identification certaine du donneur d’ordre et du bénéficiaire, la connaissance de ses
+activités, ainsi que l’origine des fonds. Ils sont tenus, en cas de doute, d’cffectuer une
+déclaration de soupçons aux autorités compétentes,
+
+La COBAC fixe par règlement les obligations spécifiques en matière de lutte <ontre-le .
+blanchiment de capitaux et le financement du terrorisme ct de la prolifération -
+applicables aux prestataires de services de paiement. | 4 —-
+} \ +
+
+\
+\
+
+
+Article 58- Les règles relatives aux normes de gestion que les établissements de
+paiement sont tenus de respecter en vue notamment de garantir leur liquidité, leur
+solvabilité, l'équilibre de leur situation financière et la pérennité de leurs activités
+sont fixées par règlement de la COBAC.
+
+. TITRE 10 :
+
+EXTERNALISATION DES FONCTIONS OPERATIONNELLES
+ESSENTIELLES
+
+Article 59- Au sens du présent règlement, une fonction opérationnelle est considérée
+comme essenticlle lorsqu'une anomalie ou une défaillance dans son exercice est
+susceptible de nuire sérieusement à la capacité du prestataire de services de paiement
+de se conformer de manière continue à la réglementation en vigueur, à ses
+performances financières, ou à la fiabilité ou à la continuité de ses services de
+paiement.
+
+L'externalisation d'une fonction opérationnelle essentielle consiste, pour un
+prestataire de services de paiement, à confier à un tiers, personne physique ne faisant
+pas partie de son personnel ou personne morale différente dudit établissement, de
+manière durable et à titre habituel. la réalisation de prestations de services relevant de
+de ladite fonction par sous-traitance, mandat ou délégation.
+
+Article 60- Un prestataire de service de paiement peut externaliser la réalisation
+d'une fonction opérationnelle essentielle auprès d'un partenaire technique.
+
+Toutefois, la réalisation d'une fonction concourant de façon substantielle à la
+prestation des services de paiement ou aux services connexes, tels que définis aux
+articles 3 et 12 du présent règlement, ne peut être externalisée qu'auprès d’un
+établissement agréé pour fournir lesdits services.
+
+La réalisation des activités relatives au contrôle permanent, à l'audit interne, au
+contrôle de la conformité ct à la gestion des risques ne peut être externalisée
+qu'auprès d'une entité du groupe bancaire auquel appartient lc prestataire de service
+de paiement.
+
+Lorsqu'un prestataire de services de paiement recourt à l’assistance technique d'un
+tiers, les prestations fournies dans ce cadre ne se traduisent pas par une externalisation
+des activités concernées au sens des dispositions de l’article 59 du présent règlement.
+
+Article 61- Le prestataire de services de paiement est responsable de la conformité du
+dispositif technique externalisé aux exigences du présent réglement.
+
+Le prestataire de services de paiement qui externalise la réalisation d’une fonction
+
+opérationnelle essentielle : put
+- s'assure que son système de contrôle interne inclut les activités externalisées :
+Mi
+
+
+
+- se dote de dispasitifs de contrôle de leurs activités externalisées.
+
+Article 62- La Commission Bancaire précise par règlementles conditions
+d‘externalisation des activités et de recours à assistance technique.
+
+Les prestataires de services de paiement transmettent à la Commission Bancaire, dans
+les conditions fixées par règlement de la COBAC, les informations relatives à la
+réalisation des fonctions opérationnelles essenticlles externalisées et à l’assistance
+technique.
+
+La COBAC peut s'opposer ou ordonner la suspension ou l'arrêt d’une externalisation
+ou d’une assistance technique auprès d’un partenaire technique lorsque :
+
+-_ celle estime que l’activité de ce partenaire technique met en péril la pérennité du
+prestataire de services de paiement ;
+
+- elle estime que le partenaire technique ne présente pas des garanties suffisantes
+de respect des conditions d’exercice fixées par le présent règlement,
+notamment en matière de protection des intérêts des clients, contrôle interne et
+gcstion des risques. traçabilité des opérations, lutte contre le blanchiment de
+capitaux et le financement du terrorisme ;
+
+- cle constate que le partenaire technique ou ses dirigeants responsables,
+tombent sous le coup des incompatibilités prévues à l’article 51 du règlement
+n° 02/15/CEMAC/UMAC.
+
+TITRE 11 :
+CONTROLE DES DISTRIBUTEURS DES SERVICES DE PAIEMENT
+
+Article 63- Le prestataire de services de paiement est habilité à recourir. dans les
+limites de son agrément. sous sa responsabilité et son contrôle. aux services d’une ou
+de plusieurs personnes morales ou physiques, dénommées distributeurs ou sous-
+distributeurs, en vue de commercialiser les contrats et la fourniture de certains
+services de paiement. Le distributeur ou sous-distributeur agit au nom ct pour le
+compte du prestataire de services de paiement.
+
+La fourniture de services de versement et de retrait, dans le cadre d’un service de
+paiement. au nom ct pour le compte d’un prestataire de service de paiement. n'est
+autorisée qu'aux distributeurs et sous-distributeurs dûment habilités conformément au
+présent règlement.
+
+Le distributeur ou sous-distributeur ne commercialise Îles contrats et services de
+
+paiement que dans la limite des stipulations de la convention avec le prestataire de
+services de paicment et sous le contrôle de celui-ci.
+
+
+Le sous-distributeur est mandaté directement par un ou plusieurs prestataires de
+services de paiement ou, le cas échéant, par leurs distributeurs dans la limite du
+mandat confié par le prestataire de services de paiement. Le sous-distributeur ne peut
+ni déléguer ni mandater une autre personne pour offrir des services de paiement pour
+lesquels il a été mandaté.
+
+Le distributeur commercialise les contrats et services de paiement dans les conditions
+SUIVANntes :
+
+- pour l'ouverture d’un compte de paiement: le distributeur collecte les
+documents et informations afférents aux obligations prévues à l’article 57,
+établit un contrat conformément aux dispositions de l’article 38 du présent
+règlement, puis communique ces documents et informations au prestataire de
+service de paiement pour la création du compte :
+
+- pour les services visés aux alinéas 1 et 5 de l’article 3 du présent règlement : le
+distributeur effectue les opérations par le truchement d’un compte dont il est
+titulaire dans les livres du prestataire de services de paicment ;
+
+- pour les services visés aux alinéas 2, 3 et 6 de l’article 3 du présent règlement :
+le distributeur reçoit l’ordre de paiement, collecte les documents et informations
+afférents aux obligations prévues à l’article 57 du présent règlement, puis les
+communique au prestataire de service de paiement pour la réalisation de
+l'opération de paiement ;
+
+- pour les services visés à l’alinéa 4 de l’article 3 du présent règlement: le
+distributeur ne fournit un instrument de paiement qu’au titulaire d’un compte
+bancaire ou de paiement auquel sera rattaché l'instrument.
+
+Le sous-distributeur ne fournit que les services visés aux alinéas 1 et 5 de l’article 3
+du présent règlement. dans les mêmes conditions que les distributeurs.
+
+Article 64- Le prestataire de services de paiement s’assure que :
+
+- les distributeurs ct sous-distributeurs apportent au public, par tout moyen
+approprié, notamment par voie d'affichage de manière visible et lisible, les
+informations relatives à la raison sociale. au logo, au nom commercial ainsi qu’à
+
+l'adresse du prestataire de services de paiement ;
+
+- les distributeurs et sous-distributeurs appliquent les prescriptions en matière de
+sécurité et de vigilance, définies dans le cadre de leur relation commerciale, y
+compris les mesures relatives à la lutte contre le blanchiment de capitaux et le
+
+financement du terrorisme. ;
+
+, Û
+
+Le prestataire de services de paiement met en place un dispositif de gestion. des 7:
+risques. en vuc d'identifier et de maîtriser tous les risques significatifs en rélation
+avec les exigences de ses activités et de celles de ses distributeurs et: sous-
+
+23
+
+
+
+distributeurs. Il effectue un contrôle permanent des distributeurs et sous-distributeurs
+et en communique les résultats à la COBAC. En cas de constat de défaillance, il prend
+les mesures de redressement qui s'imposent.
+
+Le prestataire de services de paiement est responsable, à l'égard de ses clients ct des
+tiers, des opérations réalisées par ses distributeurs et sous-distributeurs, dans le cadre
+de la fourniture de services pour lesquels ils ont été mandatés, A ce titre, il est
+responsable de l’intégrité, de la fiabilité, de la sécurité, de la confidentialité et de la
+traçabilité des transactions réalisées par chacun de ses distributeurs et sous-
+distributeurs.
+
+Article 65- Les distributeurs et sous-distributeurs apportent le concours nécessaire au
+prestataire de services de paiement pour assurer la traçabilité des transactions.
+
+Ils sont tenus de détenir un journal des opérations enregistrant les fraudes relevées ct
+les réclamations des clients, notamment, pour chaque fraude ou réclamation : la date,
+le montant, la contrepartie, la nature de la fraude ou la motivation de la réclamation.
+
+Dans le cadre de la mise en œuvre des mesures relatives à la lutte contre le
+blanchiment de capitaux cet le financement du terrorisme, les distributeurs et sous-
+distributeurs informent l'établissement émetteur des opérations suspectes qui ont un
+lien avec les services de paiement.
+
+Article 66- La Commission Bancaire précise par règlement les conditions de recours
+aux distributeurs et sous-distributeurs.
+
+Le prestataire communique à la Commission Bancaire, dans les conditions fixées par
+règlement de la COBAC, les informations relatives à l'activité de ses distributeurs et
+sous-distributeurs.
+
+La COBAC s'oppose ou ordonne la suspension ou l’arrêt du mandat d’un distributeur
+ou sous-distributeur lorsque :
+
+- elle estime que l'activité de ce distributeur ou sous-distributeur met en péril la
+pérennité du prestataire de services de paiement ;
+
+- elle estime que le distributeur ou sous-distributeur ne présente pas des garanties
+suffisantes de respect des conditions d'exercice fixées par le présent règlement,
+notamment en matière de protection des intérêts des clients, contrôle interne ct
+gestion des risques. traçabilité des opérations, lutte contre le blanchiment de
+capitaux et le financement du terrorisme ;
+
+- elle constate que le distributeur ou sous-distributeur personne physique ou morale;
+
+ou ses dirigeants responsables, tombent sous le coup des incompatibilités prévues. à. N
+
+l’article 51 du règlement n° 02/15/CEMAC/UMAC.
+
+at
+
+
+TITRE 12:
+
+CESSATION DE L'ACTIVITE
+
+Article 67- Les conditions et modalités de retrait d’agrément des établissements de
+paicment. de leurs dirigeants et commissaires aux comptes sont celles fixées par le
+règlement n° 02/1S/CEMAC/UMAC/COBAC du 27 mars 2015 modifiant ct
+complétant certaines conditions relatives à l'exercice de la profession bancaire dans la
+CEMAC et ses textes subséquents pour les établissements financiers, sous réserve des
+dispositions du présent règlement.
+
+Article 68- La révocation de l'autorisation préalable ou de l’avis de non-objection
+prévus au titre 6 du présent règlement, est prononcée par la COBAC, soit d'office. soit
+à la demande de la Banque Centrale, soit à la demande du prestataire de services de
+paiement.
+
+Article 69- Lorsque la COBAC prend l'initiative de la révocation de l'autorisation
+préalable ou de l’avis de non-objection, elle sollicite l'avis de la Banque Centrale.
+
+Le motif de la révocation et le dossier y relatif, sont communiqués à la BEAC qui
+dispose d’un délai d’un mois pour se prononcer. L'absence de décision à l'expiration
+de ce délai vaut avis favorable.
+
+Article 70- Lorsque la Banque Centrale sollicite la révocation de l'autorisation
+préalable ou de l’avis de non-objection, elle saisit la Commission Bancaire à qui elle
+communique le motif de la révocation et le dossier y relatif.
+
+Article 71- La révocation de l’autorisation préalable ou de l’avis de non-objection est
+prononcée d'office lorsque :
+
+- l'établissement n’a pas fait usage de son droit de fournir le service de paiement
+ou d'utiliser la solution technique dans un délai de douze mois à compter de la
+délivrance de l'autorisation préalable ou de l’avis de non-objection ;
+
+-_ l'établissement ne fournit plus le service de paiement ou n'utilise plus la solution
+technique depuis au moins six mois ;
+
+- l'établissement ne remplit plus les conditions au vu desquelles l'autorisation
+préalable ou de l'avis de non-objection lui a été délivré (c), notamment les
+exigences techniques fixées au titre 8 du présent règlement ;
+
+- ilest établi que les informations sur la base desquelles l'autorisation préalable ou :
+de l'avis de non-objection a été délivrée sont fausses au inexactes.
+
+Article 72- La décision de révocation de l'autorisation préalable ou de l'avis-denon-,
+objection est prononcée par la COBAC dans un délai d’un mois à compter dé :.
+4 “
+
+5
+
+
+
+- Ja notification à la COBAC de l’avis de la Banque Centrale, quand la révocation
+de l'autorisation préalable ou de l’avis de non-objcction est prononcée à
+l'initiative de la COBAC :
+
+- la réception de la demande du Gouverneur de la BEAC ou de l'établissement,
+quand la révocation de l'autorisation préalable ou de l’avis de non-objection est
+sollicitée par ceux-ci.
+
+La révocation de l'autorisation préalable ou de l'avis de nan-objection emporte
+cessation de la fourniture du service de paiement.
+
+Article 73- La révocation de l'autorisation préalable ou de l’avis de non-objection
+dûment motivée est notifiée à l'établissement concerné, avec ampliation à l’Autorité
+monétaire, à la Direction Nationale de la BEAC et au Conseil National du Crédit. Elle
+est publiée au Journal Officiel et dans au moins un des principaux organes de presse
+de l'Etat d'implantation.
+
+TITRE 13 :
+
+RESTITUTION DES FONDS
+
+Article 74- Les dispositions du présent article s’appliquent aux services de paiement
+visés à l’article 3-6 du présent règlement.
+
+Article 75- Le prestataire de services de paiement restitue, à la demande du client, à
+tout moment ct à la valeur nominale, les fonds reçus en vue de la prestation de
+services de paiement.
+
+La restitution s'effectue en francs CFA, en espèces, par chèque ou par virement sur un
+compte bancaire ou de paiement, selon la préférence exprimée par le client.
+
+Lorsque la restitution est demandée avant l'expiration du contrat, le client peut
+demander la restitution des fonds en tout ou en partie.
+
+Lorsque la restitution est demandée par le client à la date d'expiration du contrat ou
+dans un délai d’un mois après celle-ci, la totalité des fonds détenus est restituée.
+
+Lorsque la restitution est effectuéc par un distributeur, le prestataire de service de
+paiement assume l'entière responsabilité du bon déroulement de l'opération.
+
+Article 76- La restitution des fonds peut donncr lieu au prélèvement de frais si le
+contrat le prévoit et uniquement dans l’un des cas suivants :
+
+= la restitution st demandée plus d'un mois après la date d'expiration du contrat.
+
+1”
+
+| - la restitution est demandée avant l'expiration du contrat ;
+26
+
+
+
+Article 77- Au terme d’un délai d’un mois à compter de l’expiration du contrat, le
+prestataire de services de paiement est tenu de virer dans un compte ouvert à cet effet
+dans ses livres, les fonds non réclamés par le client, déduction faite, le cas échéant,
+des frais de restitution dans les conditions prévues à l’article 76 du présent règlement.
+
+Le prestataire de services de paiement tient à jour la liste des clients non remboursés
+ct des sommes dues. La tenue du compte visé à l’alinéa précédent doit être conforme
+aux règles d'identification et de traçabilité fixées à l’article 48 du présent règlement.
+
+Article 78- À compter de la notification du retrait d'agrément ou de la révocation de
+l'autorisation préalable, le prestataire de services de paiement :
+
+- informe sans délai, par des moyens adaptés à la nature de sa clientèle, toute
+personne titulaire d’un compte dans ses livres en vue de prestations de services
+de paiement, de la cessation de son activité et du délai de retrait desdits fonds
+par les clients ;
+
+- dans un délai de deux mois, tient à disposition des clients, en vue de leur
+restitution, sans frais, les fonds non utilisés.
+
+A l'expiration du délai de six mois à compter de la notification de la révocation de
+l'autorisation préalable, le prestataire de services de paiement transfère au Trésor
+public. après conversion éventuellement, les fonds non réclamés par les clients et non
+encore restitués, en indiquant pour chaque client, l'identité, la référence de
+l'instrument de paiement et le montant.
+
+A la clôture de la liquidation, le liquidateur du prestataire de services de paiement
+transfère au Trésor public, après conversion éventuellement, les fonds non réclamés
+par les clients et non encore restitués. en indiquant pour chaque client, l'identité, la
+référence de l'instrument de paiement et le montant.
+
+Les fonds transférés au Trésor public sont cantonnés dans un compte spécial. Ils
+peuvent être réclamés par le client au plus tard dix ans après la date de leur
+transmission au Trésor public par le prestataire de services de paiement. À
+l'expiration de ce délai de réclamation les fonds transférés et non réclamés devicnnent
+la propriété du Trésor public.
+
+TITRE 14:
+
+INTERDICTIONS
+
+Article 79- Il est interdit à toute personne physique ou morale qui ne bénéficie pas de
+
+la qualité de prestataire de services de paiement de fournir. à titre de profession
+habituelle, un service de paiement tel que défini au titre 2 du présent règlement.
+
+Article 80- I! est interdit à toute personne physique ou morale autre qu'un prestafäire —
+de services de paiement d’utiliser une dénomination. une raison sociale, une publicité : ".
+ou d’une façon générale des expressions susceptibles de faire croire qu'elle est . :
+habilitée à fournir des services de paiement, ou de créer une confusion à ce sujét: Li
+
+
+
+L'interdiction édictée à l’alinéa précédent ne fait pas obstacle aux actions de
+communication des distributeurs des prestataires de services de paiement, liées à la
+fourniture de services de paiement, sous réserve que le prestataire y soit clairement
+mentionné comme l'établissement agréé à fournir ces services.
+
+Article 81- Il est interdit à tout établissement de paiement d'utiliser une
+dénomination, une raison sociale, une publicité ou d’une façon générale des
+
+expressions susceptibles de faire croire qu’il est agréé en qualité d'établissement de
+crédit ou de microfinance, ou de créer une confusion à ce sujet.
+
+Article 82- Les sanctions prévues à l’article 45 de l’Annexe à la Convention du 17
+janvier 1992 sont applicables en cas de violation des dispositions du présent titre.
+TITRE 15 :
+
+DISPOSITIONS TRANSITOIRES ET FINALES
+
+Article 83- Les établissements de crédit et de microfinance de la CEMAC, en activité
+à la date d’entrée en vigueur du présent règlement, qui fournissent des services de
+paiement, disposent d’une période transitoire de douze mois, pour se conformer aux
+dispositions du présent règlement.
+
+Article 84- Les entreprises qui fournissent dans la CEMAC des services de paiement
+à titre de profession habituelle, sans agrément en qualité d’établissement de crédit,
+d'établissement de microfinance ou d'établissement de paiement, disposent d’un délai
+de douze mois à compter de l’entrée en vigueur du présent règlement pour solliciter
+un agrément et sc conformer au règlement.
+
+Sans préjudice des mesures et sanctions prévues par la réglementation en vigueur,
+l'Autorité monétaire est habilitée à procéder à la fermeture d'office des
+établissements qui fournissent à titre de profession habituelle des services de
+paiement, sur le territoire de son Etat, sans avoir été agréés conformément au présent
+règlement.
+
+Article 85- La Commission Bancaire et la Banque Centrale prennent toutes les
+dispositions pour l’accomplissement harmonieux et efficace des missions qui leurs
+sont confiées par le présent règlement, le cas échéant, en collaboration avec les
+organismes visés à l'article 19 du présent règlement.
+
+Article 86- L'article 193 du règlement n°03/16/CEMAC/UMAC/CM est modifié
+comme suit :
+
+« Article 193 : La monnaie électronique est une valeur monétaire stockée sous une
+
+forme électronique, y compris informatique où numérique, représentant uiie créance...
+, , Q n 4 ‘ , . PT LE !
+sur l'émetteur, qui est émise à la valeur nominale contre remise de fonds. Lux Jins 0:
+
+
+
+a —
+
+d'opérations de paiement et qui est acceptée par une personne Physique ou morale
+autre que son émetteur, sans faire intervenir de compte bancaire dans la transaction.
+
+Les conditions d'émission et gestion de la monnaie électronique sont définies par un
+texte particulier. ».
+
+Article 87- Le présent règlement abroge toutes dispositions antérieures contraires,
+notamment :
+
+- les articles 194 et 195 du règlement n° 03/16/CEMAC/UMAC/CM du 21
+décembre 2016 relatif aux Systèmes, moyens et incidents de paiement ;
+
+- le règlement n°01/11/CEMAC/UMAC/COBAC du 18 septembre 2011 relatif à
+l'exercice de l’activité d'émission de monnaie électronique.
+
+Article 88- Le présent règlement entre en vigueur à compter du 1° janvier 2019. Il est
+publié au Bulletin Officiel de la Communauté Economique et Monétaire de l'Afrique
+Centrale./-
+
+29

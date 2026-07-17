@@ -70,11 +70,33 @@ pas rattraper (il ne détecte que l'absence de source, pas sa corruption).
 
 ### Pour débloquer les 3 textes restants
 
-1. **Reconstruire l'image applicative.** Le `Dockerfile` installe déjà
-   `tesseract-ocr`, `tesseract-ocr-fra` et `poppler-utils`, mais l'image en service
-   date d'avant cet ajout : `which tesseract` → absent. À noter, le `pip install …
-   pytesseract pdf2image || true` du Dockerfile **masque son propre échec**.
-2. **OCRiser** les scans (200-300 dpi, `lang=fra`).
+1. **Obtenir l'OCR.** Le `Dockerfile` installe déjà `tesseract-ocr`,
+   `tesseract-ocr-fra` et `poppler-utils`, mais l'image en service date d'avant cet
+   ajout (`which tesseract` → absent). À noter, le `pip install … pytesseract
+   pdf2image || true` du Dockerfile **masque son propre échec**.
+
+   > **La reconstruction est bloquée sans `HF_TOKEN`.** Le `Dockerfile` (l. 84-89)
+   > télécharge bge-m3 (~2,3 Go) au build **sans filet** (pas de `|| true` sur cette
+   > étape) : sans token, le Hub bride les requêtes anonymes et le build cale puis
+   > échoue. Aucun `HF_TOKEN` n'est présent dans l'environnement.
+   >
+   > **Contournement sans reconstruire** (utilisé le 2026-07-17) : `apt-get`
+   > fonctionne dans un conteneur jetable lancé en root, ce qui suffit à océriser
+   > hors image :
+   > ```
+   > docker compose run --rm --no-deps --user root \
+   >   -v <repo>/scripts:/app/scripts:ro -v <repo>/data/fintech/ocr:/out app \
+   >   sh -c "apt-get update -qq && apt-get install -y -qq tesseract-ocr \
+   >          tesseract-ocr-fra poppler-utils && pip install -q pytesseract pdf2image \
+   >          && python scripts/ocr_scan.py <url> /out/<nom>.txt --dpi 300"
+   > ```
+   > Bakage bge-m3 : inutile en dev — `docker-compose.local.yml` monte déjà le modèle
+   > depuis l'hôte (`/opt/bge-m3`). Il ne compte que pour l'image de production.
+
+2. **OCRiser** les scans : `scripts/ocr_scan.py <url|fichier> <sortie.txt> --dpi 300`.
+   Le script réocérise **depuis les images de page**, en ignorant la couche texte
+   existante (indispensable pour le PDF 2024, dont la couche est corrompue), et rend
+   un **taux de mots français reconnus** — sous ~25 %, le texte est inexploitable.
 3. **Faire relire les seuils par un humain** avant de passer `validated:true`. L'OCR
    se trompe précisément là où ça coûte le plus cher : les chiffres.
 

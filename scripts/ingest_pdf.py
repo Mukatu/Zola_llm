@@ -91,8 +91,22 @@ def _telecharger(url: str, tentatives: int = 5) -> Path:
     raise RuntimeError(f"Téléchargement échoué après {tentatives} tentatives : {url}") from dernier
 
 
-def _resoudre_source(url: str | None, fichier: str | None) -> tuple[Path, str]:
-    """Retourne (chemin local, source_uri). Télécharge si URL."""
+def _resoudre_source(
+    url: str | None, fichier: str | None, source_uri: str | None = None
+) -> tuple[Path, str]:
+    """Retourne (chemin local, source_uri). Télécharge si URL.
+
+    `source_uri` force la provenance déclarée, indépendamment de l'origine du
+    fichier lu. Nécessaire pour un texte **préparé localement** (ex. scan
+    réocérisé par ``ocr_scan.py``) qui doit rester cité par son URL officielle :
+    sans cela, les citations pointeraient vers un chemin temporaire et le lecteur
+    ne pourrait plus remonter au texte de référence.
+    """
+    if source_uri:
+        p = Path(fichier) if fichier else _telecharger(url or "")
+        if fichier and not p.exists():
+            raise FileNotFoundError(p)
+        return p, source_uri
     if url:
         return _telecharger(url), url
     assert fichier is not None
@@ -113,8 +127,9 @@ async def ingerer(
     dry_run: bool,
     ocr: bool = True,
     ocr_lang: str = "fra",
+    source_uri_force: str | None = None,
 ) -> None:
-    chemin, source_uri = _resoudre_source(url, fichier)
+    chemin, source_uri = _resoudre_source(url, fichier, source_uri_force)
     texte = _load_text(chemin)
     print(f"Document : {source_uri}\n  {len(texte)} caractères extraits.")
 
@@ -170,6 +185,15 @@ if __name__ == "__main__":
     )
     p.add_argument("--source-id", required=True, help="identifiant stable de la source")
     p.add_argument(
+        "--source-uri",
+        default=None,
+        help=(
+            "force la provenance déclarée (URL officielle). À utiliser avec --file "
+            "quand le texte a été préparé localement (ex. scan réocérisé) mais doit "
+            "rester cité par son URL de référence."
+        ),
+    )
+    p.add_argument(
         "--pii",
         default="none",
         choices=[pol.value for pol in PIIRedactionPolicy],
@@ -193,5 +217,6 @@ if __name__ == "__main__":
             dry_run=args.dry_run,
             ocr=not args.no_ocr,
             ocr_lang=args.ocr_lang,
+            source_uri_force=args.source_uri,
         )
     )

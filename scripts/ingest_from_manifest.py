@@ -40,8 +40,6 @@ def _construire_commande(c: dict, defaults: dict, dry_run: bool) -> list[str]:
         cmd = [
             sys.executable,
             str(SCRIPTS_DIR / "ingest_pdf.py"),
-            "--url",
-            c["url"],
             "--schema",
             c["schema"],
             "--source-id",
@@ -51,6 +49,14 @@ def _construire_commande(c: dict, defaults: dict, dry_run: bool) -> list[str]:
             "--pii",
             str(c.get("pii", defaults.get("pii", "none"))),
         ]
+        # `file` = texte déjà préparé localement (scan réocérisé par ocr_scan.py).
+        # On l'ingère tel quel, mais la provenance déclarée reste l'URL officielle
+        # pour que les citations remontent au texte de référence, pas à un fichier
+        # du dépôt.
+        if c.get("file"):
+            cmd += ["--file", str(SCRIPTS_DIR.parent / c["file"]), "--source-uri", c["url"]]
+        else:
+            cmd += ["--url", c["url"]]
     else:
         raise ValueError(f"{c.get('id')} : method inconnue {method!r}")
     if dry_run:

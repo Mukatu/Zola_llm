@@ -139,56 +139,64 @@ corpora:
       Règlement n°01/17/CEMAC/UMAC/COBAC du 27/09/2017 — conditions d'exercice
       et de contrôle de l'activité de microfinance (EMF) dans la CEMAC.
       Fondement du pôle fintech (agrément, catégories d'EMF, ratios prudentiels).
-  # Les 3 entrées ci-dessous sont BLOQUÉES à l'ingestion — ce n'est pas un oubli.
-  # Diagnostic du 2026-07-17, URLs vérifiées (HTTP 200) mais contenu inexploitable :
-  #   - LBC-FT 2016 (sgg.cg et gabac.org) : scan pur, pypdf extrait 0 caractère.
-  #   - Paiements 2016 / 2018 (beac.int)  : scans purs, 0 caractère.
-  #   - LBC-FT 2024 (gabac.org)           : PIRE — couche texte présente mais
-  #     issue d'un mauvais OCR d'origine. 203 000 caractères de charabia où les
-  #     nombres sont détruits (« déclarer à l'ANIF … présence d'au moins ,, »).
+  # Les 3 entrées ci-dessous sont diffusées en SCAN (0 caractère extractible), ou
+  # — pire pour le LBC-FT 2024 — avec une couche texte issue d'un mauvais OCR
+  # d'origine : 203 000 caractères de charabia où les NOMBRES sont détruits
+  # (« déclarer à l'ANIF … présence d'au moins ,, »).
+  #
   # PIÈGE : ingest_pdf n'OCRise que si l'extraction rend < _MIN_TEXTE (400)
-  # caractères. Il détecte le texte ABSENT, pas le texte CORROMPU → le PDF 2024
-  # passerait le seuil et polluerait le corpus SILENCIEUSEMENT. Ne pas repasser
-  # ces entrées en `ready` sans avoir relu un échantillon du texte extrait.
-  # Débloquer suppose : (1) reconstruire l'image (le Dockerfile installe déjà
-  # tesseract/poppler mais l'image en service date d'avant — l'OCR y est absent),
-  # (2) OCRiser, (3) FAIRE RELIRE LES SEUILS PAR UN HUMAIN. Un seuil AML océrisé
-  # de travers est plus dangereux qu'un corpus vide : il a l'air sourcé.
+  # caractères. Il détecte le texte ABSENT, jamais le texte CORROMPU → sur --url,
+  # le PDF 2024 franchirait le seuil et polluerait le corpus SILENCIEUSEMENT.
+  # D'où `file:` ci-dessous : on ingère un texte RÉOCÉRISÉ depuis les images de
+  # page (scripts/ocr_scan.py --dpi 300), la couche d'origine étant ignorée.
+  # `url:` reste la provenance déclarée → les citations remontent au texte officiel.
+  #
+  # validated:false + ocr:true, DÉLIBÉRÉMENT : ces textes sont transcrits par
+  # machine. Les seuils y sont lisibles et recoupables (le droit écrit les
+  # montants en lettres ET en chiffres — « cinq millions (5.000.000) » — ce qui
+  # fournit une somme de contrôle), mais le passage à validated:true suppose une
+  # RELECTURE HUMAINE des chiffres. Un seuil AML faux a l'air sourcé.
   - id: cemac_lbcft_2024
     method: pdf
     url: https://gabac.org/wp-content/uploads/2025/05/Reglement-N%C2%B002CEMAC-UMAC-CM-LBC_FT-2024.pdf
+    file: data/fintech/ocr/cemac_lbcft_2024.txt
     schema: rag_fintech
-    tags: [country:cg, country:cemac, module:lbcft, type:texte_legal, source:gabac, validated:false]
+    tags: [country:cg, country:cemac, module:lbcft, type:texte_legal, source:gabac, ocr:true, validated:false]
     license: règlement communautaire CEMAC (public, via GABAC)
-    status: pending
+    status: ready
     note: >-
-      Règlement n°02/24/CEMAC/UMAC/CM (2024) — LBC-FT. C'est le texte À JOUR :
-      il révise le règlement n°01/CEMAC/UMAC/CM du 11/04/2016, qu'il ne faut
-      donc PAS ingérer comme référence courante. Fondement du KYC/AML.
-      Bloqué : couche texte corrompue (cf. encadré ci-dessus) → re-OCR + relecture
-      humaine des seuils obligatoires. gabac.org renvoie 500 sur un User-Agent
-      minimal : il faut un UA de navigateur complet + Referer.
+      Règlement n°02/24/CEMAC/UMAC/CM (2024) — LBC-FT, fondement du KYC/AML.
+      C'est le texte À JOUR : il révise le n°01/CEMAC/UMAC/CM du 11/04/2016, qu'il
+      ne faut donc PAS ingérer comme référence courante (texte abrogé). Réocérisé
+      à 300 dpi (44 % de mots français reconnus) : les seuils détruits par la
+      couche d'origine sont restitués — « déclarer à l'ANIF les transactions en
+      espèces d'un montant égal ou supérieur à cinq millions (5.000.000) de
+      Francs CFA », conservation « au moins dix (10) ans ». gabac.org renvoie 500
+      sur un User-Agent minimal : UA de navigateur complet + Referer nécessaires.
   - id: cemac_services_paiement_2018
     method: pdf
     url: https://www.beac.int/wp-content/uploads/2019/07/REGLEMENT-N-04-18-CEMAC-UMAC-COBAC-du-21-d%C3%A9cembre-2018.pdf
+    file: data/fintech/ocr/cemac_services_paiement_2018.txt
     schema: rag_fintech
-    tags: [country:cg, country:cemac, module:paiements, type:texte_legal, source:beac, validated:false]
+    tags: [country:cg, country:cemac, module:paiements, type:texte_legal, source:beac, ocr:true, validated:false]
     license: règlement communautaire CEMAC (public, via BEAC)
-    status: pending
+    status: ready
     note: >-
       Règlement n°04/18/CEMAC/UMAC/COBAC du 21/12/2018 — services de paiement
       (prestataires, monnaie électronique / Mobile Money). Scan pur (29 pages,
-      0 caractère extrait) → OCR requis.
+      0 caractère) → réocérisé à 300 dpi, 46 % de mots français reconnus.
   - id: cemac_incidents_paiement_2016
     method: pdf
     url: https://www.beac.int/wp-content/uploads/2019/07/REGLEMENT-N-03-CEMAC-UMAC-CM-du-21-d%C3%A9cembre-2016.pdf
+    file: data/fintech/ocr/cemac_incidents_paiement_2016.txt
     schema: rag_fintech
-    tags: [country:cg, country:cemac, module:paiements, type:texte_legal, source:beac, validated:false]
+    tags: [country:cg, country:cemac, module:paiements, type:texte_legal, source:beac, ocr:true, validated:false]
     license: règlement communautaire CEMAC (public, via BEAC)
-    status: pending
+    status: ready
     note: >-
       Règlement n°03/CEMAC/UMAC/CM du 21/12/2016 — systèmes, moyens et incidents
-      de paiement. Scan pur (84 pages, 0 caractère extrait) → OCR requis.
+      de paiement. Scan pur (84 pages, 0 caractère) → réocérisé à 300 dpi, 39 %
+      de mots français reconnus.
 
   # ---- Santé — pharmacology --------------------------------------------
   - id: lnme_cg_2016
