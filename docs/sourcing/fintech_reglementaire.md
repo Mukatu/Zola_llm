@@ -6,9 +6,12 @@ CEMAC / République du Congo).
 
 > **Règle de non-fabrication.** Ce corpus ne doit contenir que des **textes
 > officiels obtenus des sources ci-dessous**. Aucun seuil, taux ou ratio
-> réglementaire n'est saisi de mémoire. Tant que les textes ne sont pas
-> récupérés, seule une **fiche d'orientation** (institutions et périmètres,
-> sans valeur chiffrée, `validated:false`) est ingérée.
+> réglementaire n'est saisi de mémoire.
+>
+> Une fiche d'orientation `validated:false` (institutions et périmètres, sans
+> valeur chiffrée) avait servi d'amorce tant qu'aucun texte n'était disponible.
+> Elle a été **retirée le 2026-07-17**, les vrais règlements étant ingérés : la
+> laisser la faisait remonter en tête de citation devant les textes officiels.
 
 ## Institutions et périmètres
 
@@ -111,4 +114,9 @@ passent, sans qu'il soit besoin de masquer l'identité de l'outil.
   `validated:true|false`.
 - Chaque texte porte `source_uri` = URL officielle ; `source_id` = référence du
   texte. Métadonnée `validated:true` **uniquement** pour un texte officiel vérifié.
-- Ingestion : `python scripts/ingest_fintech.py` (traite `data/fintech/`).
+- Ingestion : déclarer le corpus dans `ingest_manifest.yml`, puis
+  `scripts/ingest_from_manifest.py --only <id>`. Pour un scan, réocériser d'abord
+  avec `scripts/ocr_scan.py` et pointer le `.txt` via le champ `file:` (l'`url:`
+  reste la provenance déclarée). L'ancien `scripts/ingest_fintech.py`
+  (glob de `data/fintech/`, tag figé `module:orientation`) a été supprimé : il
+  mistaguait les textes réels.
