@@ -32,6 +32,56 @@ CEMAC / République du Congo).
 
 Portails : BEAC (beac.int), COBAC, Secrétariat CEMAC, GABAC, Journal Officiel CG.
 
+## État au 2026-07-17 — textes récupérés et vérifiés
+
+Les 4 URLs ci-dessous ont été **testées** (HTTP 200, `application/pdf`) et le texte
+extrait a été **relu** avant toute décision d'ingestion. Déclarés dans
+`ingest_manifest.yml`.
+
+| Texte | Source | Extraction | État |
+|---|---|---|---|
+| Règl. **01/17/CEMAC/UMAC/COBAC** (27/09/2017) — exercice et contrôle de la **microfinance** | [sgg.cg](https://www.sgg.cg/txts-droit-reg/cemac-reglement-2017-01-exercice-controle-microfinance.pdf) | texte natif, corps propre (seule la page de garde est un scan illisible) | ✅ **ingéré** — 36 chunks, `validated:true` |
+| Règl. **02/24/CEMAC/UMAC/CM** (2024) — **LBC-FT** | [gabac.org](https://gabac.org/textes-organiques/) | couche texte présente mais **corrompue** | ⛔ bloqué |
+| Règl. **04/18/CEMAC/UMAC/COBAC** (21/12/2018) — services de paiement | [beac.int](https://www.beac.int/systemes-paiement/instructions-circulaires-reglements/) | scan pur, 0 caractère | ⛔ bloqué (OCR) |
+| Règl. **03/CEMAC/UMAC/CM** (21/12/2016) — systèmes, moyens et incidents de paiement | [beac.int](https://www.beac.int/systemes-paiement/instructions-circulaires-reglements/) | scan pur, 0 caractère | ⛔ bloqué (OCR) |
+
+### Le texte LBC-FT à jour est celui de 2024, pas celui de 2016
+
+Le règlement n°01/CEMAC/UMAC/CM du 11/04/2016 (largement référencé, et disponible en
+clair sur sgg.cg) a été **révisé** par le règlement **n°02/24/CEMAC/UMAC/CM**, publié
+par le GABAC. Ingérer la version 2016 comme référence courante ferait citer à
+l'assistant un texte abrogé — sur du KYC/AML, c'est une faute de conformité.
+
+### Pourquoi le LBC-FT 2024 n'est pas ingéré malgré une couche texte
+
+`pypdf` en extrait 203 000 caractères, mais c'est le produit d'un **mauvais OCR
+d'origine**, dégradé sur toute la longueur — et **les nombres sont détruits** :
+
+> `déclarer à I'ANIF les sornmes … présence d'au moins ,, ..iæ.r aËini`
+
+Un seuil de déclaration océrisé de travers est **plus dangereux qu'un corpus vide** :
+il produit une réponse fausse d'apparence sourcée, que le garde-fou d'ancrage ne peut
+pas rattraper (il ne détecte que l'absence de source, pas sa corruption).
+
+> **Piège outillage.** `ingest_pdf.py` ne bascule sur l'OCR que si l'extraction rend
+> moins de `_MIN_TEXTE` (400) caractères. Il détecte le texte **absent**, jamais le
+> texte **corrompu** — le PDF 2024 franchirait le seuil et polluerait le corpus en
+> silence. **Toujours relire un échantillon du texte extrait avant d'ingérer.**
+
+### Pour débloquer les 3 textes restants
+
+1. **Reconstruire l'image applicative.** Le `Dockerfile` installe déjà
+   `tesseract-ocr`, `tesseract-ocr-fra` et `poppler-utils`, mais l'image en service
+   date d'avant cet ajout : `which tesseract` → absent. À noter, le `pip install …
+   pytesseract pdf2image || true` du Dockerfile **masque son propre échec**.
+2. **OCRiser** les scans (200-300 dpi, `lang=fra`).
+3. **Faire relire les seuils par un humain** avant de passer `validated:true`. L'OCR
+   se trompe précisément là où ça coûte le plus cher : les chiffres.
+
+À noter : `gabac.org` renvoie **HTTP 500** sur le User-Agent du script
+(`Mozilla/5.0 (ZolaOS ingestion bot)`). Un UA de navigateur complet + un `Referer`
+passent, sans qu'il soit besoin de masquer l'identité de l'outil.
+
 ## Convention d'ingestion
 
 - Schéma : `rag_fintech`. Tags : `country:cg`, `country:cemac`, `module:<domaine>`
