@@ -56,6 +56,11 @@ class Citation:
     source_id: str | None
     chunk_index: int
     similarity: float
+    # Texte VERBATIM du chunk cité. Surfacé tel quel à l'écran sous la réponse :
+    # la complétude et la fidélité viennent de l'affichage du texte réel, pas de
+    # ce que le modèle (8B, sujet à la sous-lecture) en restitue. Le raisonnement
+    # du modèle s'adosse à ce texte au lieu d'en être la seule source.
+    content: str = ""
 
 
 @dataclass(frozen=True)
@@ -221,6 +226,7 @@ class RAGAgent:
                 source_id=m.source_id,
                 chunk_index=m.chunk_index,
                 similarity=m.similarity,
+                content=m.content,
             )
             for i, m in enumerate(matches)
         ]

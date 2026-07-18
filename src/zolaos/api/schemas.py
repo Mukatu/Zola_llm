@@ -47,6 +47,7 @@ class CitationOut(BaseModel):
     source_id: str | None = None
     similarity: float
     schema_rag: str | None = None  # schéma du corpus (pour lien Bibliothèque)
+    extrait: str = ""  # texte verbatim du chunk cité (affiché sous la réponse)
 
 
 class AgentResponseOut(BaseModel):

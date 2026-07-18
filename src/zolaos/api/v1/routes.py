@@ -86,6 +86,7 @@ async def query(
                         source_id=c.source_id,
                         similarity=c.similarity,
                         schema_rag=r.rag_schema,
+                        extrait=c.content,
                     )
                     for c in r.citations
                 ],

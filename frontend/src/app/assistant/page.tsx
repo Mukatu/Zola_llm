@@ -7,6 +7,7 @@ import { useZola } from "@/components/ConfigProvider";
 import { Card, Button } from "@/components/ui";
 import { FeedbackBar } from "@/components/FeedbackBar";
 import { GroundingBadge } from "@/components/GroundingBadge";
+import { CitationTexts } from "@/components/CitationTexts";
 import { Prose } from "@/components/Prose";
 import { ApiError } from "@/lib/api";
 import { streamQuery, type Citation, type Grounding } from "@/lib/query";
@@ -123,6 +124,7 @@ export default function AssistantPage() {
                 )}
               </div>
             )}
+            {m.role === "assistant" && !m.streaming && <CitationTexts citations={m.citations} />}
             {m.role === "assistant" && !m.error && !m.streaming && (
               <FeedbackBar
                 agent={m.pole ?? "general"}

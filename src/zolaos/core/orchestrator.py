@@ -168,6 +168,7 @@ class Orchestrator:
                         "source_uri": c.source_uri,
                         "source_id": c.source_id,
                         "similarity": c.similarity,
+                        "extrait": c.content,
                     }
                     for c in prepared.citations
                 ],

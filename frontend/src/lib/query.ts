@@ -11,6 +11,7 @@ export interface Citation {
   source_id: string | null;
   similarity: number;
   schema_rag?: string | null; // corpus de la citation (lien Bibliothèque)
+  extrait?: string; // texte verbatim du chunk cité (affiché sous la réponse)
 }
 /**
  * Ancrage de la réponse :

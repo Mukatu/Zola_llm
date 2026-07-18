@@ -7,6 +7,7 @@ import { Sparkles, X, Send } from "lucide-react";
 import { streamQuery, type Citation, type Grounding } from "@/lib/query";
 import { FeedbackBar } from "@/components/FeedbackBar";
 import { GroundingBadge } from "@/components/GroundingBadge";
+import { CitationTexts } from "@/components/CitationTexts";
 import { Prose } from "@/components/Prose";
 import { ApiError } from "@/lib/api";
 
@@ -179,6 +180,7 @@ export function AssistantDock() {
                 )}
               </div>
             )}
+            {m.role === "assistant" && !m.streaming && <CitationTexts citations={m.citations} />}
             {m.role === "assistant" && !m.error && !m.streaming && (
               <FeedbackBar
                 agent={m.pole ?? "general"}
