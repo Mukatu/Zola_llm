@@ -43,6 +43,7 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from zolaos.core.settings import Settings, get_settings
 from zolaos.rag.chunking import get_chunker
+from zolaos.rag.chunking_specialized import CHUNKER_REGISTRY, get_specialized_chunker
 from zolaos.rag.ingest import _load_text, ingest_text
 from zolaos.security.pii import PIIRedactionPolicy
 
@@ -62,6 +63,23 @@ def _ocr_pdf(path: Path, lang: str = "fra") -> str:
 
     pages = convert_from_path(str(path), dpi=200)
     return "\n\n".join(pytesseract.image_to_string(img, lang=lang) for img in pages)
+
+
+def _resoudre_chunker(nom: str | None):
+    """Retourne l'instance de chunker à utiliser.
+
+    ``None``/``"generic"`` (défaut) → fenêtre glissante inchangée
+    (`zolaos.rag.chunking.get_chunker`), pour rester rétro-compatible avec
+    tout appel existant qui ne connaît pas `--chunker`.
+
+    Un nom connu du registre spécialisé (ex. ``legal_article``) sélectionne
+    le chunker structurel correspondant (cf. `chunking_specialized.py`) ; il
+    retombe lui-même sur la fenêtre glissante si le pattern attendu (headers
+    d'article, etc.) n'est pas détecté dans le texte.
+    """
+    if not nom or nom == "generic":
+        return get_chunker()
+    return get_specialized_chunker(nom)
 
 
 def _dsn_async_migrator(settings: Settings) -> str:
@@ -128,6 +146,7 @@ async def ingerer(
     ocr: bool = True,
     ocr_lang: str = "fra",
     source_uri_force: str | None = None,
+    chunker_name: str | None = None,
 ) -> None:
     chemin, source_uri = _resoudre_source(url, fichier, source_uri_force)
     texte = _load_text(chemin)
@@ -139,8 +158,12 @@ async def ingerer(
         texte = _ocr_pdf(chemin, lang=ocr_lang)
         print(f"  OCR : {len(texte)} caractères reconnus.")
 
-    chunks = get_chunker().chunk(texte)
-    print(f"  {len(chunks)} chunks (schéma={schema}, tags={tags}, pii={pii.value}).")
+    chunker = _resoudre_chunker(chunker_name)
+    chunks = chunker.chunk(texte)
+    print(
+        f"  {len(chunks)} chunks (schéma={schema}, tags={tags}, pii={pii.value}, "
+        f"chunker={chunker_name or 'generic'})."
+    )
 
     if dry_run:
         if chunks:
@@ -163,6 +186,7 @@ async def ingerer(
                 source_id=source_id,
                 extra_metadata={"source_uri": source_uri, "source_id": source_id},
                 session=session,
+                chunker=chunker,
             )
             await session.commit()
     finally:
@@ -204,6 +228,16 @@ if __name__ == "__main__":
     )
     p.add_argument("--no-ocr", action="store_true", help="désactiver le repli OCR sur PDF scanné")
     p.add_argument("--ocr-lang", default="fra", help="langue tesseract pour l'OCR (défaut : fra)")
+    p.add_argument(
+        "--chunker",
+        default="generic",
+        choices=["generic", *CHUNKER_REGISTRY],
+        help=(
+            "stratégie de découpage : 'generic' (fenêtre glissante 512/64, défaut, "
+            "inchangé) ou un chunker spécialisé du registre (ex. 'legal_article' — "
+            "1 chunk = 1 article de loi complet). Rétro-compatible : omis = comportement actuel."
+        ),
+    )
     args = p.parse_args()
 
     asyncio.run(
@@ -218,5 +252,6 @@ if __name__ == "__main__":
             ocr=not args.no_ocr,
             ocr_lang=args.ocr_lang,
             source_uri_force=args.source_uri,
+            chunker_name=args.chunker,
         )
     )

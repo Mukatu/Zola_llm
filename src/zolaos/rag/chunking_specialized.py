@@ -223,9 +223,11 @@ class LegalClauseChunker:
 # =============================================================================
 
 # Détecte les titres d'article codifiés type "Article 100", "Art. 100-1",
-# "ARTICLE 100 bis", "Art. L. 1234-5"
+# "ARTICLE 100 bis", "Art. L. 1234-5", ainsi que le style compact sans espace
+# rencontré dans le Code du travail congolais (Droit-Afrique) : "Art.1.-",
+# "Art.2.-" — d'où `\s*` (et non `\s+`) entre l'abréviation et le numéro.
 _LEGAL_ARTICLE_RE = re.compile(
-    r"^(?P<header>(?:Article|ART(?:ICLE)?\.?|Art\.)\s+(?:[LRD]\.?\s*)?\d+(?:[-.]\d+)*(?:\s*(?:bis|ter|quater))?[^\n]{0,80})\s*$",
+    r"^(?P<header>(?:Article|ART(?:ICLE)?\.?|Art\.)\s*(?:[LRD]\.?\s*)?\d+(?:[-.]\d+)*(?:\s*(?:bis|ter|quater))?[^\n]{0,80})\s*$",
     re.MULTILINE,
 )
 

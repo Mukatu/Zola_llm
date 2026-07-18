@@ -57,6 +57,11 @@ def _construire_commande(c: dict, defaults: dict, dry_run: bool) -> list[str]:
             cmd += ["--file", str(SCRIPTS_DIR.parent / c["file"]), "--source-uri", c["url"]]
         else:
             cmd += ["--url", c["url"]]
+        # Découpage : `chunker: legal_article` sur un corpus (textes de loi codifiés,
+        # conventions collectives) bascule le découpage sur 1 chunk = 1 article
+        # complet, au lieu de la fenêtre glissante générique. Omis = inchangé.
+        if c.get("chunker"):
+            cmd += ["--chunker", str(c["chunker"])]
     else:
         raise ValueError(f"{c.get('id')} : method inconnue {method!r}")
     if dry_run:

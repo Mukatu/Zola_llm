@@ -79,6 +79,7 @@ corpora:
     license: OIT/NATLEX (texte officiel, réutilisation à confirmer)
     status: ready
     verify: true
+    chunker: legal_article
   - id: convention_collective_petrole
     method: pdf
     url: https://www.oarh.cg/wp-content/uploads/2022/07/Convention-collective-des-Entreprises-de-Services-Petroliers.pdf
@@ -243,6 +244,7 @@ corpora:
     tags: [country:cg, module:travail_cg, type:convention_collective, secteur:banque]
     license: convention sectorielle (public)
     status: ready
+    chunker: legal_article
   - id: convention_commerce
     method: pdf
     url: https://www.unicongo.cg/wp-content/uploads/2024/02/Convention-Collective-Commerce.pdf

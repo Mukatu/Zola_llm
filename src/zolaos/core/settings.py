@@ -98,6 +98,25 @@ class Settings(BaseSettings):
     EMBEDDING_DIMENSION: int = 1024
     EMBEDDING_DEVICE: Literal["cpu", "cuda"] = "cpu"
 
+    # ===== Retrieval hybride (dense + lexical) =====
+    # Le retrieval dense pur remonte des chunks sémantiquement proches mais qui ne
+    # RÉGISSENT pas toujours la question (ex. un article sur les unions de syndicats
+    # cité comme fondement du préavis de licenciement). Le re-ranking lexical
+    # déterministe (BM25-léger, SANS modèle → 100% offline) recalcule un score
+    # hybride sur un pool de candidats plus large que k, pour que les chunks
+    # contenant réellement les termes juridiques décisifs de la requête remontent.
+    RAG_HYBRID_RERANK_ENABLED: bool = True
+    # Poids relatifs dense (similarité cosinus bge-m3) vs lexical (recouvrement des
+    # termes significatifs). Score final = dense*W_dense + lexical*W_lexical, chaque
+    # composante normalisée ∈ [0, 1].
+    RAG_HYBRID_DENSE_WEIGHT: float = 0.5
+    RAG_HYBRID_LEXICAL_WEIGHT: float = 0.5
+    # Taille du pool de candidats dense re-rangés : max(mult*k, floor). Un pool plus
+    # large donne au lexical une chance de repêcher le chunk décisif que le dense
+    # aurait laissé hors du top-k.
+    RAG_HYBRID_FETCH_MULTIPLIER: int = 4
+    RAG_HYBRID_FETCH_FLOOR: int = 24
+
     # ===== Observabilité =====
     PROMETHEUS_ENABLED: bool = True
     PROMETHEUS_PORT: int = 9090

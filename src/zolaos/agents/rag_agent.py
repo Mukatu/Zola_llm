@@ -38,7 +38,7 @@ from zolaos.core.logging import get_logger
 from zolaos.core.metrics import AGENT_INVOCATIONS_TOTAL
 from zolaos.core.settings import Settings
 from zolaos.llm.base import GenerationOptions, LLMClient, Message
-from zolaos.rag.retrieval import Match, retrieve
+from zolaos.rag.retrieval import Match, rerank_or_trim, retrieve
 from zolaos.rag.sectors import detect_sector
 
 if TYPE_CHECKING:
@@ -179,15 +179,20 @@ class RAGAgent:
             raise InsufficientContextError(
                 f"[{self.name}] aucun match RAG pour la requête (schema={self.rag_schema})"
             )
-        if (
-            self.min_confidence is not None
-            and matches
-            and matches[0].similarity < self.min_confidence
-        ):
-            raise InsufficientContextError(
-                f"[{self.name}] similarité top-1 ({matches[0].similarity:.2f}) "
-                f"< seuil {self.min_confidence:.2f}"
-            )
+        # Garde-fou de confiance : abstention s'il n'existe AUCUN chunk assez
+        # similaire. On raisonne sur le MAX de similarité, pas sur matches[0] :
+        # depuis le re-ranking hybride, matches[0] est le meilleur au score
+        # hybride (lexical + dense), pas forcément le plus proche sémantiquement.
+        # Vérifier matches[0].similarity ferait abandonner à tort un bon match
+        # lexical (ex. l'article qui contient littéralement « préavis ») dont la
+        # similarité brute est moyenne, et renverrait au filet de rattrapage.
+        if self.min_confidence is not None and matches:
+            best_sim = max(m.similarity for m in matches)
+            if best_sim < self.min_confidence:
+                raise InsufficientContextError(
+                    f"[{self.name}] meilleure similarité ({best_sim:.2f}) "
+                    f"< seuil {self.min_confidence:.2f}"
+                )
 
         # --- 2. Build context ---
         context = self._format_context(matches)
@@ -334,9 +339,11 @@ class RAGAgent:
                 _log.warning("rag_agent.union_retrieve_failed", agent=self.name, schema=schema, error=str(exc))
                 extra = []
             if extra:
-                merged = [*matches, *extra]
-                merged.sort(key=lambda m: m.score)  # score = distance cosine (plus petit = mieux)
-                matches = merged[:k]
+                # Union re-classée par score hybride (dense + lexical) : le chunk
+                # qui régit réellement la question l'emporte, quelle que soit sa
+                # source (schéma de l'agent, communs, tenant). Dégrade en tri par
+                # distance cosine si le re-ranking est désactivé.
+                matches = rerank_or_trim(query, [*matches, *extra], k, self._settings)
         return matches
 
     async def _primary_retrieve(self, *, query: str, tags: list[str], k: int) -> list[Match]:
@@ -382,7 +389,9 @@ class RAGAgent:
                 continue
             chosen.append(m)
             seen.add(key)
-        chosen.sort(key=lambda m: m.score)  # meilleur (distance min) d'abord
+        # Classement final du mélange secteur/droit-commun par score hybride :
+        # les termes décisifs de la question priment (dégrade en tri distance).
+        chosen = rerank_or_trim(query, chosen, k, self._settings)
         _log.info(
             "rag_agent.sector_boost",
             agent=self.name,
