@@ -84,6 +84,26 @@ def public_regulatory_schemas() -> list[str]:
     return list(SCHEMA_GENERIC_AGENTS)
 
 
+# Schéma réglementaire « maison » de chaque pôle : le corpus attendu quand le
+# routeur envoie vers ce pôle. Sert l'ÉTAGE 1 du filet de rattrapage — on balaie
+# d'abord CE schéma, au seuil de confiance normal de l'agent, avant tout balayage
+# inter-domaines. `grc` partage le corpus juridique (rag_legal). `general`,
+# `cyber` et `engineering` n'ont pas de corpus maison → pas d'étage 1 pour eux,
+# le filet passe directement à l'étage inter-domaines (barre relevée).
+POLE_HOME_SCHEMA: dict[Pole, str] = {
+    Pole.LEGAL: "rag_legal",
+    Pole.GRC: "rag_legal",
+    Pole.FINTECH: "rag_fintech",
+    Pole.HEALTH: "rag_health",
+    Pole.ERP: "rag_erp",
+}
+
+
+def home_schema_for(pole: Pole) -> str | None:
+    """Schéma réglementaire « maison » du pôle (étage 1 du filet), ou None."""
+    return POLE_HOME_SCHEMA.get(pole)
+
+
 def generic_agent_for_schema(schema: str) -> type[RAGAgent] | None:
     """Agent générique portant le prompt/garde-fous d'un schéma public, ou None."""
     return SCHEMA_GENERIC_AGENTS.get(schema)

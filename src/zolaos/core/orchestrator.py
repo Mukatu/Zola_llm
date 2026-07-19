@@ -17,15 +17,33 @@ from zolaos.agents.rag_agent import InsufficientContextError, RAGAgent, RAGPrepa
 from zolaos.agents.registry import (
     default_rag_agent_for,
     generic_agent_for_schema,
+    home_schema_for,
     public_regulatory_schemas,
     rag_agent_for,
 )
 from zolaos.agents.router import Pole, RouteDecision, Router
 from zolaos.core.logging import get_logger
 from zolaos.core.settings import Settings
-from zolaos.rag.retrieval import retrieve_multi
+from zolaos.rag.retrieval import Match, retrieve_multi
 
 _log = get_logger("zolaos.core.orchestrator")
+
+# Barre de similarité de l'ÉTAGE 2 du filet de rattrapage (balayage inter-domaines,
+# hors schéma maison du pôle routé). Nettement plus haute que le seuil maison de
+# l'étage 1 (`min_confidence` = 0.5 des agents génériques). bge-m3 comprime les
+# similarités (~0.5 pour tout texte français) : sans cette barre relevée, un match
+# TANGENTIEL faible rattraperait à tort (ex. du droit des sociétés OHADA « sauvé »
+# par de la LBC-FT CEMAC). Calibration sur le corpus CG (pays:cg), meilleure
+# similarité par schéma :
+#   - « statuts SARL OHADA » : rag_legal (maison) 0.56 / rag_fintech 0.56 /
+#     rag_erp 0.49 / rag_health 0.51 — le cluster tangentiel plafonne à ~0.56 ;
+#   - « taux de la TVA » (mal routé fintech) : rag_legal (fiscal) 0.69 — vraie
+#     erreur de routage inter-domaines, match franc.
+# 0.60 sépare proprement les deux : bloque tout ≤0.56, laisse passer 0.69. En deçà
+# → abstention (comportement sûr, déjà géré en aval pour les pôles réglementés).
+# Surchargeable par un réglage `RAG_SAFETY_NET_CROSS_DOMAIN_MIN_SIM` sur Settings
+# s'il est ajouté ultérieurement (getattr avec repli sur cette constante).
+_CROSS_DOMAIN_SAFETY_NET_BAR = 0.60
 
 
 def refusal_message(pole: Pole) -> str:
@@ -234,7 +252,7 @@ class Orchestrator:
         if decision.pole is Pole.GENERAL:
             return None, None, regulated
 
-        net = await self._safety_net(user_query, tenant_id)
+        net = await self._safety_net(user_query, tenant_id, decision.pole)
         if net is not None:
             agent, prepared = net
             _log.info(
@@ -246,15 +264,33 @@ class Orchestrator:
         return None, None, regulated
 
     async def _safety_net(
-        self, user_query: str, tenant_id: str
+        self, user_query: str, tenant_id: str, routed_pole: Pole
     ) -> tuple[RAGAgent, RAGPrepared] | None:
-        """Balaie les corpus réglementaires publics ; ancre sur le meilleur.
+        """Filet de rattrapage à DEUX ÉTAGES, sur le seul chemin d'erreur.
 
-        Une seule requête est encodée pour tous les schémas (`retrieve_multi`),
-        donc le coût est ~un embedding + N requêtes pgvector — négligeable, et
-        seulement sur le chemin d'erreur (le routage n'a rien ancré). L'agent
-        générique du schéma gagnant porte le bon prompt (citations) et le seuil
-        `min_confidence` : un meilleur match trop faible lève et on renonce.
+        Le filet ne tourne que quand l'agent du pôle routé n'a rien ancré. Une
+        seule requête est encodée pour tous les schémas (`retrieve_multi`) : le
+        coût est ~un embedding + N requêtes pgvector, négligeable.
+
+        Le piège que ce filet doit éviter : bge-m3 comprime les similarités
+        (~0.5 pour tout texte français), donc « prendre le meilleur schéma toutes
+        similarités confondues » rattrape avec un corpus TANGENTIEL (ex. du droit
+        des sociétés OHADA « sauvé » par de la LBC-FT CEMAC). Deux étages séparent
+        le vrai rattrapage inter-domaines du faux :
+
+        - **Étage 1 — domaine d'origine.** On balaie d'ABORD le seul schéma
+          « maison » du pôle routé (`home_schema_for`), au seuil de confiance
+          NORMAL de l'agent (`min_confidence`, appliqué par `assemble`). Si ça
+          passe, on l'utilise : c'est le domaine attendu, il est prioritaire —
+          même si un autre schéma affiche une similarité brute plus élevée.
+
+        - **Étage 2 — inter-domaines, dernier recours.** SEULEMENT si l'étage 1
+          échoue (pas de schéma maison, ou son corpus muet / sous le seuil), on
+          balaie les AUTRES schémas, mais avec une BARRE PLUS HAUTE
+          (`RAG_SAFETY_NET_CROSS_DOMAIN_MIN_SIM`, 0.60 par défaut vs 0.5 en
+          étage 1). Ainsi un match tangentiel faible NE déclenche pas, tandis
+          qu'une vraie erreur de routage inter-domaines à match fort (ex. TVA
+          envoyée à tort vers fintech → corpus fiscal à ~0.69) rattrape.
         """
         found = await retrieve_multi(
             query=user_query,
@@ -264,13 +300,65 @@ class Orchestrator:
         )
         if not found:
             return None
-        best_schema = max(found, key=lambda s: found[s][0].similarity)
-        agent_cls = generic_agent_for_schema(best_schema)
+
+        # --- Étage 1 : domaine d'origine (seuil normal de l'agent). ---
+        home = home_schema_for(routed_pole)
+        if home is not None and home in found:
+            hit = self._ground_on_schema(user_query, home, found[home], tenant_id)
+            if hit is not None:
+                _log.info(
+                    "orchestrator.safety_net_stage1",
+                    routed_pole=routed_pole.value,
+                    schema=home,
+                )
+                return hit
+
+        # --- Étage 2 : inter-domaines, dernier recours, barre relevée. ---
+        others = {s: m for s, m in found.items() if s != home}
+        if not others:
+            return None
+        best_schema = max(others, key=lambda s: max(m.similarity for m in others[s]))
+        best_sim = max(m.similarity for m in others[best_schema])
+        bar = getattr(
+            self._settings,
+            "RAG_SAFETY_NET_CROSS_DOMAIN_MIN_SIM",
+            _CROSS_DOMAIN_SAFETY_NET_BAR,
+        )
+        if best_sim < bar:
+            _log.info(
+                "orchestrator.safety_net_stage2_blocked",
+                routed_pole=routed_pole.value,
+                best_schema=best_schema,
+                best_similarity=round(best_sim, 3),
+                bar=bar,
+            )
+            return None
+        hit = self._ground_on_schema(user_query, best_schema, others[best_schema], tenant_id)
+        if hit is not None:
+            _log.info(
+                "orchestrator.safety_net_stage2",
+                routed_pole=routed_pole.value,
+                schema=best_schema,
+                best_similarity=round(best_sim, 3),
+            )
+        return hit
+
+    def _ground_on_schema(
+        self, user_query: str, schema: str, matches: list[Match], tenant_id: str
+    ) -> tuple[RAGAgent, RAGPrepared] | None:
+        """Ancre la réponse sur `schema` via son agent générique.
+
+        Les garde-fous de l'agent (`requires_citation`, `min_confidence`) restent
+        appliqués par `assemble` : un match trop faible lève
+        `InsufficientContextError` et on renonce (l'appelant enchaîne l'étage
+        suivant ou l'abstention).
+        """
+        agent_cls = generic_agent_for_schema(schema)
         if agent_cls is None:
             return None
         agent = agent_cls(self._brigade.client, self._settings, tenant_id=tenant_id)
         try:
-            return agent, agent.assemble(user_query, found[best_schema])
+            return agent, agent.assemble(user_query, matches)
         except InsufficientContextError:
             return None
 

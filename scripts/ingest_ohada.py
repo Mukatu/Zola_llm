@@ -58,12 +58,71 @@ def charger_noms_actes() -> dict[str, str]:
         return {r["acte_id"].strip(): (r.get("full_name") or "").strip() for r in csv.DictReader(f)}
 
 
+def _fusionner_doublons(rows: list[dict[str, str]]) -> list[dict[str, str]]:
+    """Fusionne les lignes du CSV dupliquées pour un même (acte_code, article_number).
+
+    Le dataset source contient, pour ~40% des articles, plusieurs lignes portant
+    le même ``article_number`` (OCR d'un PDF à mise en page 2 colonnes, souvent
+    scindé en fragments mal recollés) — parfois un texte tronqué (« stub ») à
+    côté du texte complet, parfois deux fragments distincts et non redondants.
+
+    Sans fusion, ``ingest_text`` reçoit une ligne par doublon avec le **même**
+    ``source_uri``/``source_id`` : la 2e insertion est silencieusement ignorée
+    par ``ON CONFLICT DO NOTHING`` (contrainte ``source_uri``+``chunk_index``).
+    Le contenu effectivement conservé dépend alors de l'ORDRE arbitraire du CSV
+    — ex. constaté : AUSCGIE Article 13 (« mentions obligatoires des statuts »,
+    la disposition générale qui s'applique notamment à la SARL) ne conservait
+    que le stub « Les statuts mentionnent : », la liste des 11 mentions étant
+    perdue — ce qui l'empêchait de remonter au retrieval face à un article
+    concurrent (ex. AUSCOOP) resté complet.
+
+    Stratégie (ne perd jamais de contenu, déterministe) :
+    - textes strictement identiques → dédupliqués ;
+    - un texte qui n'est qu'un préfixe d'un autre (stub tronqué) → écarté au
+      profit de la version la plus longue ;
+    - fragments distincts restants → concaténés (ordre du CSV), le chunker
+      générique se chargera de les redécouper si le total dépasse la fenêtre.
+    """
+    groupes: dict[tuple[str, str], list[dict[str, str]]] = {}
+    ordre: list[tuple[str, str]] = []
+    for r in rows:
+        cle = ((r.get("acte_code") or "").strip(), (r.get("article_number") or "").strip())
+        if cle not in groupes:
+            groupes[cle] = []
+            ordre.append(cle)
+        groupes[cle].append(r)
+
+    fusionnes: list[dict[str, str]] = []
+    for cle in ordre:
+        lignes = groupes[cle]
+        if len(lignes) == 1:
+            fusionnes.append(lignes[0])
+            continue
+        textes: list[str] = []
+        for ligne in lignes:
+            t = (ligne.get("text") or "").strip()
+            if not t or any(t == vu or vu.startswith(t) for vu in textes):
+                continue
+            textes = [vu for vu in textes if not t.startswith(vu)]
+            textes.append(t)
+        base = dict(lignes[0])
+        base["text"] = "\n\n".join(textes)
+        fusionnes.append(base)
+    return fusionnes
+
+
 def charger_articles(actes: set[str] | None) -> list[dict[str, str]]:
-    """Articles du dataset, filtrés sur les actes demandés (tous si None)."""
+    """Articles du dataset, filtrés sur les actes demandés (tous si None).
+
+    Les doublons (même acte_code + article_number) sont fusionnés — voir
+    ``_fusionner_doublons`` — avant retour, pour ne jamais ingérer un article
+    tronqué à cause de l'ordre du CSV.
+    """
     path = hf_hub_download(REPO, "nodes/articles.csv", repo_type="dataset")
     with open(path, encoding="utf-8") as f:
         rows = list(csv.DictReader(f))
-    return [r for r in rows if actes is None or (r.get("acte_code") or "").strip() in actes]
+    rows = [r for r in rows if actes is None or (r.get("acte_code") or "").strip() in actes]
+    return _fusionner_doublons(rows)
 
 
 def _dsn_async_migrator(settings: Settings) -> str:
@@ -71,18 +130,60 @@ def _dsn_async_migrator(settings: Settings) -> str:
     return settings.postgres_dsn_migrations.replace("+psycopg", "+asyncpg")
 
 
-def _corps_article(a: dict[str, str], nom_acte: str) -> tuple[str, str]:
-    """Retourne (numero, texte complet à ingérer) — vide si pas de texte."""
+# Détection de forme juridique par mot-clé (texte OCR sans accents, ex. "societe
+# a responsabilite limitee") → (label canonique accentué + sigle, tag).
+#
+# Contexte : le texte brut des articles AUSCGIE (et d'autres actes) est issu
+# d'un OCR de mauvaise qualité (accents perdus, mots recomposés — "Ie" pour
+# "le", etc.), alors que d'autres actes du même dataset (ex. AUSCOOP) ont un
+# texte propre et bien accentué. Résultat mesuré : à qualité de contenu égale,
+# un article AUSCGIE pertinent (ex. dispositions SARL) perd le retrieval
+# hybride (lexical+vecteur) face à un article d'un autre acte truffé des mêmes
+# mots-clés de requête mais bien orthographiés. On compense en injectant, pour
+# les articles qui mentionnent une forme sociale, la graphie canonique
+# accentuée + le sigle usuel — ce qui redonne un signal lexical exploitable
+# sans toucher au moteur de retrieval ni au chunker générique.
+_FORMES_JURIDIQUES: list[tuple[str, str, str]] = [
+    ("responsabilite limitee", "société à responsabilité limitée (SARL)", "sarl"),
+    ("societe anonyme", "société anonyme (SA)", "sa"),
+    ("nom collectif", "société en nom collectif (SNC)", "snc"),
+    ("commandite simple", "société en commandite simple (SCS)", "scs"),
+    ("commandite par actions", "société en commandite par actions (SCA)", "sca"),
+    ("actions simplifiee", "société par actions simplifiée (SAS)", "sas"),
+    ("societe en participation", "société en participation", "societe_participation"),
+    ("interet economique", "groupement d'intérêt économique (GIE)", "gie"),
+]
+
+
+def _formes_detectees(text: str) -> list[tuple[str, str]]:
+    """Formes juridiques (label, tag) mentionnées dans `text` (ASCII, insensible à la casse)."""
+    hay = text.lower()
+    return [(label, tag) for needle, label, tag in _FORMES_JURIDIQUES if needle in hay]
+
+
+def _corps_article(a: dict[str, str], nom_acte: str) -> tuple[str, str, list[tuple[str, str]]]:
+    """Retourne (numero, texte complet à ingérer, formes juridiques détectées).
+
+    Le texte complet inclut, le cas échéant, une ligne de renvoi terminologique
+    listant les formes sociales mentionnées (graphie canonique + sigle) — voir
+    `_FORMES_JURIDIQUES`.
+    """
     acte = (a.get("acte_code") or "").strip()
     num = (a.get("article_number") or "").strip()
     titre = (a.get("titre") or "").strip()
     text = (a.get("text") or "").strip()
     if not text:
-        return num, ""
+        return num, "", []
     entete = f"{acte} ({nom_acte}) — Article {num}" if nom_acte else f"{acte} — Article {num}"
     if titre:
         entete += f" — {titre}"
-    return num, f"{entete}\n\n{text}"
+    formes = _formes_detectees(text)
+    corps = f"{entete}\n\n{text}"
+    if formes:
+        corps += "\n\n(Renvoi terminologique — formes sociales visées : " + ", ".join(
+            label for label, _tag in formes
+        ) + ".)"
+    return num, corps, formes
 
 
 async def ingerer(actes: set[str] | None, limit: int | None, dry_run: bool) -> None:
@@ -115,7 +216,7 @@ async def ingerer(actes: set[str] | None, limit: int | None, dry_run: bool) -> N
             for a in articles:
                 acte = (a.get("acte_code") or "").strip()
                 schema, module = _router_acte(acte)
-                num, corps = _corps_article(a, noms.get(acte, ""))
+                num, corps, formes = _corps_article(a, noms.get(acte, ""))
                 if not corps:
                     continue
                 n = await ingest_text(
@@ -128,6 +229,7 @@ async def ingerer(actes: set[str] | None, limit: int | None, dry_run: bool) -> N
                         "type:texte_legal",
                         f"acte:{acte}",
                         f"module:{module}",
+                        *(f"forme:{tag}" for _label, tag in formes),
                     ],
                     pii_policy=PIIRedactionPolicy.NONE,  # texte légal public
                     source_id=f"{acte}-art-{num}",
