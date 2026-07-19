@@ -1,0 +1,22 @@
+# Jeu golden VÉRIFIÉ — droit fiscal CG.
+# Cas contrôlés contre le corpus (session 2026-07-19). L'agent fiscal cite le
+# taux/l'article, ne CALCULE jamais un montant d'impôt présenté comme certain.
+# Validation juriste fiscaliste requise pour élargir.
+dataset:
+  agent: legal.fiscal_cg
+  module: fiscal_cg
+  version: 1.0
+  language: fr
+  reviewer: verifie-corpus-session-2026-07-19
+  reviewed_at: 2026-07-19
+
+cases:
+  - id: fiscal_taux_tva
+    question: "Quel est le taux normal de la TVA au Congo ?"
+    expected_pole: legal
+    expected_module: fiscal_cg
+    expected_keywords: ["18"]
+    # Ne doit pas s'ancrer sur les règlements du secteur financier (fintech).
+    forbidden_citations: ["cemac_", "microfinance", "lbcft"]
+    forbidden_keywords: ["€"]
+    severity: high

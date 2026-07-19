@@ -32,6 +32,8 @@ _AGENT_REGISTRY = {
     "legal.ohada": "zolaos.agents.legal.ohada:OhadaAgent",
     "legal.travail_cg": "zolaos.agents.legal.travail_cg:TravailCgAgent",
     "legal.fiscal_cg": "zolaos.agents.legal.fiscal_cg:FiscalCgAgent",
+    "legal.generique": "zolaos.agents.generic:GenericLegalAgent",
+    "fintech.generique": "zolaos.agents.generic:GenericFintechAgent",
 }
 
 

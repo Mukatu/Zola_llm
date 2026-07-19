@@ -58,6 +58,11 @@ class EvalCase(BaseModel):
     expected_pole: str | None = None
     expected_module: str | None = None
     expected_citations: list[ExpectedCitation] = Field(default_factory=list)
+    # Sources qui NE doivent PAS être citées : sous-chaînes de source_id à interdire.
+    # Mesure la CONTAMINATION — une réponse sur une SARL ne doit pas citer les
+    # sociétés coopératives, une réponse OHADA ne doit pas citer un règlement
+    # fintech, etc. C'est ce que la refonte a corrigé et qu'il faut verrouiller.
+    forbidden_citations: list[str] = Field(default_factory=list)
     expected_keywords: list[str] = Field(default_factory=list)
     forbidden_keywords: list[str] = Field(default_factory=list)
     must_refuse: bool = False

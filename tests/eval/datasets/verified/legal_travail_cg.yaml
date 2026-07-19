@@ -1,0 +1,35 @@
+# Jeu golden VÉRIFIÉ — droit du travail CG.
+# Chaque cas a été contrôlé contre le corpus réel (session 2026-07-19) : la
+# citation attendue existe bien dans le texte ingéré et régit la question.
+# NB : validation JURISTE encore requise pour couverture large — ceci est un
+# socle de non-régression sur les cas déjà prouvés, pas une couverture exhaustive.
+dataset:
+  agent: legal.travail_cg
+  module: travail_cg
+  version: 1.0
+  language: fr
+  reviewer: verifie-corpus-session-2026-07-19
+  reviewed_at: 2026-07-19
+  notes: |
+    Cas ancrés sur des articles réellement présents en base. Le boost secteur
+    doit citer la convention du bon secteur et écarter les autres.
+
+cases:
+  - id: travail_preavis_banque
+    question: "Quelle est la durée du préavis en cas de licenciement dans le secteur bancaire ?"
+    expected_pole: legal
+    expected_module: travail_cg
+    expected_citations:
+      - source_id: convention_banques
+        article: "Article 26"
+    forbidden_citations: ["convention_mines", "convention_commerce", "convention_hotellerie", "convention_forestier"]
+    expected_keywords: ["préavis"]
+    forbidden_keywords: ["€"]
+    severity: critical
+
+  - id: travail_preavis_generique
+    question: "Quel est le délai de préavis en cas de rupture d'un contrat à durée indéterminée ?"
+    expected_pole: legal
+    expected_module: travail_cg
+    expected_keywords: ["préavis"]
+    severity: high

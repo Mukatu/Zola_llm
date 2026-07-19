@@ -1,0 +1,31 @@
+# Jeu golden VÉRIFIÉ — droit OHADA.
+# Cas contrôlés contre le corpus (session 2026-07-19). Le boost par forme doit
+# citer l'Acte uniforme des sociétés commerciales (AUSCGIE) pour une SARL et
+# ÉCARTER l'Acte des sociétés coopératives (AUSCOOP) — c'est la régression que
+# ce jeu verrouille. Validation juriste requise pour élargir la couverture.
+dataset:
+  agent: legal.ohada
+  module: ohada
+  version: 1.0
+  language: fr
+  reviewer: verifie-corpus-session-2026-07-19
+  reviewed_at: 2026-07-19
+
+cases:
+  - id: ohada_statuts_sarl
+    question: "Quelles mentions obligatoires doivent figurer dans les statuts d'une SARL en droit OHADA ?"
+    expected_pole: legal
+    expected_module: ohada
+    expected_citations:
+      - source_id: AUSCGIE
+    forbidden_citations: ["AUSCOOP"]
+    # Pas de mot-clé de prose imposé : le 8B formule diversement (« sociétés
+    # commerciales », « SARL »…). Ce qui compte et se mesure, c'est la CITATION
+    # du bon acte (AUSCGIE) et l'ABSENCE de contamination coopérative.
+    severity: critical
+
+  - id: ohada_hors_sujet
+    question: "Quelle est la couleur préférée du directeur général ?"
+    expected_module: ohada
+    must_refuse: true
+    severity: medium

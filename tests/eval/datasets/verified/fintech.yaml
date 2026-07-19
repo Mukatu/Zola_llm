@@ -1,0 +1,22 @@
+# Jeu golden VÉRIFIÉ — fintech réglementaire (COBAC/GABAC/BEAC).
+# Cas contrôlés contre le corpus (session 2026-07-19). Les textes fintech sont
+# OCR-dérivés + validated:false : le seuil AML (5.000.000 FCFA) a été relu et
+# confirmé dans le texte source, mais l'ensemble reste en attente de validation
+# humaine complète (cf. docs/sourcing/fintech_reglementaire.md).
+dataset:
+  agent: fintech.generique
+  module: fintech
+  version: 1.0
+  language: fr
+  reviewer: verifie-corpus-session-2026-07-19
+  reviewed_at: 2026-07-19
+
+cases:
+  - id: fintech_seuil_anif
+    question: "À partir de quel montant une transaction en espèces doit-elle être déclarée à l'ANIF ?"
+    expected_pole: fintech
+    expected_citations:
+      - source_id: cemac_lbcft_2024
+    expected_keywords: ["cinq millions"]
+    forbidden_keywords: ["€"]
+    severity: critical

@@ -49,6 +49,7 @@ class CaseReport:
     forbidden_kw_hit: bool = False
     citation_precision: float = 0.0
     citation_recall: float = 0.0
+    contamination_hit: bool = False  # une source INTERDITE a été citée (échec critique)
     refusal_correct: bool = True
     failure_reasons: list[str] = field(default_factory=list)
     raw_response_preview: str = ""
@@ -79,26 +80,54 @@ def _keyword_hits(text: str, keywords: list[str]) -> tuple[int, int]:
 
 
 def _citation_match(case_citations: list, response: RAGAgentResponse) -> tuple[int, int]:
-    """(matched, expected) — citation attendue OK si :
-    - source_id ou source_uri correspond à un match du retrieve, OU
-    - article apparaît textuellement dans la réponse générée (insensible à la casse).
+    """(matched, expected) — une citation attendue est couverte si :
+    - son source_id/source_uri figure dans les citations ÉMISES par l'agent
+      (`response.citations`, càd les sources réellement surfacées au lecteur), OU
+    - son article apparaît textuellement dans la réponse générée OU dans le texte
+      verbatim d'une des citations émises (insensible à la casse).
+
+    On raisonne sur les citations ÉMISES, pas sur `response.matches` (tous les
+    chunks retrouvés) : mesurer « a-t-on cité la bonne source », pas « l'a-t-on
+    récupérée ». (Dans ZolaOS chaque chunk retrouvé devient une citation, mais
+    l'intention et la robustesse aux évolutions passent par `citations`.)
     """
     if not case_citations:
         return 0, 0
     response_text_lower = (response.content or "").lower()
-    response_sources = {(m.source_id, m.source_uri) for m in response.matches}
+    cited_ids = [c.source_id or "" for c in response.citations]
+    cited_uris = [c.source_uri or "" for c in response.citations]
+    verbatim = " ".join((c.content or "") for c in response.citations).lower()
     matched = 0
     for cit in case_citations:
-        # match par source_id ou source_uri
-        if (cit.source_id and any(cit.source_id == sid for sid, _ in response_sources)) or (
-            cit.source_uri and any(cit.source_uri == suri for _, suri in response_sources)
+        # Sous-chaîne : « AUSCGIE » couvre « AUSCGIE-art-310 », « convention_banques »
+        # couvre l'id complet, etc. (les corpus par article ont des id granulaires).
+        if (cit.source_id and any(cit.source_id in sid for sid in cited_ids)) or (
+            cit.source_uri and any(cit.source_uri in suri for suri in cited_uris)
         ):
             matched += 1
             continue
-        # ou bien : article cité textuellement
-        if cit.article and cit.article.lower() in response_text_lower:
+        if cit.article and (
+            cit.article.lower() in response_text_lower or cit.article.lower() in verbatim
+        ):
             matched += 1
     return matched, len(case_citations)
+
+
+def _contamination(forbidden: list[str], response: RAGAgentResponse) -> list[str]:
+    """Sources INTERDITES effectivement citées (sous-chaîne de source_id). Vide = OK.
+
+    Ex. une réponse SARL qui cite `AUSCOOP-art-68` (coopératives) : contamination.
+    """
+    if not forbidden:
+        return []
+    cited = [(c.source_id or "") for c in response.citations]
+    hits: list[str] = []
+    for pat in forbidden:
+        low = pat.lower()
+        for sid in cited:
+            if low in sid.lower():
+                hits.append(sid)
+    return sorted(set(hits))
 
 
 def evaluate_case(
@@ -167,6 +196,15 @@ def evaluate_case(
         report.citation_precision = (matched / n_resp_citations) if n_resp_citations else 0.0
         if matched < expected:
             report.failure_reasons.append(f"citations attendues manquantes ({matched}/{expected})")
+            report.passed = False
+
+    # Contamination : une source explicitement interdite a-t-elle été citée ?
+    # (ex. coopératives sur une question SARL, fintech sur une question OHADA)
+    if case.forbidden_citations:
+        polluants = _contamination(case.forbidden_citations, response)
+        report.contamination_hit = bool(polluants)
+        if polluants:
+            report.failure_reasons.append(f"sources interdites citées: {polluants}")
             report.passed = False
 
     return report
