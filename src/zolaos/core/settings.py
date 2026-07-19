@@ -72,6 +72,13 @@ class Settings(BaseSettings):
     LLM_HOST_CORE: str = "http://host.docker.internal:11435"
     LLM_MODEL_CORE: str = "llama-3-70b"
     LLM_TIMEOUT_SECONDS: int = 120
+    # 70B SÉLECTIF : niveaux de complexité (routeur) dont la GÉNÉRATION passe sur
+    # le modèle lourd (LLM_MODEL_CORE). Routage + retrieve restent toujours sur le
+    # 8B. Liste séparée par virgules parmi simple|moderate|complex. Défaut prudent
+    # « complex » (rare → 70B peu sollicité). Mettre « moderate,complex » pour que
+    # les synthèses juridiques substantielles en bénéficient, au prix de la latence.
+    # Vide → 70B jamais sollicité (tout reste sur le 8B).
+    LLM_CORE_ON_COMPLEXITY: str = "complex"
     # Auth Bearer si on met un reverse-proxy (Caddy) devant llama-server.
     LLM_API_KEY: SecretStr = SecretStr("")
 

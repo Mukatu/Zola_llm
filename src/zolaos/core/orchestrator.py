@@ -81,11 +81,35 @@ class Orchestrator:
         planning: PlanningAgent,
         brigade: SimulatedAgent,
         settings: Settings,
+        core_client: object | None = None,
     ) -> None:
         self._router = router
         self._planning = planning
         self._brigade = brigade
         self._settings = settings
+        # Client du modèle « lourd » (70B). Génération des cas COMPLEXES seulement
+        # (routage + retrieve restent sur le 8B). None → pas de 70B sélectif : on
+        # génère toujours sur le client/modèle 8B de l'agent (comportement d'origine).
+        self._core_client = core_client
+
+    def _gen_overrides(self, decision: RouteDecision) -> dict[str, object]:
+        """Client+modèle de génération à surcharger selon la complexité.
+
+        Cas `complex` + `core_client` disponible → 70B (`LLM_MODEL_CORE`) pour une
+        synthèse de meilleure qualité, au prix de la latence. Sinon `{}` : l'agent
+        garde son 8B. Levier sélectif : la majorité des questions (simple/moderate)
+        restent rapides sur le 8B.
+        """
+        if self._core_client is None:
+            return {}
+        levels = {
+            lvl.strip()
+            for lvl in self._settings.LLM_CORE_ON_COMPLEXITY.split(",")
+            if lvl.strip()
+        }
+        if decision.complexity in levels:
+            return {"client": self._core_client, "model": self._settings.LLM_MODEL_CORE}
+        return {}
 
     async def handle(
         self,
@@ -191,7 +215,7 @@ class Orchestrator:
                     for c in prepared.citations
                 ],
             }
-            async for chunk in agent.stream_prepared(prepared):
+            async for chunk in agent.stream_prepared(prepared, **self._gen_overrides(decision)):
                 yield {"type": "token", "text": chunk}
         elif regulated:
             # Pôle à corpus, rien à citer même après le filet → abstention plutôt
@@ -373,7 +397,7 @@ class Orchestrator:
         agent, prepared, regulated = await self._resolve_agent(decision, user_query, tenant_id)
 
         if agent is not None and prepared is not None:
-            rr = await agent.answer_prepared(prepared)
+            rr = await agent.answer_prepared(prepared, **self._gen_overrides(decision))
             return AgentResponse(
                 pole=decision.pole,
                 content=rr.content,
@@ -413,6 +437,7 @@ class Orchestrator:
             planning=PlanningAgent(core_client, settings),
             brigade=SimulatedAgent(router_client, settings),
             settings=settings,
+            core_client=core_client,
         )
 
 

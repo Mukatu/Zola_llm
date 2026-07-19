@@ -39,4 +39,5 @@ def get_orchestrator(
         planning=PlanningAgent(core_client, settings),  # type: ignore[arg-type]
         brigade=SimulatedAgent(router_client, settings),  # type: ignore[arg-type]
         settings=settings,
+        core_client=core_client,  # 70B sélectif pour les cas complexes
     )

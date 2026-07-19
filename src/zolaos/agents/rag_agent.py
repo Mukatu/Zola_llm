@@ -268,20 +268,33 @@ class RAGAgent:
         prepared = await self.prepare(query, extra_tags=extra_tags, k=k)
         return await self.answer_prepared(prepared)
 
-    async def answer_prepared(self, prepared: RAGPrepared) -> RAGAgentResponse:
+    async def answer_prepared(
+        self,
+        prepared: RAGPrepared,
+        *,
+        client: LLMClient | None = None,
+        model: str | None = None,
+    ) -> RAGAgentResponse:
         """Étape 3-4 : génère à partir d'un contexte déjà préparé (retrieve fait).
 
         Permet à l'orchestrateur de générer depuis des matches obtenus autrement
         (filet de rattrapage multi-schéma) sans re-chercher.
+
+        `client`/`model` (optionnels) surchargent le LLM de génération : c'est le
+        levier du 70B sélectif — l'orchestrateur y pointe le `core_client` +
+        `LLM_MODEL_CORE` pour les cas complexes, tout en gardant le retrieve et le
+        routage sur le 8B. Par défaut : le client de l'agent + le modèle brigade (8B).
         """
         import time
 
+        gen_client = client or self._client
+        gen_model = model or self._settings.LLM_MODEL_BRIGADE
         start = time.perf_counter()
         outcome = "error"
         try:
-            result = await self._client.generate(
+            result = await gen_client.generate(
                 prepared.messages,
-                model=self._settings.LLM_MODEL_BRIGADE,
+                model=gen_model,
                 options=prepared.options,
             )
             outcome = "ok"
@@ -289,6 +302,7 @@ class RAGAgent:
             _log.info(
                 "rag_agent.answer",
                 agent=self.name,
+                model=gen_model,
                 matches=len(prepared.matches),
                 top_similarity=(
                     prepared.matches[0].similarity if prepared.matches else None
@@ -305,17 +319,26 @@ class RAGAgent:
         finally:
             AGENT_INVOCATIONS_TOTAL.labels(agent=self.name, outcome=outcome).inc()
 
-    async def stream_prepared(self, prepared: RAGPrepared) -> AsyncIterator[str]:
+    async def stream_prepared(
+        self,
+        prepared: RAGPrepared,
+        *,
+        client: LLMClient | None = None,
+        model: str | None = None,
+    ) -> AsyncIterator[str]:
         """Étape 3, en streaming : yield les fragments de texte au fil de l'eau.
 
         Prend un `RAGPrepared` (donc garde-fous déjà franchis) pour que l'appelant
-        puisse afficher les citations avant le premier token.
+        puisse afficher les citations avant le premier token. `client`/`model`
+        surchargent le LLM de génération (70B sélectif — cf. `answer_prepared`).
         """
+        gen_client = client or self._client
+        gen_model = model or self._settings.LLM_MODEL_BRIGADE
         outcome = "error"
         try:
-            async for chunk in self._client.stream(
+            async for chunk in gen_client.stream(
                 prepared.messages,
-                model=self._settings.LLM_MODEL_BRIGADE,
+                model=gen_model,
                 options=prepared.options,
             ):
                 yield chunk
