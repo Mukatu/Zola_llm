@@ -209,6 +209,16 @@ class RAGAgent:
             "Si l'information n'y figure pas, dis-le explicitement. "
             "N'évoque aucun mécanisme interne (ne dis pas « RAG » ni « extraits »)."
         )
+        if any(self._is_tenant_match(m) for m in matches):
+            user_msg += (
+                "\n\nCertains extraits ci-dessus sont marqués « RÈGLE INTERNE DE "
+                "L'ENTREPRISE ». Ce sont des documents internes du client (règlement "
+                "intérieur, notes internes…), PAS des textes légaux : ils COMPLÈTENT "
+                "la loi et la convention collective, ne les REMPLACENT jamais, et ne "
+                "priment pas sur elles en cas de contradiction. Ne les cite JAMAIS "
+                "comme fondement légal — précise explicitement quand une affirmation "
+                "provient d'une règle interne plutôt que de la loi."
+            )
         opts = GenerationOptions(
             temperature=self.temperature,
             max_tokens=self.max_tokens,
@@ -407,16 +417,43 @@ class RAGAgent:
         )
         return chosen
 
+    #: Préfixe apposé devant tout extrait issu du corpus TENANT (documents
+    #: téléversés par le client : règlement intérieur, notes internes…) pour
+    #: qu'il ne soit jamais confondu avec le droit applicable (loi, convention
+    #: collective). Volontairement explicite et redondant : lu par le modèle
+    #: ET par l'humain qui consulte les citations affichées à l'écran.
+    _TENANT_LABEL = "[RÈGLE INTERNE DE L'ENTREPRISE — non légale, à ne pas confondre avec la loi]"
+
     @staticmethod
-    def _format_context(matches: list[Match]) -> str:
-        """Sérialise les chunks RAG en bloc numéroté pour le prompt LLM."""
+    def _is_tenant_match(m: Match) -> bool:
+        """Un extrait est « tenant » s'il porte un tag `tenant:<id>` et/ou si
+        son `source_uri` commence par `tenant://` (upload client, cf.
+        `api/v1/kb.py` et `api/v1/legal.py`). Les deux signaux sont vérifiés
+        car selon le chemin de retrieve (local direct vs. MissionClient), l'un
+        ou l'autre peut être la seule information disponible.
+        """
+        if any(t == "tenant" or t.startswith("tenant:") for t in m.tags):
+            return True
+        return m.source_uri.startswith("tenant://")
+
+    @classmethod
+    def _format_context(cls, matches: list[Match]) -> str:
+        """Sérialise les chunks RAG en bloc numéroté pour le prompt LLM.
+
+        La numérotation [1], [2]… reste continue et inchangée quelle que soit
+        l'origine du chunk : seule la PRÉSENTATION distingue un extrait TENANT
+        (documents internes du client, non légaux) d'un extrait du corpus de
+        référence (loi, convention collective, communs). Aucune repondération
+        ni exclusion — le retrieval en amont n'est pas touché.
+        """
         if not matches:
             return "--- Textes de référence ---\n(aucun extrait disponible)"
         lines = ["--- Textes de référence ---"]
         for i, m in enumerate(matches, start=1):
             src = m.source_id or m.source_uri.rsplit("/", 1)[-1]
-            lines.append(
-                f"\n[{i}] source={src} chunk={m.chunk_index} similarité={m.similarity:.2f}"
-            )
+            header = f"\n[{i}] source={src} chunk={m.chunk_index} similarité={m.similarity:.2f}"
+            if cls._is_tenant_match(m):
+                header += f"\n{cls._TENANT_LABEL}"
+            lines.append(header)
             lines.append(m.content.strip())
         return "\n".join(lines)

@@ -8,6 +8,7 @@ from zolaos.agents import rag_agent as rag_agent_mod
 from zolaos.agents.brigade import SimulatedAgent
 from zolaos.agents.registry import rag_agent_for
 from zolaos.agents.router import Pole, RouteDecision
+from zolaos.core import orchestrator as orch_mod
 from zolaos.core.orchestrator import Orchestrator
 from zolaos.core.settings import Settings
 from zolaos.rag.retrieval import Match
@@ -108,7 +109,14 @@ async def test_orchestrator_falls_back_when_no_context(monkeypatch) -> None:
     async def empty_retrieve(*, query, schema, required_tags, k):  # type: ignore[no-untyped-def]
         return []
 
+    # « Aucun contexte » = ni le retrieve de l'agent, NI le filet multi-schéma de
+    # l'orchestrateur ne trouvent quoi que ce soit. Sans mocker retrieve_multi, le
+    # filet taperait la vraie base et rattraperait avec un chunk tangentiel.
+    async def empty_multi(*, query, schemas, required_tags, k):  # type: ignore[no-untyped-def]
+        return {}
+
     monkeypatch.setattr(rag_agent_mod, "retrieve", empty_retrieve)
+    monkeypatch.setattr(orch_mod, "retrieve_multi", empty_multi)
 
     decision = RouteDecision(pole=Pole.ERP, module="compta", confidence=0.9, complexity="simple")
     result = await _orch(decision).handle("question hors corpus")
