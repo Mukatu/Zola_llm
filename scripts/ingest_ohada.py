@@ -29,6 +29,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import csv
+import unicodedata
 
 from huggingface_hub import hf_hub_download
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
@@ -152,12 +153,23 @@ _FORMES_JURIDIQUES: list[tuple[str, str, str]] = [
     ("actions simplifiee", "société par actions simplifiée (SAS)", "sas"),
     ("societe en participation", "société en participation", "societe_participation"),
     ("interet economique", "groupement d'intérêt économique (GIE)", "gie"),
+    # AUSCOOP (Acte uniforme relatif au droit des sociétés coopératives) : ce
+    # texte-là est propre et bien accentué ("société coopérative") plutôt
+    # qu'issu d'un OCR dégradé — voir `_sans_accents` ci-dessous, qui neutralise
+    # la différence pour que ce même needle ASCII matche les deux graphies.
+    ("cooperative", "société coopérative", "cooperative"),
 ]
 
 
+def _sans_accents(text: str) -> str:
+    """Retire les diacritiques (ex. "coopérative" -> "cooperative") pour un matching robuste
+    aux deux graphies possibles du corpus (OCR sans accents vs texte propre accentué)."""
+    return "".join(c for c in unicodedata.normalize("NFKD", text) if not unicodedata.combining(c))
+
+
 def _formes_detectees(text: str) -> list[tuple[str, str]]:
-    """Formes juridiques (label, tag) mentionnées dans `text` (ASCII, insensible à la casse)."""
-    hay = text.lower()
+    """Formes juridiques (label, tag) mentionnées dans `text` (insensible à la casse et aux accents)."""
+    hay = _sans_accents(text.lower())
     return [(label, tag) for needle, label, tag in _FORMES_JURIDIQUES if needle in hay]
 
 

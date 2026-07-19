@@ -38,6 +38,7 @@ from zolaos.core.logging import get_logger
 from zolaos.core.metrics import AGENT_INVOCATIONS_TOTAL
 from zolaos.core.settings import Settings
 from zolaos.llm.base import GenerationOptions, LLMClient, Message
+from zolaos.rag.formes import detect_forme_juridique
 from zolaos.rag.retrieval import Match, rerank_or_trim, retrieve
 from zolaos.rag.sectors import detect_sector
 
@@ -118,6 +119,10 @@ class RAGAgent:
     # collective dédiée (droit du travail) → retrieve boosté par secteur pour
     # ancrer sur la bonne convention plutôt qu'un mélange. Cf. `_primary_retrieve`.
     sector_aware: ClassVar[bool] = False
+    # True = la question peut nommer une forme de société (SARL, SA, coopérative…)
+    # → retrieve boosté par forme pour ancrer sur les articles OHADA de la bonne
+    # forme plutôt qu'un mélange (SARL vs coopératives). Cf. `_primary_retrieve`.
+    forme_aware: ClassVar[bool] = False
     top_k: ClassVar[int] = 5
     max_tokens: ClassVar[int] = 800
     temperature: ClassVar[float] = 0.2
@@ -362,57 +367,80 @@ class RAGAgent:
                 matches = rerank_or_trim(query, [*matches, *extra], k, self._settings)
         return matches
 
-    async def _primary_retrieve(self, *, query: str, tags: list[str], k: int) -> list[Match]:
-        """Retrieve dans le schéma de l'agent, avec **boost secteur** si applicable.
+    def _detect_facet(self, query: str) -> tuple[str, str] | None:
+        """Facette (préfixe de tag, valeur) à booster pour cette requête, ou None.
 
-        Sans secteur (ou agent non `sector_aware`) : retrieve normal.
-
-        Avec un secteur détecté (ex. « secteur bancaire ») : double détente pour
-        ancrer sur la BONNE convention plutôt qu'un mélange de toutes —
-          1. un retrieve scopé `secteur:<x>` garantit la présence de la convention
-             du secteur, même si elle n'aurait pas atteint le top-k globalement ;
-          2. un retrieve général fournit le droit commun (Code du travail, non
-             tagué secteur), duquel on **écarte les conventions d'AUTRES secteurs**
-             (le bruit : une convention minière n'a rien à faire dans une réponse
-             sur les banques).
-        On réserve la moitié de `k` au secteur, l'autre au droit commun.
+        Une facette regroupe des sous-corpus concurrents et sémantiquement
+        proches, qu'il faut départager par un signal explicite de la question :
+          - `secteur:<x>` (conventions collectives par secteur — droit du travail) ;
+          - `forme:<x>` (articles OHADA par forme de société — SARL vs coopérative).
+        Un agent n'active qu'une facette (`sector_aware` OU `forme_aware`).
         """
-        sector = detect_sector(query) if self.sector_aware else None
-        if sector is None:
+        if self.sector_aware:
+            sector = detect_sector(query)
+            if sector is not None:
+                return "secteur", sector
+        if self.forme_aware:
+            forme = detect_forme_juridique(query)
+            if forme is not None:
+                return "forme", forme
+        return None
+
+    async def _primary_retrieve(self, *, query: str, tags: list[str], k: int) -> list[Match]:
+        """Retrieve dans le schéma de l'agent, avec **boost de facette** si applicable.
+
+        Sans facette détectée (ou agent non concerné) : retrieve normal.
+
+        Avec une facette (ex. « secteur bancaire », ou « statuts d'une SARL ») :
+        double détente pour ancrer sur le BON sous-corpus plutôt qu'un mélange —
+          1. un retrieve scopé `<facette>:<valeur>` garantit la présence des
+             chunks de la bonne facette, même s'ils n'auraient pas atteint le
+             top-k globalement ;
+          2. un retrieve général fournit le droit commun (non tagué de cette
+             facette), duquel on **écarte les chunks d'une AUTRE valeur de la même
+             facette** (le bruit : une convention minière dans une réponse sur les
+             banques ; un article coopératives dans une réponse sur les SARL).
+        On réserve la moitié de `k` à la facette, l'autre au droit commun.
+        """
+        facet = self._detect_facet(query)
+        if facet is None:
             return await retrieve(
                 query=query, schema=self.rag_schema, required_tags=tags, k=k
             )
 
-        sector_tag = f"secteur:{sector}"
+        prefix, value = facet
+        facet_tag = f"{prefix}:{value}"
         specific = await retrieve(
-            query=query, schema=self.rag_schema, required_tags=[*tags, sector_tag], k=k
+            query=query, schema=self.rag_schema, required_tags=[*tags, facet_tag], k=k
         )
         general = await retrieve(
             query=query, schema=self.rag_schema, required_tags=tags, k=k
         )
 
-        def _other_sector(m: Match) -> bool:
-            return any(t.startswith("secteur:") and t != sector_tag for t in m.tags)
+        prefix_ = f"{prefix}:"
 
-        n_sector = max(1, k // 2)
-        chosen = list(specific[:n_sector])
+        def _other_value(m: Match) -> bool:
+            return any(t.startswith(prefix_) and t != facet_tag for t in m.tags)
+
+        n_facet = max(1, k // 2)
+        chosen = list(specific[:n_facet])
         seen = {(m.source_uri, m.chunk_index) for m in chosen}
         for m in general:
             if len(chosen) >= k:
                 break
             key = (m.source_uri, m.chunk_index)
-            if key in seen or _other_sector(m):
+            if key in seen or _other_value(m):
                 continue
             chosen.append(m)
             seen.add(key)
-        # Classement final du mélange secteur/droit-commun par score hybride :
+        # Classement final du mélange facette/droit-commun par score hybride :
         # les termes décisifs de la question priment (dégrade en tri distance).
         chosen = rerank_or_trim(query, chosen, k, self._settings)
         _log.info(
-            "rag_agent.sector_boost",
+            "rag_agent.facet_boost",
             agent=self.name,
-            sector=sector,
-            n_sector=sum(1 for m in chosen if sector_tag in m.tags),
+            facet=facet_tag,
+            n_facet=sum(1 for m in chosen if facet_tag in m.tags),
             n_total=len(chosen),
         )
         return chosen

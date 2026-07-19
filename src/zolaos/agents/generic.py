@@ -21,9 +21,11 @@ class GenericLegalAgent(RAGAgent):
     requires_citation = True
     # Une question de droit du travail non pinnée sur `travail_cg` (ex. « congés
     # dans le secteur minier » → legal/None) peut quand même nommer un secteur :
-    # on écarte alors le bruit des autres conventions. Sans effet hors travail_cg
-    # (les textes OHADA/fiscaux ne portent pas de tag `secteur:`).
+    # on écarte alors le bruit des autres conventions. Idem une question OHADA non
+    # pinnée sur `ohada` peut nommer une forme de société. Sans effet sur les
+    # textes qui ne portent pas les tags secteur:/forme: (fiscaux, etc.).
     sector_aware = True
+    forme_aware = True
     min_confidence = 0.5
     top_k = 6
     max_tokens = 1200
