@@ -60,6 +60,7 @@ export function AssistantDock() {
   const [msgs, setMsgs] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
+  const [deep, setDeep] = useState(false);
 
   // Redondant sur l'assistant plein écran et la Bibliothèque.
   if (path === "/assistant" || path === "/kb") return null;
@@ -87,7 +88,7 @@ export function AssistantDock() {
           setMsgs((m) =>
             m.map((msg, i) => (i === m.length - 1 ? { ...msg, content: msg.content + text } : msg)),
           ),
-      });
+      }, { deep });
       patchLast({
         content: r.content,
         pole: r.pole,
@@ -193,7 +194,20 @@ export function AssistantDock() {
         ))}
       </div>
 
-      <div className="flex items-end gap-2 border-t border-black/5 p-2">
+      <div className="flex flex-col gap-1.5 border-t border-black/5 p-2">
+        <label
+          className="flex cursor-pointer select-none items-center gap-1.5 text-xs text-muted"
+          title="Génère la réponse avec le modèle lourd (70B) : plus fouillé, mais nettement plus lent (~1-2 min)."
+        >
+          <input
+            type="checkbox"
+            checked={deep}
+            onChange={(e) => setDeep(e.target.checked)}
+            className="h-3.5 w-3.5 accent-forest"
+          />
+          Réponse approfondie <span className="text-muted/70">(70B, plus lent)</span>
+        </label>
+      <div className="flex items-end gap-2">
         <textarea
           value={input}
           onChange={(e) => setInput(e.target.value)}
@@ -214,6 +228,7 @@ export function AssistantDock() {
         >
           <Send className="h-4 w-4" />
         </button>
+      </div>
       </div>
     </div>
   );

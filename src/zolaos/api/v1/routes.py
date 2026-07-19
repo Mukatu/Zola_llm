@@ -53,7 +53,7 @@ async def query(
     # Tenant dérivé de l'identité → l'agent fusionne le corpus privé du bon client.
     tenant_id = principal.tenant_id or "local"
     try:
-        result = await orch.handle(payload.query, tenant_id=tenant_id)
+        result = await orch.handle(payload.query, tenant_id=tenant_id, deep=payload.deep)
     except RouterError as exc:
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
@@ -113,7 +113,7 @@ async def query_stream(
 
     async def events() -> AsyncIterator[bytes]:
         try:
-            async for ev in orch.stream(payload.query, tenant_id=tenant_id):
+            async for ev in orch.stream(payload.query, tenant_id=tenant_id, deep=payload.deep):
                 yield b"data: " + orjson.dumps(ev) + b"\n\n"
         except RouterError as exc:
             yield b"data: " + orjson.dumps(

@@ -57,10 +57,15 @@ export interface StreamHandlers {
  * arrivent avant le premier token — le retrieve est fini bien avant le modèle.
  * Résout avec le résultat complet une fois le flux terminé.
  */
+export interface StreamOptions {
+  signal?: AbortSignal;
+  deep?: boolean; // mode « réponse approfondie » → modèle lourd (70B), plus lent
+}
+
 export async function streamQuery(
   query: string,
   handlers: StreamHandlers = {},
-  signal?: AbortSignal,
+  opts: StreamOptions = {},
 ): Promise<QueryResult> {
   const send = async (tok?: string): Promise<Response> => {
     const t = tok ?? getToken();
@@ -71,8 +76,8 @@ export async function streamQuery(
         Accept: "text/event-stream",
         ...(t ? { Authorization: `Bearer ${t}` } : {}),
       },
-      body: JSON.stringify({ query }),
-      signal,
+      body: JSON.stringify({ query, deep: opts.deep ?? false }),
+      signal: opts.signal,
     });
   };
 

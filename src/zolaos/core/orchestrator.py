@@ -92,13 +92,14 @@ class Orchestrator:
         # génère toujours sur le client/modèle 8B de l'agent (comportement d'origine).
         self._core_client = core_client
 
-    def _gen_overrides(self, decision: RouteDecision) -> dict[str, object]:
-        """Client+modèle de génération à surcharger selon la complexité.
+    def _gen_overrides(self, decision: RouteDecision, deep: bool = False) -> dict[str, object]:
+        """Client+modèle de génération à surcharger → 70B, ou `{}` (8B par défaut).
 
-        Cas `complex` + `core_client` disponible → 70B (`LLM_MODEL_CORE`) pour une
-        synthèse de meilleure qualité, au prix de la latence. Sinon `{}` : l'agent
-        garde son 8B. Levier sélectif : la majorité des questions (simple/moderate)
-        restent rapides sur le 8B.
+        Le 70B (`LLM_MODEL_CORE`) est sollicité, si `core_client` est disponible :
+          - `deep=True` : mode « réponse approfondie » demandé EXPLICITEMENT par
+            l'utilisateur (bouton), quelle que soit la complexité estimée ;
+          - OU `decision.complexity ∈ LLM_CORE_ON_COMPLEXITY` : déclenchement auto
+            (défaut « complex », rare). Le routage + le retrieve restent sur le 8B.
         """
         if self._core_client is None:
             return {}
@@ -107,7 +108,7 @@ class Orchestrator:
             for lvl in self._settings.LLM_CORE_ON_COMPLEXITY.split(",")
             if lvl.strip()
         }
-        if decision.complexity in levels:
+        if deep or decision.complexity in levels:
             return {"client": self._core_client, "model": self._settings.LLM_MODEL_CORE}
         return {}
 
@@ -117,6 +118,7 @@ class Orchestrator:
         *,
         request_id: uuid.UUID | None = None,
         tenant_id: str = "local",
+        deep: bool = False,
     ) -> OrchestrationResult:
         request_id = request_id or uuid.uuid4()
         start = time.perf_counter()
@@ -136,7 +138,7 @@ class Orchestrator:
         # il ancre sa réponse sur le corpus (retrieval + citations). Sinon — ou si le
         # corpus ne contient pas de quoi répondre (InsufficientContextError) — on
         # retombe sur l'agent générique.
-        responses = [await self._answer(decision, user_query, tenant_id)]
+        responses = [await self._answer(decision, user_query, tenant_id, deep=deep)]
 
         duration = time.perf_counter() - start
         _log.info(
@@ -162,6 +164,7 @@ class Orchestrator:
         *,
         request_id: uuid.UUID | None = None,
         tenant_id: str = "local",
+        deep: bool = False,
     ) -> AsyncIterator[dict[str, Any]]:
         """Même pipeline que `handle`, mais émis au fil de l'eau.
 
@@ -215,7 +218,7 @@ class Orchestrator:
                     for c in prepared.citations
                 ],
             }
-            async for chunk in agent.stream_prepared(prepared, **self._gen_overrides(decision)):
+            async for chunk in agent.stream_prepared(prepared, **self._gen_overrides(decision, deep)):
                 yield {"type": "token", "text": chunk}
         elif regulated:
             # Pôle à corpus, rien à citer même après le filet → abstention plutôt
@@ -387,7 +390,7 @@ class Orchestrator:
             return None
 
     async def _answer(
-        self, decision: RouteDecision, user_query: str, tenant_id: str = "local"
+        self, decision: RouteDecision, user_query: str, tenant_id: str = "local", deep: bool = False
     ) -> AgentResponse:
         """Répond via l'agent RAG du pôle, le filet de rattrapage, ou en repli.
 
@@ -397,7 +400,7 @@ class Orchestrator:
         agent, prepared, regulated = await self._resolve_agent(decision, user_query, tenant_id)
 
         if agent is not None and prepared is not None:
-            rr = await agent.answer_prepared(prepared, **self._gen_overrides(decision))
+            rr = await agent.answer_prepared(prepared, **self._gen_overrides(decision, deep))
             return AgentResponse(
                 pole=decision.pole,
                 content=rr.content,

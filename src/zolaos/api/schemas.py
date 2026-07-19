@@ -15,6 +15,10 @@ class QueryRequest(BaseModel):
     query: str = Field(min_length=1, max_length=8000)
     country_hint: str | None = Field(default=None, pattern=r"^[a-z]{2}$")
     tenant_id: str | None = Field(default=None, max_length=64)
+    # Mode « réponse approfondie » : la génération passe sur le modèle lourd (70B)
+    # à la demande de l'utilisateur, quelle que soit la complexité estimée. Plus
+    # lent (~2 min), pour une synthèse dure. Défaut False = 8B rapide.
+    deep: bool = False
 
 
 class RoutingInfo(BaseModel):
