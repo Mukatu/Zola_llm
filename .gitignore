@@ -3,7 +3,10 @@
 .env.*
 !.env.example
 !deploy/zolabox/.env.zolabox.example
+!deploy/zolacortex/.env.zolacortex.example
 *.key
+# Certificats/clés PKI générés (CA + certs client par box) — jamais versionnés.
+deploy/*/pki/certs/
 *.pem
 *.p12
 *.pfx

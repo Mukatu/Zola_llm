@@ -1,0 +1,22 @@
+# Zolacortex — reverse proxy Polaris.
+
+# Cockpit cabinet + API : HTTPS standard (Let's Encrypt automatique si domaine public).
+{$CORTEX_DOMAIN} {
+	encode gzip
+	reverse_proxy app:8000
+}
+
+# Tunnel des Zolabox : mTLS OBLIGATOIRE. Caddy exige et vérifie le certificat client
+# de la box contre la CA Polaris, puis transmet son sujet à l'app (défense en profondeur
+# par-dessus le credential applicatif). La box pointe TUNNEL_CORTEX_URL sur ce domaine.
+{$CORTEX_TUNNEL_DOMAIN} {
+	tls {
+		client_auth {
+			mode require_and_verify
+			trusted_ca_cert_file /certs/polaris-ca.crt
+		}
+	}
+	reverse_proxy app:8000 {
+		header_up X-Client-Cert-CN {http.request.tls.client.subject}
+	}
+}

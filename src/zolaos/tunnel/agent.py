@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import ssl
 from typing import Any
 
 import httpx
@@ -37,9 +38,19 @@ async def run_box_tunnel_agent(settings: Settings) -> None:
     local_base = f"http://localhost:{settings.APP_PORT}"
     backoff = settings.TUNNEL_RECONNECT_SECONDS
 
+    # mTLS : sur wss://, présente le certificat client de la box s'il est configuré
+    # (vérifié par le proxy du Cortex contre la CA Polaris). Sur ws:// (dev) : None.
+    ssl_ctx: ssl.SSLContext | None = None
+    if url.startswith("wss://"):
+        ssl_ctx = ssl.create_default_context()
+        if settings.TUNNEL_CLIENT_CERT_PATH and settings.TUNNEL_CLIENT_KEY_PATH:
+            ssl_ctx.load_cert_chain(
+                certfile=settings.TUNNEL_CLIENT_CERT_PATH, keyfile=settings.TUNNEL_CLIENT_KEY_PATH
+            )
+
     while True:
         try:
-            async with websockets.connect(url, max_size=8 * 1024 * 1024) as ws:
+            async with websockets.connect(url, ssl=ssl_ctx, max_size=8 * 1024 * 1024) as ws:
                 await ws.send(
                     json.dumps({"type": "hello", "tenant_id": tenant_id, "credential": credential})
                 )

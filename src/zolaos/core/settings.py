@@ -124,6 +124,15 @@ class Settings(BaseSettings):
     TUNNEL_RAG_TIMEOUT_SECONDS: float = 30.0
     # Délai de reconnexion de l'agent box après une coupure (secondes).
     TUNNEL_RECONNECT_SECONDS: float = 3.0
+    # --- mTLS transport (prod) ---
+    # Côté CORTEX : exige que le proxy (Caddy) ait terminé un mTLS et transmette le CN
+    # du certificat client ; le CN doit == tenant_id de la box. Défense en profondeur
+    # PAR-DESSUS le credential applicatif. False en dev (pas de proxy mTLS).
+    TUNNEL_REQUIRE_CLIENT_CERT: bool = False
+    TUNNEL_CLIENT_CERT_CN_HEADER: str = "x-client-cert-cn"
+    # Côté BOX : certificat client à présenter au tunnel wss (mTLS). Vides = pas de cert.
+    TUNNEL_CLIENT_CERT_PATH: str = ""
+    TUNNEL_CLIENT_KEY_PATH: str = ""
 
     # ===== Connector Framework (Phase 4 §2.4) =====
     # Délai d'attente par défaut (s) injecté aux connecteurs HTTP si non précisé

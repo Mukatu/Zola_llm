@@ -30,6 +30,18 @@ _log = get_logger("zolaos.api.v1.tunnel")
 router = APIRouter(tags=["tunnel"])
 
 
+def _extract_cn(raw: str) -> str:
+    """Extrait le CN d'une identité transmise par le proxy (CN seul ou DN complet).
+
+    Caddy peut transmettre soit juste le CN, soit un DN (« O=Polaris,CN=<id> »).
+    """
+    raw = (raw or "").strip()
+    if "CN=" not in raw:
+        return raw
+    part = raw.split("CN=", 1)[1]
+    return part.split(",", 1)[0].strip()
+
+
 async def _verify_box(tenant_id: str, credential: str, settings: Settings) -> bool:
     """Vrai si le credential correspond au hash actif du tenant (constant-time)."""
     try:
@@ -63,6 +75,15 @@ async def tunnel_connect(ws: WebSocket) -> None:
         _log.warning("tunnel.reject", tenant_id=tenant_id or "?", reason="bad_credential")
         await ws.close(code=4401)
         return
+
+    # Défense en profondeur (prod) : le proxy a terminé un mTLS et transmet l'identité
+    # du certificat client ; son CN doit désigner ce tenant. Sans proxy mTLS (dev), ignoré.
+    if settings.TUNNEL_REQUIRE_CLIENT_CERT:
+        raw = ws.headers.get(settings.TUNNEL_CLIENT_CERT_CN_HEADER, "")
+        if _extract_cn(raw) != tenant_id:
+            _log.warning("tunnel.reject", tenant_id=tenant_id, reason="client_cert_mismatch")
+            await ws.close(code=4401)
+            return
 
     channel = TunnelChannel(tenant_id, ws)
     REGISTRY[tenant_id] = channel  # une box par tenant : la nouvelle remplace l'ancienne
