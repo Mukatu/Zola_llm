@@ -1,7 +1,7 @@
 // Appel à l'orchestrateur génératif (/v1/query) — route vers le bon agent.
 // Le LLM doit tourner côté backend ; auth via NEXT_PUBLIC_API_TOKEN (Bearer).
 import { api, ApiError } from "./api";
-import { fetchDevToken, getToken } from "./auth";
+import { fetchDevToken, getCsrf, getToken, redirectToLogin, refreshSession } from "./auth";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000";
 
@@ -69,13 +69,16 @@ export async function streamQuery(
 ): Promise<QueryResult> {
   const send = async (tok?: string): Promise<Response> => {
     const t = tok ?? getToken();
+    const csrf = getCsrf();
     return fetch(`${API_BASE}/v1/query/stream`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Accept: "text/event-stream",
         ...(t ? { Authorization: `Bearer ${t}` } : {}),
+        ...(csrf ? { "X-CSRF-Token": csrf } : {}), // requête mutante → CSRF requis côté cookie
       },
+      credentials: "include", // envoie zo_access ; seul chemin d'auth hors dev
       body: JSON.stringify({ query, deep: opts.deep ?? false }),
       signal: opts.signal,
     });
@@ -83,8 +86,19 @@ export async function streamQuery(
 
   let r = await send();
   if (r.status === 401) {
-    const fresh = await fetchDevToken();
-    if (fresh) r = await send(fresh);
+    // Session expirée → renouvellement silencieux avant de renvoyer vers /login,
+    // sinon une question posée après une heure d'inactivité se perdrait.
+    if (await refreshSession()) {
+      r = await send();
+    } else {
+      const fresh = await fetchDevToken();
+      if (fresh) {
+        r = await send(fresh);
+      } else {
+        redirectToLogin();
+        throw new ApiError(401, "Authentification requise.");
+      }
+    }
   }
   if (!r.ok || !r.body) throw new ApiError(r.status, await r.text().catch(() => ""));
 

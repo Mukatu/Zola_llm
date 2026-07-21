@@ -3,8 +3,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import clsx from "clsx";
-import { LayoutDashboard, MessagesSquare, FolderOpen, BookOpen, Settings, Briefcase, FileSpreadsheet } from "lucide-react";
-import { useZola } from "./ConfigProvider";
+import { LayoutDashboard, MessagesSquare, FolderOpen, BookOpen, Settings, Briefcase, FileSpreadsheet, Users, Building2 } from "lucide-react";
+import { useZola, hasScope } from "./ConfigProvider";
 import { navGroupsFromModules } from "@/lib/capabilities";
 
 const TRANSVERSES = [
@@ -28,7 +28,7 @@ function PolarisSignature() {
 }
 
 export function Sidebar() {
-  const { config } = useZola();
+  const { config, user } = useZola();
   const pathname = usePathname();
   const groups = navGroupsFromModules(config.modules_actifs);
 
@@ -58,6 +58,8 @@ export function Sidebar() {
         <nav className="flex flex-col gap-1">
           {item("/", "Tableau de bord", LayoutDashboard)}
           {item("/cortex/missions", "Missions", Briefcase)}
+          {hasScope(user, "admin:users") && item("/cortex/clients", "Clients", Building2)}
+          {hasScope(user, "admin:users") && item("/cortex/comptes", "Comptes", Users)}
         </nav>
         <div className="mt-auto rounded-xl bg-white/[0.06] p-3 text-xs text-white/60">
           Accès client uniquement via mission (anonymisé, éphémère, audité).

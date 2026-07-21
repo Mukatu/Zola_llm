@@ -1,5 +1,6 @@
 "use client";
 
+import { usePathname } from "next/navigation";
 import { Sidebar } from "./Sidebar";
 import { TopBar } from "./TopBar";
 import { AssistantDock } from "./AssistantDock";
@@ -7,6 +8,10 @@ import { useZola } from "./ConfigProvider";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const { online, t } = useZola();
+  const pathname = usePathname();
+  // Page de login : pas de chrome applicatif (nav/assistant) avant authentification.
+  if (pathname?.startsWith("/login")) return <>{children}</>;
+
   return (
     <div className="flex h-screen flex-col">
       <TopBar />

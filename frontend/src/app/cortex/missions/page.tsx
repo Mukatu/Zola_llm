@@ -6,6 +6,7 @@ import { Briefcase, Plus, Ban, ShieldCheck } from "lucide-react";
 import { Card, Button } from "@/components/ui";
 import { ApiError } from "@/lib/api";
 import { listMissions, createMission, revokeMission, type MissionSummary, type CreateMissionInput } from "@/lib/cortex";
+import { listClients, type Tenant } from "@/lib/cortex-clients";
 
 const OFFRES = ["conformite_rh", "fiscal_ohada", "tresorerie", "audit_sante", "audit_commercial", "audit_hse_gouvernance"];
 
@@ -16,6 +17,7 @@ const STATUS: Record<string, string> = {
 
 export default function MissionsPage() {
   const [missions, setMissions] = useState<MissionSummary[]>([]);
+  const [clients, setClients] = useState<Tenant[]>([]);
   const [err, setErr] = useState<string | null>(null);
   const [form, setForm] = useState<CreateMissionInput>({ client_tenant_id: "", offre: OFFRES[0], scope_tags: ["country:cg"], ttl_hours: 2 });
   const [scopeText, setScopeText] = useState("country:cg, module:travail_cg");
@@ -28,7 +30,11 @@ export default function MissionsPage() {
       else setErr("Cortex injoignable (backend cortex requis).");
     }
   }
-  useEffect(() => { reload(); }, []);
+  useEffect(() => {
+    reload();
+    // Annuaire clients pour peupler le select — échec silencieux (pas bloquant pour la liste des missions).
+    listClients("client").then(setClients).catch(() => {});
+  }, []);
 
   async function create() {
     setBusy(true); setErr(null);
@@ -51,8 +57,11 @@ export default function MissionsPage() {
       </div>
 
       <Card className="grid gap-3 sm:grid-cols-[1fr_180px_1fr_90px_auto]">
-        <label className="text-sm"><span className="mb-1 block font-medium">Client (tenant UUID)</span>
-          <input value={form.client_tenant_id} onChange={(e) => setForm({ ...form, client_tenant_id: e.target.value })} placeholder="uuid du client" className="w-full rounded-lg border border-black/10 bg-white px-2 py-1 text-sm" />
+        <label className="text-sm"><span className="mb-1 block font-medium">Client</span>
+          <select value={form.client_tenant_id} onChange={(e) => setForm({ ...form, client_tenant_id: e.target.value })} className="w-full rounded-lg border border-black/10 bg-white px-2 py-1 text-sm">
+            <option value="">— sélectionner —</option>
+            {clients.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
         </label>
         <label className="text-sm"><span className="mb-1 block font-medium">Offre</span>
           <select value={form.offre} onChange={(e) => setForm({ ...form, offre: e.target.value })} className="w-full rounded-lg border border-black/10 bg-white px-2 py-1 text-sm">

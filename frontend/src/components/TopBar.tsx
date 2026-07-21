@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Wifi, WifiOff, Search, KeyRound } from "lucide-react";
+import { Wifi, WifiOff, Search, KeyRound, LogOut } from "lucide-react";
 import { useZola } from "./ConfigProvider";
-import { getToken, setToken, fetchDevToken } from "@/lib/auth";
+import { getToken, setToken, fetchDevToken, logout } from "@/lib/auth";
 
 export function TopBar() {
   const { config, online } = useZola();
@@ -25,6 +25,11 @@ export function TopBar() {
     if (t === null) return;
     setToken(t.trim() || null);
     setAuthed(Boolean(t.trim()));
+  }
+
+  async function onLogout() {
+    if (!window.confirm("Se déconnecter de ZolaOS ?")) return;
+    await logout(); // efface les cookies de session côté serveur puis renvoie vers /login
   }
 
   const initiale = (config.branding.nom_affichage.trim()[0] ?? "Z").toUpperCase();
@@ -55,6 +60,13 @@ export function TopBar() {
         ) : (
           <WifiOff className="h-4 w-4 text-amber-400" aria-label="Hors-ligne" />
         )}
+        <button
+          onClick={onLogout}
+          title="Se déconnecter"
+          className="flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-white/70 transition hover:bg-white/[0.15] hover:text-white"
+        >
+          <LogOut className="h-3.5 w-3.5" />
+        </button>
         <div className="h-8 w-8 rounded-full bg-gradient-to-br from-primary to-primary/50 ring-2 ring-white/10" />
       </div>
     </header>
