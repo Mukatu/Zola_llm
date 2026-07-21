@@ -64,8 +64,23 @@ client restent sur son serveur (seuls des extraits scopés transitent, chiffrés
 - Réglages : `TUNNEL_CORTEX_URL`, `ZOLAOS_BOX_TENANT_ID`, `TUNNEL_SHARED_SECRET`,
   `TUNNEL_RAG_TIMEOUT_SECONDS`, `TUNNEL_RECONNECT_SECONDS`.
 
-**Durcissement prod restant (P-A.2)** : per-box credential / mTLS au lieu du secret partagé ;
-registre partagé (Redis) si Cortex multi-worker ; heartbeat/keepalive ; plusieurs box par tenant.
+**P-A.2 durci — credential par box (mTLS applicatif). FAIT (2026-07-21), prouvé.**
+- [x] Credential UNIQUE par box (`Tenant.box_credential_hash`, migration 0047), haché
+  HMAC + pepper (comme les clés API) ; le secret partagé n'authentifie plus rien.
+- [x] Handshake : le Cortex vérifie le credential contre le hash actif du tenant
+  (constant-time). Émission/rotation/révocation via `POST`/`DELETE
+  /v1/cortex/clients/{id}/box-credential` (secret affiché une fois).
+- [x] Révocation **immédiate** : coupe aussi la connexion vivante (`disconnect_tenant`).
+- Vérifié : ancienne box (secret partagé) rejetée ; credential valide → connectée +
+  audit `remote_box_tunnel` ; révocation → box coupée + reconnexion rejetée (code 4401).
+
+**Transport mTLS (couche déploiement, à configurer) :** en prod le tunnel passe en
+`wss://` avec terminaison **mTLS au reverse-proxy** (Caddy/nginx) : la box présente un
+certificat client signé par une CA Polaris, le proxy le vérifie et transmet l'identité.
+La vérification applicative par credential (ci-dessus) vient EN PLUS — défense en profondeur.
+
+**Reste (durcissement) :** CA + certificats client par box (PKI), registre partagé
+(Redis) si Cortex multi-worker, heartbeat/keepalive.
 
 ### P-B — Appliance Zolabox (installateur pour le serveur client)
 - [ ] Bundle reproductible (Compose durci ou image VM) : app box + Postgres/pgvector +

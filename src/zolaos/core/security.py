@@ -51,6 +51,22 @@ def hash_api_key(plain: str, *, pepper: str) -> str:
     return _hash_api_key_unsalted(plain, pepper=pepper)
 
 
+# ===== Credential de box (tunnel hybride) =====
+# Une box par tenant. Credential unique, haché (HMAC-SHA256 + pepper) comme les
+# clés API — jamais stocké en clair. Révocable individuellement (cf. Tenant).
+BOX_CREDENTIAL_PREFIX = "zbx_"
+
+
+def generate_box_credential(*, pepper: str) -> tuple[str, str, str]:
+    """Retourne (clair, prefix, hash). Le clair n'est stocké nulle part côté Cortex."""
+    plain = f"{BOX_CREDENTIAL_PREFIX}{secrets.token_urlsafe(32)}"
+    return plain, plain[:12], hash_api_key(plain, pepper=pepper)
+
+
+def verify_box_credential(plain: str, stored_hash: str, *, pepper: str) -> bool:
+    return verify_api_key(plain, stored_hash, pepper=pepper)
+
+
 def verify_api_key(plain: str, stored_hash: str, *, pepper: str) -> bool:
     return hmac.compare_digest(_hash_api_key_unsalted(plain, pepper=pepper), stored_hash)
 

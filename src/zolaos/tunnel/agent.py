@@ -29,8 +29,8 @@ async def run_box_tunnel_agent(settings: Settings) -> None:
     """Boucle de vie de l'agent : connexion, service, reconnexion sur coupure."""
     url = settings.TUNNEL_CORTEX_URL
     tenant_id = settings.ZOLAOS_BOX_TENANT_ID
-    secret = settings.TUNNEL_SHARED_SECRET.get_secret_value()
-    if not url or not tenant_id or not secret:
+    credential = settings.ZOLAOS_BOX_CREDENTIAL.get_secret_value()
+    if not url or not tenant_id or not credential:
         _log.warning("tunnel.agent.disabled", reason="config_incomplete")
         return
 
@@ -40,7 +40,9 @@ async def run_box_tunnel_agent(settings: Settings) -> None:
     while True:
         try:
             async with websockets.connect(url, max_size=8 * 1024 * 1024) as ws:
-                await ws.send(json.dumps({"type": "hello", "tenant_id": tenant_id, "secret": secret}))
+                await ws.send(
+                    json.dumps({"type": "hello", "tenant_id": tenant_id, "credential": credential})
+                )
                 _log.info("tunnel.agent.connected", cortex=url, tenant_id=tenant_id)
                 async with httpx.AsyncClient(base_url=local_base, timeout=httpx.Timeout(30.0)) as http:
                     async for raw in ws:

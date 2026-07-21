@@ -114,8 +114,12 @@ class Settings(BaseSettings):
     TUNNEL_CORTEX_URL: str = ""
     # Côté BOX : identité (UUID de tenant) que cette box représente auprès du Cortex.
     ZOLAOS_BOX_TENANT_ID: str = ""
-    # Secret partagé d'authentification du tunnel (box ⇄ cortex). Prod : per-box / mTLS.
+    # Déprécié : ancien secret partagé du tunnel. Remplacé par le credential par box
+    # (ZOLAOS_BOX_CREDENTIAL côté box, box_credential_hash côté Cortex). Conservé pour
+    # compat de parsing .env ; n'authentifie plus rien.
     TUNNEL_SHARED_SECRET: SecretStr = SecretStr("")
+    # Côté BOX : credential UNIQUE présenté au handshake du tunnel (per-box, révocable).
+    ZOLAOS_BOX_CREDENTIAL: SecretStr = SecretStr("")
     # Timeout d'une requête RAG servie via le tunnel (côté Cortex).
     TUNNEL_RAG_TIMEOUT_SECONDS: float = 30.0
     # Délai de reconnexion de l'agent box après une coupure (secondes).

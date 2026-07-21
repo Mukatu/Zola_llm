@@ -77,6 +77,10 @@ class Tenant(Base):
     # (Zero Trust). En dev : URL directe. En prod (tunnel sortant) : endpoint local
     # au Cortex attribué au canal de la box. NULL = pas de box → retrieve local.
     box_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    # Credential par box (tunnel) : hash HMAC du secret présenté au handshake.
+    # NULL = aucune box autorisée à se déclarer pour ce tenant. Révoquer = mettre à NULL.
+    box_credential_hash: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    box_credential_prefix: Mapped[str | None] = mapped_column(String(16), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )

@@ -108,6 +108,22 @@ class TunnelChannel:
                 fut.set_exception(TunnelError("tunnel_closed"))
         self._pending.clear()
 
+    async def close(self) -> None:
+        """Ferme le canal (utilisé lors d'une révocation : coupe la box immédiatement)."""
+        try:
+            await self._ws.close(code=4403)
+        except Exception:  # déjà fermé / en cours de fermeture
+            pass
+
+
+async def disconnect_tenant(tenant_id: str) -> bool:
+    """Coupe la connexion vivante d'un tenant (révocation immédiate). True si coupée."""
+    channel = REGISTRY.get(tenant_id)
+    if channel is None:
+        return False
+    await channel.close()
+    return True
+
 
 class TunnelRagClient:
     """Adaptateur compatible ``MissionClient`` : ``rag_search`` route par le tunnel.

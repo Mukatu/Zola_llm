@@ -1,20 +1,28 @@
 """Point d'entrée WebSocket du tunnel inverse — côté CORTEX.
 
-La Zolabox appelle ``/v1/tunnel/connect`` (connexion sortante), s'authentifie par
-secret partagé + identité de tenant, et le canal est enregistré dans ``REGISTRY``.
-Le Cortex y poussera ensuite les requêtes RAG de mission (cf. run_audit).
+La Zolabox appelle ``/v1/tunnel/connect`` (connexion sortante) et s'authentifie avec
+son **credential par box** (unique, révocable) : le handshake le vérifie contre le
+hash stocké sur le tenant (``box_credential_hash``). Le canal est ensuite enregistré
+dans ``REGISTRY`` ; le Cortex y poussera les requêtes RAG de mission (cf. run_audit).
 
-Monté uniquement en profil ``cortex`` (c'est le seul port entrant, côté Polaris ;
-côté client, aucun port n'est ouvert).
+Monté uniquement en profil ``cortex`` (seul port entrant, côté Polaris ; côté client,
+aucun port n'est ouvert). En production, le WebSocket passe en ``wss://`` avec
+terminaison mTLS au reverse-proxy (cf. docs/PRODUCTION_HYBRID.md) — cette
+vérification applicative par credential vient EN PLUS de la couche transport.
 """
 
 from __future__ import annotations
+
+import uuid
 
 from fastapi import APIRouter, WebSocket
 from starlette.websockets import WebSocketDisconnect
 
 from zolaos.core.logging import get_logger
-from zolaos.core.settings import get_settings
+from zolaos.core.security import verify_box_credential
+from zolaos.core.settings import Settings, get_settings
+from zolaos.db.models import Tenant
+from zolaos.db.session import get_session_factory
 from zolaos.tunnel.channel import REGISTRY, TunnelChannel
 
 _log = get_logger("zolaos.api.v1.tunnel")
@@ -22,10 +30,26 @@ _log = get_logger("zolaos.api.v1.tunnel")
 router = APIRouter(tags=["tunnel"])
 
 
+async def _verify_box(tenant_id: str, credential: str, settings: Settings) -> bool:
+    """Vrai si le credential correspond au hash actif du tenant (constant-time)."""
+    try:
+        tenant_uuid = uuid.UUID(tenant_id)
+    except ValueError:
+        return False
+    pepper = settings.API_KEY_PEPPER.get_secret_value()
+    if not pepper or not credential:
+        return False
+    async with get_session_factory()() as session:
+        tenant = await session.get(Tenant, tenant_uuid)
+    if tenant is None or not tenant.is_active or not tenant.box_credential_hash:
+        return False
+    return verify_box_credential(credential, tenant.box_credential_hash, pepper=pepper)
+
+
 @router.websocket("/v1/tunnel/connect")
 async def tunnel_connect(ws: WebSocket) -> None:
     await ws.accept()
-    secret = get_settings().TUNNEL_SHARED_SECRET.get_secret_value()
+    settings = get_settings()
 
     try:
         hello = await ws.receive_json()
@@ -33,12 +57,13 @@ async def tunnel_connect(ws: WebSocket) -> None:
         await ws.close(code=4400)
         return
 
-    if not secret or hello.get("secret") != secret or not hello.get("tenant_id"):
-        _log.warning("tunnel.reject", reason="bad_hello")
+    tenant_id = str(hello.get("tenant_id") or "")
+    credential = str(hello.get("credential") or "")
+    if not tenant_id or not await _verify_box(tenant_id, credential, settings):
+        _log.warning("tunnel.reject", tenant_id=tenant_id or "?", reason="bad_credential")
         await ws.close(code=4401)
         return
 
-    tenant_id = str(hello["tenant_id"])
     channel = TunnelChannel(tenant_id, ws)
     REGISTRY[tenant_id] = channel  # une box par tenant : la nouvelle remplace l'ancienne
     _log.info("tunnel.box_connected", tenant_id=tenant_id)
