@@ -92,6 +92,8 @@ COPY --chown=zolaos:zolaos src/ ./src/
 COPY --chown=zolaos:zolaos agents/ ./agents/
 COPY --chown=zolaos:zolaos infra/postgres/ ./infra/postgres/
 COPY --chown=zolaos:zolaos infra/scripts/ ./infra/scripts/
+# Outils d'exploitation (amorçage admin, ingestion) — nécessaires à l'appliance.
+COPY --chown=zolaos:zolaos scripts/ ./scripts/
 COPY --chown=zolaos:zolaos alembic.ini ./
 COPY --chown=zolaos:zolaos alembic/ ./alembic/
 

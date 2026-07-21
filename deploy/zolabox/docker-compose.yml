@@ -1,0 +1,170 @@
+# ============================================================================
+# Zolabox — appliance de PRODUCTION (déploiement hybride, chez le client).
+#
+# Pile autonome sur le serveur du client : app (profil box) + Postgres/pgvector +
+# Redis + MinIO + Ollama (modèle 8B local) + Caddy (HTTPS). Le 70B et les prompts
+# cabinet NE sont PAS ici (ils vivent au Cortex, chez Polaris). L'agent de tunnel
+# (dans l'app) ouvre une connexion SORTANTE vers le Cortex : aucun port entrant
+# n'est requis côté client hormis l'accès web local.
+#
+# Se déploie depuis un export du dépôt (contexte de build = racine ../..).
+# Config via .env (copier .env.zolabox.example). Installation : ./install.sh
+# ============================================================================
+name: zolabox
+
+x-common-env: &common-env
+  APP_ENV: ${APP_ENV:-prod}
+  LOG_LEVEL: ${LOG_LEVEL:-INFO}
+  LOG_FORMAT: ${LOG_FORMAT:-json}
+  ZOLAOS_PROFILE: box
+
+services:
+
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: zolabox-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-zolaos}
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD_MIGRATIONS}
+      PWD_MIGRATOR: ${POSTGRES_PASSWORD_MIGRATIONS}
+      PWD_APP: ${POSTGRES_PASSWORD_APP}
+      PWD_HEALTH: ${POSTGRES_PASSWORD_HEALTH}
+      PWD_LEGAL: ${POSTGRES_PASSWORD_LEGAL}
+      PWD_ERP: ${POSTGRES_PASSWORD_ERP}
+      PWD_CODE: ${POSTGRES_PASSWORD_CODE}
+      PWD_AUDIT_W: ${POSTGRES_PASSWORD_AUDIT_W}
+      PWD_AUDIT_R: ${POSTGRES_PASSWORD_AUDIT_R}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ../../infra/postgres/00_bootstrap.sh:/docker-entrypoint-initdb.d/00_bootstrap.sh:ro
+      - ../../infra/postgres/01_init_schemas.sql:/infra/01_init_schemas.sql:ro
+      - ../../infra/postgres/02_audit_log.sql:/infra/02_audit_log.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d ${POSTGRES_DB:-zolaos}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks: [zolabox-net]
+
+  redis:
+    image: redis:7-alpine
+    container_name: zolabox-redis
+    restart: unless-stopped
+    command: ["redis-server", "--requirepass", "${REDIS_PASSWORD}", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks: [zolabox-net]
+
+  minio:
+    image: minio/minio:latest
+    container_name: zolabox-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    networks: [zolabox-net]
+
+  # Modèle local 8B (routeur + brigade + RAG). Le 70B reste au Cortex.
+  ollama:
+    image: ollama/ollama:latest
+    container_name: zolabox-ollama
+    restart: unless-stopped
+    environment:
+      OLLAMA_KEEP_ALIVE: "-1"   # garde le modèle résident (pas de rechargement)
+      OLLAMA_NUM_PARALLEL: "2"
+    volumes:
+      - ollama_data:/root/.ollama
+    # Serveur avec GPU NVIDIA : décommenter (nvidia-container-toolkit requis).
+    # AMD ROCm : adapter le runtime. CPU seul : fonctionne, mais lent.
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices: [{driver: nvidia, count: all, capabilities: [gpu]}]
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    networks: [zolabox-net]
+
+  # Migrations one-shot : applique le schéma avant de démarrer l'app.
+  migrate:
+    build: {context: ../.., dockerfile: Dockerfile, args: {ZOLAOS_PROFILE: box}}
+    image: zolaos:${ZOLAOS_VERSION:-latest}
+    container_name: zolabox-migrate
+    restart: "no"
+    command: ["python", "-m", "alembic", "upgrade", "head"]
+    env_file: .env
+    environment:
+      <<: *common-env
+      POSTGRES_HOST: postgres
+    depends_on:
+      postgres: {condition: service_healthy}
+    networks: [zolabox-net]
+
+  app:
+    build: {context: ../.., dockerfile: Dockerfile, args: {ZOLAOS_PROFILE: box}}
+    image: zolaos:${ZOLAOS_VERSION:-latest}
+    container_name: zolabox-app
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      <<: *common-env
+      POSTGRES_HOST: postgres
+      REDIS_HOST: redis
+      MINIO_ENDPOINT: minio:9000
+      # LLM local : le service ollama de ce compose. Le box n'a que le 8B.
+      LLM_BACKEND: llamacpp
+      LLM_HOST_ROUTER: http://ollama:11434
+      LLM_HOST_CORE: http://ollama:11434
+    depends_on:
+      postgres: {condition: service_healthy}
+      redis: {condition: service_healthy}
+      minio: {condition: service_healthy}
+      ollama: {condition: service_healthy}
+      migrate: {condition: service_completed_successfully}
+    networks: [zolabox-net]
+
+  # Reverse proxy + HTTPS. Domaine via ZOLABOX_DOMAIN (Caddy gère le certificat).
+  caddy:
+    image: caddy:2-alpine
+    container_name: zolabox-caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      ZOLABOX_DOMAIN: ${ZOLABOX_DOMAIN:-localhost}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on: [app]
+    networks: [zolabox-net]
+
+volumes:
+  postgres_data:
+  redis_data:
+  minio_data:
+  ollama_data:
+  caddy_data:
+  caddy_config:
+
+networks:
+  zolabox-net:
+    driver: bridge

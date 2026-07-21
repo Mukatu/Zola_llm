@@ -1,0 +1,14 @@
+# Zolabox — reverse proxy + HTTPS pour les utilisateurs du client (réseau local).
+# Le tunnel vers le Cortex est SORTANT (agent dans l'app) : aucune route entrante
+# à exposer ici. Ce proxy ne sert que l'UI + l'API aux utilisateurs de la box.
+
+{$ZOLABOX_DOMAIN:localhost} {
+	encode gzip
+
+	# Certificat auto-signé Caddy (« internal ») : convient à un déploiement LAN
+	# (box.client.local). Pour un domaine PUBLIC avec certificat Let's Encrypt
+	# automatique, supprimer la ligne `tls internal` ci-dessous.
+	tls internal
+
+	reverse_proxy app:8000
+}

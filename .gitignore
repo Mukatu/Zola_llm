@@ -2,6 +2,7 @@
 .env
 .env.*
 !.env.example
+!deploy/zolabox/.env.zolabox.example
 *.key
 *.pem
 *.p12
