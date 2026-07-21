@@ -24,6 +24,7 @@ from zolaos.agents.registry import (
 from zolaos.agents.router import Pole, RouteDecision, Router
 from zolaos.core.logging import get_logger
 from zolaos.core.settings import Settings
+from zolaos.core.smalltalk import smalltalk_reply
 from zolaos.rag.retrieval import Match, retrieve_multi
 
 _log = get_logger("zolaos.core.orchestrator")
@@ -123,6 +124,25 @@ class Orchestrator:
         request_id = request_id or uuid.uuid4()
         start = time.perf_counter()
 
+        # Étape 0 : salutation / bavardage → réponse conversationnelle, sans RAG.
+        if (reply := smalltalk_reply(user_query)) is not None:
+            return OrchestrationResult(
+                request_id=request_id,
+                decision=RouteDecision(pole=Pole.GENERAL, confidence=1.0, complexity="simple"),
+                plan=None,
+                responses=[
+                    AgentResponse(
+                        pole=Pole.GENERAL,
+                        content=reply,
+                        model="conversational",
+                        duration_seconds=0.0,
+                        citations=(),
+                        grounding="abstained",  # pas de badge « sans source » sur un bonjour
+                    )
+                ],
+                duration_seconds=time.perf_counter() - start,
+            )
+
         # Étape 1 : routage
         decision = await self._router.classify(user_query)
 
@@ -175,6 +195,18 @@ class Orchestrator:
         """
         request_id = request_id or uuid.uuid4()
         start = time.perf_counter()
+
+        # Étape 0 : salutation / bavardage → réponse conversationnelle immédiate.
+        if (reply := smalltalk_reply(user_query)) is not None:
+            yield {"type": "routing", "pole": Pole.GENERAL.value, "module": None, "complexity": "simple"}
+            yield {"type": "token", "text": reply}
+            yield {
+                "type": "done",
+                "request_id": str(request_id),
+                "grounding": "abstained",
+                "duration_seconds": time.perf_counter() - start,
+            }
+            return
 
         # Étape 1 : routage
         decision = await self._router.classify(user_query)

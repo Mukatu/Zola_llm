@@ -97,3 +97,27 @@ def decode_access_token(token: str, *, settings: Settings) -> dict[str, Any]:
 
 class InvalidTokenError(RuntimeError):
     pass
+
+
+# ===== Refresh tokens + CSRF =====
+# Refresh : jeton opaque à durée de vie longue, stocké haché (SHA-256) en base.
+# On n'utilise pas le pepper ici : le hash sert d'index d'égalité, pas de secret
+# partagé — un jeton de 48 octets aléatoires est déjà infalsifiable.
+_REFRESH_TOKEN_BYTES = 48
+
+
+def generate_refresh_token() -> str:
+    return secrets.token_urlsafe(_REFRESH_TOKEN_BYTES)
+
+
+def hash_refresh_token(token: str) -> str:
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+
+def generate_csrf_token() -> str:
+    """Jeton CSRF (double-submit) : lisible par le JS, rejoué dans un en-tête."""
+    return secrets.token_urlsafe(32)
+
+
+def constant_time_equals(a: str, b: str) -> bool:
+    return hmac.compare_digest(a.encode("utf-8"), b.encode("utf-8"))

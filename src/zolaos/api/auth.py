@@ -9,11 +9,12 @@ from __future__ import annotations
 import uuid
 from dataclasses import dataclass
 
-from fastapi import Depends, Header, HTTPException, status
+from fastapi import Cookie, Depends, Header, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from zolaos.core.logging import get_logger
+from zolaos.core.rbac import SCOPE_ADMIN_USERS
 from zolaos.core.security import (
     InvalidTokenError,
     decode_access_token,
@@ -37,21 +38,33 @@ class Principal:
     auth_method: str  # "api_key" | "jwt"
     scopes: tuple[str, ...] = ()
     tenant_uuid: uuid.UUID | None = None  # FK structurée vers core.tenants (Polaris-6)
+    role: str = "client"  # rôle RBAC (admin | consultant | client)
 
 
 async def authenticate(
     authorization: str | None = Header(default=None),
     x_api_key: str | None = Header(default=None, alias="X-API-Key"),
+    zo_access: str | None = Cookie(default=None),
     session: AsyncSession = Depends(get_session),
     settings: Settings = Depends(get_settings),
 ) -> Principal:
-    """Tente d'authentifier la requête. Lève 401 sinon."""
+    """Tente d'authentifier la requête. Lève 401 sinon.
+
+    Trois porteurs, par ordre de priorité :
+    - ``X-API-Key`` : clients machine / connecteurs (immunisé CSRF) ;
+    - ``Authorization: Bearer`` : clients API, tests, CLI (immunisé CSRF) ;
+    - cookie ``zo_access`` : l'app navigateur (login email + mot de passe). Le
+      cookie est httpOnly ; les mutations exigent en plus le jeton CSRF.
+    """
     if x_api_key:
         return await _auth_via_api_key(x_api_key, session=session, settings=settings)
 
     if authorization and authorization.lower().startswith("bearer "):
         token = authorization.split(" ", 1)[1].strip()
         return await _auth_via_jwt(token, session=session, settings=settings)
+
+    if zo_access:
+        return await _auth_via_jwt(zo_access, session=session, settings=settings)
 
     raise HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
@@ -92,6 +105,7 @@ async def _auth_via_api_key(
         auth_method="api_key",
         scopes=tuple(api_key.scopes or ()),
         tenant_uuid=user.tenant_uuid,
+        role=user.role,
     )
 
 
@@ -119,6 +133,7 @@ async def _auth_via_jwt(token: str, *, session: AsyncSession, settings: Settings
         auth_method="jwt",
         scopes=tuple(claims.get("scopes", []) or ()),
         tenant_uuid=user.tenant_uuid,
+        role=user.role,
     )
 
 
@@ -135,6 +150,7 @@ async def current_tenant(principal: Principal = Depends(authenticate)) -> str:
 async def optional_principal(
     authorization: str | None = Header(default=None),
     x_api_key: str | None = Header(default=None, alias="X-API-Key"),
+    zo_access: str | None = Cookie(default=None),
     session: AsyncSession = Depends(get_session),
     settings: Settings = Depends(get_settings),
 ) -> Principal | None:
@@ -144,10 +160,14 @@ async def optional_principal(
     Sert la lecture mixte : les corpus de référence restent consultables sans
     compte, mais le corpus privé (rag_tenant) exige une identité (cf. appelant).
     """
-    if not authorization and not x_api_key:
+    if not authorization and not x_api_key and not zo_access:
         return None
     return await authenticate(
-        authorization=authorization, x_api_key=x_api_key, session=session, settings=settings
+        authorization=authorization,
+        x_api_key=x_api_key,
+        zo_access=zo_access,
+        session=session,
+        settings=settings,
     )
 
 
@@ -159,5 +179,18 @@ async def require_curator(principal: Principal = Depends(authenticate)) -> Princ
     if CURATOR_SCOPE not in principal.scopes:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN, detail="curator_scope_required"
+        )
+    return principal
+
+
+async def require_admin(principal: Principal = Depends(authenticate)) -> Principal:
+    """Réserve l'administration des comptes aux porteurs du scope ``admin:users`` (403 sinon).
+
+    Le rôle `admin` (cf. zolaos.core.rbac) le porte ; consultant/client non. Sert de
+    garde au cockpit cabinet (gestion des comptes, des clients/tenants).
+    """
+    if SCOPE_ADMIN_USERS not in principal.scopes:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="admin_scope_required"
         )
     return principal

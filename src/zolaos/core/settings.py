@@ -92,8 +92,21 @@ class Settings(BaseSettings):
     JWT_SECRET: SecretStr = SecretStr("")
     JWT_ALGORITHM: Literal["HS256", "HS384", "HS512"] = "HS256"
     JWT_EXPIRE_MINUTES: int = 60
+    # Refresh token (login navigateur) : longue durée, rotation à chaque usage.
+    JWT_REFRESH_EXPIRE_DAYS: int = 30
     API_KEY_PEPPER: SecretStr = SecretStr("")
     ENCRYPTION_KEY_AUDIT: SecretStr = SecretStr("")
+
+    # ===== Cookies d'authentification (login navigateur) =====
+    # `Secure` force HTTPS pour l'envoi du cookie. None ⇒ auto : True hors dev.
+    AUTH_COOKIE_SECURE: bool | None = None
+    # SameSite=lax bloque l'envoi cross-site sur POST/fetch : défense CSRF primaire.
+    AUTH_COOKIE_SAMESITE: Literal["lax", "strict", "none"] = "lax"
+    # Domaine du cookie (ex: .polaris.cg pour partager entre sous-domaines). Vide = hôte courant.
+    AUTH_COOKIE_DOMAIN: str = ""
+    # Anti-brute-force login : N échecs par (email+IP) → verrou temporaire.
+    AUTH_LOGIN_MAX_ATTEMPTS: int = 5
+    AUTH_LOGIN_LOCKOUT_SECONDS: int = 300
 
     # ===== Connector Framework (Phase 4 §2.4) =====
     # Délai d'attente par défaut (s) injecté aux connecteurs HTTP si non précisé

@@ -1,9 +1,11 @@
 # Commons de connaissance — pipeline de contribution (niveau 3)
 
-> **Statut : cadrage (design). Aucun code de promotion n'existe encore.**
-> Ce document définit *comment* l'usage chez les clients peut rendre le moteur
-> ZolaOS partagé « perpétuellement plus expert », **sans jamais** faire remonter
-> de donnée privée. Il précède l'implémentation.
+> **Statut : Phases A, B et C IMPLÉMENTÉES (2026-07-07).** La chaîne complète
+> tourne : feedback → anonymisation → quarantaine → k-anonymat (3) → validation
+> humaine → promotion dans `rag_commons` → consultation par les agents.
+> Ce document définit *comment* l'usage chez les clients rend le moteur ZolaOS
+> partagé « perpétuellement plus expert », **sans jamais** faire remonter de
+> donnée privée.
 
 ## 1. Le problème
 

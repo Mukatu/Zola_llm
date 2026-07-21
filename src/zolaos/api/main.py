@@ -163,6 +163,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     app.include_router(commons_router)
 
+    # Authentification de production : login email + mot de passe, cookies
+    # httpOnly + refresh + CSRF. Montée dans tous les environnements.
+    from zolaos.api.v1.auth import router as auth_router
+
+    app.include_router(auth_router)
+
     # Auto-login de développement (jeton local, 404 hors dev).
     from zolaos.api.v1.auth_dev import router as auth_dev_router
 
@@ -220,6 +226,16 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         from zolaos.api.v1.cortex import router as cortex_router
 
         app.include_router(cortex_router)
+
+        # Cockpit cabinet — gestion des comptes (réservé rôle admin).
+        from zolaos.api.v1.cortex_accounts import router as cortex_accounts_router
+
+        app.include_router(cortex_accounts_router)
+
+        # Cockpit cabinet — annuaire des clients / tenants (réservé rôle admin).
+        from zolaos.api.v1.cortex_clients import router as cortex_clients_router
+
+        app.include_router(cortex_clients_router)
 
     return app
 

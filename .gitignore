@@ -130,3 +130,4 @@ Engagements_achats.xlsm
 # Déclaration sociale réelle (données salariés, ne pas versionner)
 DAS1_.xls
 *.xls
+docker-compose.local.yml

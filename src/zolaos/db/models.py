@@ -73,6 +73,10 @@ class Tenant(Base):
     )
     country: Mapped[str] = mapped_column(String(2), default="cg", nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    # Adresse par laquelle le Cortex joint la Zolabox du client pour le RAG distant
+    # (Zero Trust). En dev : URL directe. En prod (tunnel sortant) : endpoint local
+    # au Cortex attribué au canal de la box. NULL = pas de box → retrieve local.
+    box_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
@@ -90,6 +94,9 @@ class User(Base):
     display_name: Mapped[str] = mapped_column(String(200), nullable=False)
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    # Rôle RBAC : admin | consultant | client. Le login en dérive les scopes JWT
+    # (cf. zolaos.core.rbac). Défaut `consultant` (rattachement cabinet).
+    role: Mapped[str] = mapped_column(String(20), default="consultant", nullable=False)
     country: Mapped[str] = mapped_column(String(2), default="cg", nullable=False)
     # `tenant_id` legacy : tag string libre. Conservé pour compatibilité ascendante
     # avec les RBAC tags existants. Le rattachement structuré passe par
@@ -140,6 +147,38 @@ class ApiKey(Base):
     )
 
     user: Mapped[User] = relationship(back_populates="api_keys")
+
+
+class RefreshToken(Base):
+    """Jeton de rafraîchissement (login navigateur).
+
+    Opaque, à durée de vie longue (jours), stocké **haché** (SHA-256). Il permet
+    de réémettre un access token JWT court sans redemander le mot de passe. La
+    rotation révoque l'ancien à chaque usage : un jeton volé cesse de fonctionner
+    dès le prochain refresh légitime (détection de rejeu possible en aval).
+    """
+
+    __tablename__ = "refresh_tokens"
+    __table_args__ = ({"schema": "core"},)
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("core.users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    # SHA-256(token) en hexadécimal : le jeton clair n'est jamais stocké.
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True, nullable=False, index=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # Contexte d'émission (traçabilité / révocation ciblée d'une session).
+    user_agent: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+    user: Mapped[User] = relationship()
 
 
 class Mission(Base):
@@ -194,6 +233,9 @@ class Mission(Base):
     revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     status: Mapped[str] = mapped_column(String(16), default="active", nullable=False)
     scope_tags: Mapped[list[str]] = mapped_column(ARRAY(Text), default=list, nullable=False)
+    # Dernier audit exécuté (overlay Polaris) : {offre, query, synthese, findings,
+    # citations, ran_at}. Sert de source au rapport .docx sans ré-exécuter le LLM.
+    last_audit: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
 
     cabinet: Mapped[Tenant] = relationship(foreign_keys=[cabinet_tenant_id])
     client: Mapped[Tenant] = relationship(foreign_keys=[client_tenant_id])
