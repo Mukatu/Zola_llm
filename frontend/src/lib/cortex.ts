@@ -59,12 +59,17 @@ export interface Citation {
   similarity: number;
 }
 
+// Origine du corpus interrogé par l'audit — distingue les données réelles du
+// client (via la Zolabox, tunnel ou accès direct) du corpus local du cortex.
+export type RetrievalSource = "remote_box_tunnel" | "remote_box" | "local_cortex";
+
 export interface LastAudit {
   offre: string;
   query: string;
   ran_at: string;
   result: AuditResult;
   citations: Citation[];
+  retrieval: RetrievalSource;
 }
 
 export interface MissionDetail {
@@ -91,6 +96,7 @@ export interface AuditResponse {
   ran_at: string;
   result: AuditResult;
   citations: Citation[];
+  retrieval: RetrievalSource;
 }
 
 export function getMission(id: string): Promise<MissionDetail> {

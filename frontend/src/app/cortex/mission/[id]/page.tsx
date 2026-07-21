@@ -13,6 +13,7 @@ import {
   type MissionDetail,
   type AuditResult,
   type Citation,
+  type RetrievalSource,
 } from "@/lib/cortex";
 
 const STATUS: Record<string, string> = {
@@ -27,6 +28,21 @@ interface AuditView {
   ran_at: string;
   result: AuditResult;
   citations: Citation[];
+  retrieval: RetrievalSource;
+}
+
+// Origine du corpus interrogé — distingue les vraies données du client (box,
+// via tunnel ou accès direct) du corpus local du cortex (pas les données client).
+const RETRIEVAL_LABEL: Record<RetrievalSource, { label: string; cls: string }> = {
+  remote_box_tunnel: { label: "Données client (tunnel sécurisé)", cls: "bg-emerald-100 text-emerald-700" },
+  remote_box: { label: "Données client (accès direct)", cls: "bg-emerald-100 text-emerald-700" },
+  local_cortex: { label: "Corpus local (pas les données du client)", cls: "bg-amber-100 text-amber-700" },
+};
+
+function RetrievalBadge({ retrieval }: { retrieval: RetrievalSource }) {
+  const info = RETRIEVAL_LABEL[retrieval];
+  if (!info) return null;
+  return <span className={"rounded-full px-2 py-0.5 text-xs font-semibold " + info.cls}>{info.label}</span>;
 }
 
 // snake_case → libellé lisible ("risque_prudhommal" → "Risque prudhommal").
@@ -116,7 +132,7 @@ export default function MissionCockpit() {
     setInsufficientContext(false);
     try {
       const res = await runAudit(id, { query: auditQuery.trim() || undefined, deep });
-      setAudit({ query: auditQuery.trim() || undefined, ran_at: res.ran_at, result: res.result, citations: res.citations });
+      setAudit({ query: auditQuery.trim() || undefined, ran_at: res.ran_at, result: res.result, citations: res.citations, retrieval: res.retrieval });
     } catch (e) {
       const info = parseAuditError(e);
       setInsufficientContext(info.insufficientContext);
@@ -235,7 +251,10 @@ function AuditPanel({ audit }: { audit: AuditView }) {
   return (
     <div className="flex flex-col gap-3">
       <Card>
-        <div className="mb-1 text-xs text-muted">Audit du {new Date(audit.ran_at).toLocaleString("fr-FR")}</div>
+        <div className="mb-1 flex items-center justify-between gap-2">
+          <div className="text-xs text-muted">Audit du {new Date(audit.ran_at).toLocaleString("fr-FR")}</div>
+          <RetrievalBadge retrieval={audit.retrieval} />
+        </div>
         <p className="text-sm">{audit.result.synthese}</p>
       </Card>
 
