@@ -50,12 +50,22 @@ client restent sur son serveur (seuls des extraits scopés transitent, chiffrés
 - Vérifié : audit `conformite_rh` → la box journalise `mission.token.verified` +
   `audit.box_access` + `POST /v1/box/rag/search 200`, l'inférence reste au cortex.
 
-**P-A.2 — Transport par tunnel sortant (traversée de pare-feu). À FAIRE.**
-- [ ] **Identité de box** (crédential émis au provisioning) pour authentifier le tunnel.
-- [ ] **Serveur de tunnel** côté cortex : accepte les connexions sortantes des box, les
-  authentifie, mappe `tenant → canal vivant`, route les requêtes vers le bon canal.
-- [ ] **Agent tunnel** côté box : dial persistant + reconnexion ; `box_url` du tenant
-  pointe alors sur l'endpoint local-cortex du canal (le reste de P-A.1 est inchangé).
+**P-A.2 — Transport par tunnel sortant (traversée de pare-feu). FAIT (2026-07-21), prouvé.**
+- [x] **Serveur de tunnel** côté cortex : WebSocket `/v1/tunnel/connect` (`api/v1/tunnel.py`),
+  auth par secret partagé + identité de tenant, registre `tenant → canal` runtime
+  (`tunnel/channel.py`, multiplexage requête/réponse par `req_id`).
+- [x] **Agent tunnel** côté box : dial sortant persistant + reconnexion (`tunnel/agent.py`),
+  démarré au lifespan (profil box, si `TUNNEL_CORTEX_URL`). Relaie les requêtes vers sa
+  propre API locale `/v1/box/rag/search` (préserve jeton mission + scope + audit).
+- [x] `run_audit` priorise le tunnel : canal vivant (`remote_box_tunnel`) > `box_url` direct
+  (`remote_box`) > local (`local_cortex`). `TunnelRagClient` compatible `MissionClient`.
+- Vérifié : box dial sortant → `tunnel.box_connected` ; audit → `remote_box_tunnel`,
+  la box sert le RAG depuis 127.0.0.1 (relais local via le tunnel, pas d'accès entrant).
+- Réglages : `TUNNEL_CORTEX_URL`, `ZOLAOS_BOX_TENANT_ID`, `TUNNEL_SHARED_SECRET`,
+  `TUNNEL_RAG_TIMEOUT_SECONDS`, `TUNNEL_RECONNECT_SECONDS`.
+
+**Durcissement prod restant (P-A.2)** : per-box credential / mTLS au lieu du secret partagé ;
+registre partagé (Redis) si Cortex multi-worker ; heartbeat/keepalive ; plusieurs box par tenant.
 
 ### P-B — Appliance Zolabox (installateur pour le serveur client)
 - [ ] Bundle reproductible (Compose durci ou image VM) : app box + Postgres/pgvector +

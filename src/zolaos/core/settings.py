@@ -108,6 +108,19 @@ class Settings(BaseSettings):
     AUTH_LOGIN_MAX_ATTEMPTS: int = 5
     AUTH_LOGIN_LOCKOUT_SECONDS: int = 300
 
+    # ===== Tunnel Zolabox → Zolacortex (déploiement hybride, P-A.2) =====
+    # Côté BOX : URL WebSocket du Cortex à appeler (connexion SORTANTE). Vide = pas
+    # de tunnel (la box ne se déclare pas ; le Cortex l'atteindra par box_url direct).
+    TUNNEL_CORTEX_URL: str = ""
+    # Côté BOX : identité (UUID de tenant) que cette box représente auprès du Cortex.
+    ZOLAOS_BOX_TENANT_ID: str = ""
+    # Secret partagé d'authentification du tunnel (box ⇄ cortex). Prod : per-box / mTLS.
+    TUNNEL_SHARED_SECRET: SecretStr = SecretStr("")
+    # Timeout d'une requête RAG servie via le tunnel (côté Cortex).
+    TUNNEL_RAG_TIMEOUT_SECONDS: float = 30.0
+    # Délai de reconnexion de l'agent box après une coupure (secondes).
+    TUNNEL_RECONNECT_SECONDS: float = 3.0
+
     # ===== Connector Framework (Phase 4 §2.4) =====
     # Délai d'attente par défaut (s) injecté aux connecteurs HTTP si non précisé
     # dans leur config. Les connecteurs vivent dans les deux profils (box/cortex).

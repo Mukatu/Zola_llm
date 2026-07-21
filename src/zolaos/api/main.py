@@ -6,9 +6,10 @@ Les routes métier (/v1/query, /v1/agents) arrivent en Phase 1.
 
 from __future__ import annotations
 
+import asyncio
 import time
 from collections.abc import AsyncIterator
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 from typing import Any
 
 from fastapi import FastAPI, HTTPException, Request, Response, status
@@ -43,7 +44,21 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         country=settings.DEFAULT_COUNTRY,
         external_fallback_enabled=settings.ENABLE_EXTERNAL_FALLBACK,
     )
+
+    # Agent de tunnel (profil box) : dial sortant persistant vers le Cortex, pour
+    # que celui-ci atteigne cette Zolabox derrière son pare-feu (déploiement hybride).
+    tunnel_task: asyncio.Task[None] | None = None
+    if settings.ZOLAOS_PROFILE == "box" and settings.TUNNEL_CORTEX_URL:
+        from zolaos.tunnel.agent import run_box_tunnel_agent
+
+        tunnel_task = asyncio.create_task(run_box_tunnel_agent(settings))
+
     yield
+
+    if tunnel_task is not None:
+        tunnel_task.cancel()
+        with suppress(asyncio.CancelledError):
+            await tunnel_task
     log.info("zolaos.shutdown")
 
 
@@ -236,6 +251,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         from zolaos.api.v1.cortex_clients import router as cortex_clients_router
 
         app.include_router(cortex_clients_router)
+
+        # Point d'entrée du tunnel inverse : les Zolabox s'y connectent (sortant).
+        from zolaos.api.v1.tunnel import router as tunnel_router
+
+        app.include_router(tunnel_router)
 
     return app
 
