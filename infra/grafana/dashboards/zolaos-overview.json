@@ -1,0 +1,87 @@
+{
+  "uid": "zolaos-overview",
+  "title": "ZolaOS — Vue d'ensemble",
+  "tags": ["zolaos"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "refresh": "30s",
+  "time": { "from": "now-6h", "to": "now" },
+  "templating": { "list": [] },
+  "annotations": { "list": [] },
+  "panels": [
+    {
+      "id": 1, "type": "stat", "title": "Instance",
+      "gridPos": { "h": 4, "w": 8, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [ { "refId": "A", "expr": "up{job=\"zolaos-app\"}" } ],
+      "fieldConfig": { "defaults": {
+        "mappings": [ { "type": "value", "options": { "1": { "text": "EN LIGNE", "color": "green" }, "0": { "text": "HORS LIGNE", "color": "red" } } } ],
+        "thresholds": { "mode": "absolute", "steps": [ { "color": "red", "value": null }, { "color": "green", "value": 1 } ] }
+      } },
+      "options": { "colorMode": "background", "graphMode": "none", "reduceOptions": { "calcs": ["lastNotNull"] } }
+    },
+    {
+      "id": 2, "type": "stat", "title": "Erreurs 5xx (%)",
+      "gridPos": { "h": 4, "w": 8, "x": 8, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [ { "refId": "A", "expr": "100 * sum(rate(zolaos_http_requests_total{status=~\"5..\"}[5m])) / clamp_min(sum(rate(zolaos_http_requests_total[5m])), 0.001)" } ],
+      "fieldConfig": { "defaults": {
+        "unit": "percent", "decimals": 2,
+        "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "yellow", "value": 1 }, { "color": "red", "value": 5 } ] }
+      } },
+      "options": { "colorMode": "background", "graphMode": "area", "reduceOptions": { "calcs": ["lastNotNull"] } }
+    },
+    {
+      "id": 3, "type": "stat", "title": "Appels externes bloqués (souveraineté)",
+      "gridPos": { "h": 4, "w": 8, "x": 16, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [ { "refId": "A", "expr": "sum(zolaos_external_fallback_blocked_total)" } ],
+      "fieldConfig": { "defaults": {
+        "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "red", "value": 1 } ] }
+      } },
+      "options": { "colorMode": "background", "graphMode": "none", "reduceOptions": { "calcs": ["lastNotNull"] } }
+    },
+    {
+      "id": 4, "type": "timeseries", "title": "Requêtes HTTP / s (par statut)",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [ { "refId": "A", "expr": "sum by (status) (rate(zolaos_http_requests_total[1m]))", "legendFormat": "{{status}}" } ],
+      "fieldConfig": { "defaults": { "unit": "reqps", "custom": { "drawStyle": "line", "fillOpacity": 10 } } }
+    },
+    {
+      "id": 5, "type": "timeseries", "title": "Latence HTTP p95 (s)",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [ { "refId": "A", "expr": "histogram_quantile(0.95, sum(rate(zolaos_http_request_duration_seconds_bucket[5m])) by (le))", "legendFormat": "p95" } ],
+      "fieldConfig": { "defaults": { "unit": "s", "custom": { "drawStyle": "line", "fillOpacity": 10 } } }
+    },
+    {
+      "id": 6, "type": "timeseries", "title": "Appels LLM / s",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 12 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [ { "refId": "A", "expr": "sum(rate(zolaos_llm_calls_total[1m]))", "legendFormat": "appels/s" } ],
+      "fieldConfig": { "defaults": { "unit": "reqps", "custom": { "drawStyle": "line", "fillOpacity": 10 } } }
+    },
+    {
+      "id": 7, "type": "timeseries", "title": "Latence LLM p95 (s)",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 12 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [ { "refId": "A", "expr": "histogram_quantile(0.95, sum(rate(zolaos_llm_call_duration_seconds_bucket[5m])) by (le))", "legendFormat": "p95" } ],
+      "fieldConfig": { "defaults": { "unit": "s", "custom": { "drawStyle": "line", "fillOpacity": 10 } } }
+    },
+    {
+      "id": 8, "type": "timeseries", "title": "Recherches RAG / s",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 20 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [ { "refId": "A", "expr": "sum(rate(zolaos_rag_queries_total[1m]))", "legendFormat": "recherches/s" } ],
+      "fieldConfig": { "defaults": { "unit": "reqps", "custom": { "drawStyle": "line", "fillOpacity": 10 } } }
+    },
+    {
+      "id": 9, "type": "timeseries", "title": "Invocations d'agents / s",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 20 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [ { "refId": "A", "expr": "sum(rate(zolaos_agent_invocations_total[1m]))", "legendFormat": "invocations/s" } ],
+      "fieldConfig": { "defaults": { "unit": "reqps", "custom": { "drawStyle": "line", "fillOpacity": 10 } } }
+    }
+  ]
+}

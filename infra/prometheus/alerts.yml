@@ -1,0 +1,41 @@
+groups:
+  - name: zolaos
+    rules:
+      # Instance injoignable (app ne répond plus au scrape).
+      - alert: InstanceDown
+        expr: up{job="zolaos-app"} == 0
+        for: 2m
+        labels: { severity: critical }
+        annotations:
+          summary: "Instance ZolaOS injoignable"
+          description: "L'app ne répond plus au scrape Prometheus depuis 2 min."
+
+      # Taux d'erreurs HTTP 5xx élevé.
+      - alert: HighHttpErrorRate
+        expr: >
+          sum(rate(zolaos_http_requests_total{status=~"5.."}[5m]))
+          / clamp_min(sum(rate(zolaos_http_requests_total[5m])), 0.001) > 0.05
+        for: 5m
+        labels: { severity: warning }
+        annotations:
+          summary: "Erreurs HTTP 5xx > 5%"
+          description: "Le service renvoie beaucoup d'erreurs serveur — voir les logs."
+
+      # Garde-fou de souveraineté : un appel LLM externe a été bloqué.
+      - alert: ExternalFallbackBlocked
+        expr: increase(zolaos_external_fallback_blocked_total[10m]) > 0
+        for: 0m
+        labels: { severity: warning }
+        annotations:
+          summary: "Tentative d'appel LLM externe bloquée"
+          description: "Le garde-fou a bloqué un appel externe — le modèle local doit suffire ; vérifier la config."
+
+      # Latence LLM p95 dégradée (souvent : pas de GPU, ou surcharge).
+      - alert: LlmLatencyHigh
+        expr: >
+          histogram_quantile(0.95, sum(rate(zolaos_llm_call_duration_seconds_bucket[5m])) by (le)) > 60
+        for: 10m
+        labels: { severity: warning }
+        annotations:
+          summary: "Latence LLM p95 > 60 s"
+          description: "Le modèle répond lentement — vérifier le GPU / la charge."

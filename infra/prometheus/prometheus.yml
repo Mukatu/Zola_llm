@@ -5,6 +5,10 @@ global:
     service: zolaos
     env: dev
 
+# Règles d'alerte (voir alerts.yml). Un Alertmanager peut être branché ci-dessous.
+rule_files:
+  - alerts.yml
+
 scrape_configs:
   - job_name: 'zolaos-app'
     static_configs:
