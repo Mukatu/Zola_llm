@@ -6,6 +6,9 @@
 # - Évite de devoir `docker cp` à chaque modif Python pendant le dev
 name: zolaos
 
+x-dev-pythonpath: &dev-pythonpath
+  PYTHONPATH: /app/src:/install/lib/python3.12/site-packages:/usr/local/lib/python3.12/site-packages
+
 services:
   app:
     build:
@@ -18,8 +21,53 @@ services:
       - ./src:/app/src:ro
       - ./tests:/app/tests:ro
       - ./agents:/app/agents:ro
+      - ./scripts:/app/scripts:ro
+      - ./alembic:/app/alembic:ro
+      - ./alembic.ini:/app/alembic.ini:ro
       - ./pyproject.toml:/app/pyproject.toml:ro
     environment:
       # PYTHONPATH avec src en tête : on charge le code source directement
       # (sans réinstaller) et le package installé garde les deps Python.
-      PYTHONPATH: /app/src:/install/lib/python3.12/site-packages:/usr/local/lib/python3.12/site-packages
+      <<: *dev-pythonpath
+
+  # Face CABINET pour le développement HYBRIDE : 2ᵉ conteneur app en profil cortex,
+  # sur le port 8001, MÊME Postgres/Redis/MinIO/Ollama que la box. Remplace le
+  # `docker run` manuel — le cortex fait désormais partie du `up` reproductible.
+  # Le bind-mount de src/ lui donne les overlays + cortex.py (le profil box, lui,
+  # ne les charge pas). Le tunnel : la box dial `ws://zolaos-cortex:8000`.
+  cortex:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+      args:
+        BASE_IMAGE: zolaos:dev
+    image: zolaos:dev-test
+    container_name: zolaos-cortex
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      <<: *dev-pythonpath
+      APP_ENV: ${APP_ENV:-staging}
+      ZOLAOS_PROFILE: cortex
+      POSTGRES_HOST: postgres
+      REDIS_HOST: redis
+      MINIO_ENDPOINT: minio:9000
+      LLM_BACKEND: ${LLM_BACKEND:-llamacpp}
+      LLM_HOST_ROUTER: ${LLM_HOST_ROUTER:-http://host.docker.internal:11434}
+      LLM_HOST_CORE: ${LLM_HOST_CORE:-http://host.docker.internal:11435}
+    volumes:
+      - ./src:/app/src:ro
+      - ./agents:/app/agents:ro
+      - ./scripts:/app/scripts:ro
+      - ./alembic:/app/alembic:ro
+      - ./alembic.ini:/app/alembic.ini:ro
+      - ./pyproject.toml:/app/pyproject.toml:ro
+    depends_on:
+      postgres: {condition: service_healthy}
+      redis: {condition: service_healthy}
+      minio: {condition: service_healthy}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "8001:8000"
+    networks: [zolaos-net]

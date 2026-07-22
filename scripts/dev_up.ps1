@@ -1,39 +1,31 @@
 #!/usr/bin/env pwsh
 <#
 .SYNOPSIS
-  Démarre la stack de dev ZolaOS d'un coup : Docker (app + embeddings bge-m3),
-  frontend pré-authentifié, token de dev, et rappel Ollama pour les fonctions IA.
+  Démarre l'atelier de dev HYBRIDE ZolaOS d'un coup : box (:8000) + cortex (:8001)
+  + Postgres/Redis/MinIO, migrations, semence (admin + cabinet + client + tunnel),
+  et frontend. Reproductible — remplace tout montage manuel.
 
 .DESCRIPTION
-  - Vérifie Docker (le démarre si besoin) puis lève la stack avec le modèle
-    d'embeddings local monté (RAG opérationnel).
-  - Forge un JWT de dev (scope commons:curate) pour un utilisateur existant.
-  - Lance le frontend Next.js pré-authentifié (nouvelle fenêtre), sauf s'il tourne déjà.
-  - Signale si le LLM (Ollama, port 11435) est absent — nécessaire pour Assistant,
-    Traduction, Brief BI et Rédaction de contrat.
+  L'atelier tourne par défaut en **staging** (login réel, comme la prod ; cookies
+  non-Secure pour marcher sur http://localhost). Le tunnel box→cortex est câblé
+  automatiquement (credential de box généré par la semence). Le LLM (Ollama) n'est
+  pas démarré ici (cf. rappel final / lanceur de démarrage de session).
 
-  Le LLM n'est PAS démarré par ce script (serveur bloquant, modèle volumineux,
-  choix machine) : les commandes exactes sont rappelées à la fin.
-
-.PARAMETER BgeM3Path
-  Dossier hôte du modèle bge-m3 (monté en lecture seule dans le conteneur).
-  Défaut : C:\Users\duqat\bge-m3 (copie téléchargée). Si absent, la stack démarre
-  sans RAG sémantique (les fonctions déterministes restent OK).
-
-.PARAMETER UserEmail
-  E-mail de l'utilisateur pour lequel forger le token (défaut : premier utilisateur).
+.PARAMETER Dev
+  Bascule l'atelier en APP_ENV=dev (auto-login, itération rapide) au lieu de staging.
 
 .EXAMPLE
   pwsh scripts/dev_up.ps1
+  pwsh scripts/dev_up.ps1 -Dev
 #>
 
 [CmdletBinding()]
 param(
   [string]$BgeM3Path = "C:\Users\duqat\bge-m3",
-  [string]$UserEmail = "",
   [int]$ApiPort = 8000,
+  [int]$CortexPort = 8001,
   [int]$FrontendPort = 3000,
-  [int]$TokenHours = 12
+  [switch]$Dev
 )
 
 $ErrorActionPreference = "Stop"
@@ -44,7 +36,18 @@ function Info($m) { Write-Host "▶ $m" -ForegroundColor Cyan }
 function Ok($m)   { Write-Host "✓ $m" -ForegroundColor Green }
 function Warn($m) { Write-Host "⚠ $m" -ForegroundColor Yellow }
 
-# --- 1. Docker en marche ? ------------------------------------------------
+function Set-EnvVar($key, $val) {
+  $envPath = Join-Path $root ".env"
+  $lines = if (Test-Path $envPath) { @(Get-Content $envPath) } else { @() }
+  $found = $false
+  $out = foreach ($l in $lines) {
+    if ($l -match "^\s*$key=") { $found = $true; "$key=$val" } else { $l }
+  }
+  if (-not $found) { $out = @($out) + "$key=$val" }
+  Set-Content -Path $envPath -Value $out -Encoding UTF8
+}
+
+# --- 1. Docker ------------------------------------------------------------
 Info "Vérification de Docker…"
 docker info *> $null 2>&1
 if ($LASTEXITCODE -ne 0) {
@@ -52,104 +55,101 @@ if ($LASTEXITCODE -ne 0) {
   if (Test-Path $dd) {
     Warn "Docker arrêté — démarrage de Docker Desktop…"
     Start-Process $dd
-    for ($i = 0; $i -lt 60; $i++) {
-      Start-Sleep -Seconds 3
-      docker info *> $null 2>&1
-      if ($LASTEXITCODE -eq 0) { break }
-    }
+    for ($i = 0; $i -lt 60; $i++) { Start-Sleep 3; docker info *> $null 2>&1; if ($LASTEXITCODE -eq 0) { break } }
   }
   docker info *> $null 2>&1
   if ($LASTEXITCODE -ne 0) { throw "Docker indisponible. Démarre Docker Desktop puis relance." }
 }
 Ok "Docker actif."
 
-# --- 2. Override local : monte le modèle d'embeddings ---------------------
+# --- 2. Réglages de l'atelier (staging par défaut) ------------------------
+$appEnv = if ($Dev) { "dev" } else { "staging" }
+Set-EnvVar "APP_ENV" $appEnv
+Set-EnvVar "AUTH_COOKIE_SECURE" "false"   # cookies OK sur http://localhost
+Set-EnvVar "TUNNEL_CORTEX_URL" "ws://zolaos-cortex:8000/v1/tunnel/connect"
+Ok "Atelier en mode '$appEnv' (login réel; -Dev pour l'auto-login)."
+
+# --- 3. Override local : modèle d'embeddings (box + cortex) ---------------
 $composeArgs = @("-f", "docker-compose.yml", "-f", "docker-compose.dev.yml")
 if (Test-Path $BgeM3Path) {
-  $localYml = Join-Path $root "docker-compose.local.yml"
   $mount = ($BgeM3Path -replace '\\', '/')
   @"
-# Généré par scripts/dev_up.ps1 — NON versionné. Monte le modèle d'embeddings
-# bge-m3 local et pointe l'app dessus (RAG hors-ligne, aucune dépendance réseau).
+# Généré par scripts/dev_up.ps1 — NON versionné. Monte bge-m3 sur box ET cortex.
 name: zolaos
 services:
   app:
-    volumes:
-      - ${mount}:/opt/bge-m3:ro
-    environment:
-      EMBEDDING_MODEL: /opt/bge-m3
-      HF_HUB_OFFLINE: "1"
-"@ | Set-Content -Path $localYml -Encoding UTF8
+    volumes: [ "${mount}:/opt/bge-m3:ro" ]
+    environment: { EMBEDDING_MODEL: /opt/bge-m3, HF_HUB_OFFLINE: "1" }
+  cortex:
+    volumes: [ "${mount}:/opt/bge-m3:ro" ]
+    environment: { EMBEDDING_MODEL: /opt/bge-m3, HF_HUB_OFFLINE: "1" }
+"@ | Set-Content -Path (Join-Path $root "docker-compose.local.yml") -Encoding UTF8
   $composeArgs += @("-f", "docker-compose.local.yml")
-  Ok "Modèle d'embeddings monté depuis $BgeM3Path (RAG activé)."
+  Ok "Embeddings bge-m3 montés (RAG activé)."
 } else {
-  Warn "bge-m3 introuvable à $BgeM3Path — démarrage SANS RAG sémantique (déterministe OK)."
+  Warn "bge-m3 introuvable à $BgeM3Path — RAG sémantique désactivé."
 }
 
-# --- 3. Lève la stack -----------------------------------------------------
-Info "Démarrage des conteneurs (app + postgres + redis + minio)…"
-& docker compose @composeArgs up -d app
+# --- 4. Lève box + cortex -------------------------------------------------
+Info "Démarrage box (:$ApiPort) + cortex (:$CortexPort) + services…"
+& docker compose @composeArgs up -d app cortex
 if ($LASTEXITCODE -ne 0) { throw "Échec du démarrage de la stack." }
 
-Info "Attente de la santé de l'app…"
-$healthy = $false
-for ($i = 0; $i -lt 30; $i++) {
-  $s = (docker inspect -f '{{.State.Health.Status}}' zolaos-app 2>$null)
-  if ($s -eq "healthy") { $healthy = $true; break }
-  Start-Sleep -Seconds 3
+function Wait-Health($url, $name) {
+  for ($i = 0; $i -lt 30; $i++) {
+    try { $null = Invoke-WebRequest $url -TimeoutSec 2 -UseBasicParsing; Ok "$name prêt."; return } catch {}
+    Start-Sleep 3
+  }
+  Warn "$name pas prêt — voir 'docker logs'."
 }
-if (-not $healthy) { Warn "L'app n'est pas 'healthy' — vérifie 'docker logs zolaos-app'." }
-else { Ok "Backend prêt sur http://localhost:$ApiPort" }
+Wait-Health "http://localhost:$ApiPort/health" "Box"
+Wait-Health "http://localhost:$CortexPort/health" "Cortex"
 
-# --- 4. Token de dev ------------------------------------------------------
-Info "Forge d'un token de dev (scope commons:curate, ${TokenHours} h)…"
-$uidSql = if ($UserEmail) { "select id from core.users where email='$UserEmail' limit 1;" }
-          else { "select id from core.users limit 1;" }
-$uid = (docker exec zolaos-postgres psql -U postgres -d zolaos -tA -c $uidSql 2>$null).Trim()
-$token = ""
-if ($uid) {
-  $py = "import os,time; from zolaos.core.settings import get_settings; from zolaos.core.security import create_access_token; s=get_settings(); print(create_access_token(os.environ['ZO_UID'], settings=s, extra_claims={'scopes':['commons:curate'],'exp':int(time.time())+${TokenHours}*3600}))"
-  $token = (docker exec -e ZO_UID=$uid zolaos-app python -c $py 2>$null).Trim()
+# --- 5. Migrations --------------------------------------------------------
+Info "Application des migrations…"
+& docker compose @composeArgs exec -T app python -m alembic upgrade head 2>&1 | Select-Object -Last 1
+
+# --- 6. Semence hybride + câblage du tunnel -------------------------------
+Info "Semence (admin + cabinet + client + credential de box)…"
+$seed = & docker compose @composeArgs exec -T app python scripts/dev_seed.py 2>$null
+$boxTenant = ($seed | Select-String '^BOX_TENANT_ID=(.+)$').Matches.Groups[1].Value
+$boxCred   = ($seed | Select-String '^BOX_CREDENTIAL=(.+)$').Matches.Groups[1].Value
+if ($boxTenant -and $boxCred) {
+  Set-EnvVar "ZOLAOS_BOX_TENANT_ID" $boxTenant
+  Set-EnvVar "ZOLAOS_BOX_CREDENTIAL" $boxCred
+  Ok "Semence OK. Recréation de la box pour activer le tunnel…"
+  & docker compose @composeArgs up -d --force-recreate app | Out-Null
+  Wait-Health "http://localhost:$ApiPort/health" "Box (tunnel)"
+  Start-Sleep 3
+  $connected = (docker logs zolaos-cortex --since 30s 2>&1 | Select-String "tunnel.box_connected").Count
+  if ($connected -gt 0) { Ok "Tunnel box→cortex connecté." } else { Warn "Tunnel pas encore connecté — 'docker logs zolaos-cortex'." }
+} else {
+  Warn "Semence incomplète — tunnel non câblé."
 }
-if ($token) { Ok "Token forgé (utilisateur $uid)." } else { Warn "Impossible de forger le token (aucun utilisateur ?)." }
 
-# --- 5. Frontend ----------------------------------------------------------
+# --- 7. Frontend (login réel) ---------------------------------------------
 $feBusy = $false
 try { $null = Invoke-WebRequest "http://localhost:$FrontendPort" -TimeoutSec 2 -UseBasicParsing; $feBusy = $true } catch {}
-if ($feBusy) {
-  Ok "Frontend déjà en marche sur http://localhost:$FrontendPort"
-} else {
+if ($feBusy) { Ok "Frontend déjà en marche." }
+else {
   Info "Démarrage du frontend (nouvelle fenêtre)…"
-  $feDir = Join-Path $root "frontend"
-  $feCmd = "`$env:NEXT_PUBLIC_API_BASE='http://localhost:$ApiPort'; `$env:NEXT_PUBLIC_API_TOKEN='$token'; npm run dev"
-  Start-Process pwsh -WorkingDirectory $feDir -ArgumentList '-NoExit', '-Command', $feCmd
-  Ok "Frontend en cours de compilation → http://localhost:$FrontendPort (quelques secondes)."
+  $feCmd = "`$env:NEXT_PUBLIC_API_BASE='http://localhost:$ApiPort'; npm run dev"
+  Start-Process pwsh -WorkingDirectory (Join-Path $root "frontend") -ArgumentList '-NoExit', '-Command', $feCmd
+  Ok "Frontend en compilation → http://localhost:$FrontendPort"
 }
 
-# --- 6. LLM (Ollama) ------------------------------------------------------
-$llmUp = $false
-try { $null = Invoke-WebRequest "http://localhost:11435/v1/models" -TimeoutSec 2 -UseBasicParsing; $llmUp = $true } catch {}
-Write-Host ""
-if ($llmUp) {
-  Ok "LLM détecté sur le port 11435 — fonctions IA disponibles."
-} else {
-  Warn "LLM absent (port 11435) : Assistant / Traduction / Brief BI / Rédaction indisponibles."
-  Write-Host "  Pour l'activer, dans un terminal SÉPARÉ :" -ForegroundColor Yellow
-  Write-Host "    ollama pull llama3:8b" -ForegroundColor Gray
-  Write-Host "    ollama cp llama3:8b llama3-8b" -ForegroundColor Gray
-  Write-Host "    `$env:OLLAMA_HOST='0.0.0.0:11435'; `$env:OLLAMA_KEEP_ALIVE='-1'; ollama serve" -ForegroundColor Gray
-  Write-Host "  KEEP_ALIVE=-1 garde le modèle résident : sans lui, Ollama le décharge" -ForegroundColor DarkGray
-  Write-Host "  après 5 min d'inactivité et la requête suivante paie ~6,5 s de rechargement." -ForegroundColor DarkGray
-}
+# --- 8. LLM ---------------------------------------------------------------
+try { $null = Invoke-WebRequest "http://localhost:11435/v1/models" -TimeoutSec 2 -UseBasicParsing; Ok "LLM détecté (:11435)." }
+catch { Warn "LLM absent (:11435) — l'assistant et les audits ne répondront pas. Lancer Ollama (cf. lanceur de démarrage de session, ou `ollama serve` sur 11435)." }
 
-# --- 7. Récapitulatif -----------------------------------------------------
+# --- 9. Récapitulatif -----------------------------------------------------
 Write-Host ""
 Write-Host "──────────────────────────────────────────────" -ForegroundColor DarkGray
-Ok "Stack ZolaOS prête."
-Write-Host "  Backend  : http://localhost:$ApiPort" -ForegroundColor White
-Write-Host "  Frontend : http://localhost:$FrontendPort" -ForegroundColor White
-if ($token) {
-  Write-Host "  Token 12h (déjà injecté dans le frontend). Pour la console navigateur :" -ForegroundColor White
-  Write-Host "    localStorage.setItem('zo_token','$token'); location.reload();" -ForegroundColor DarkGray
+Ok "Atelier ZolaOS hybride prêt (mode $appEnv)."
+Write-Host "  Box (client)   : http://localhost:$ApiPort" -ForegroundColor White
+Write-Host "  Cortex (cabinet): http://localhost:$CortexPort" -ForegroundColor White
+Write-Host "  Frontend       : http://localhost:$FrontendPort" -ForegroundColor White
+if (-not $Dev) {
+  Write-Host "  Login          : admin@polaris.cg / Dev-Local-2026!  (staging = login réel)" -ForegroundColor White
 }
 Write-Host "──────────────────────────────────────────────" -ForegroundColor DarkGray
