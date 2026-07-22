@@ -1,0 +1,11 @@
+#cloud-config
+# Seed cloud-init utilisé UNIQUEMENT pendant le build Packer : crée un utilisateur
+# `builder` (sudo NOPASSWD) pour que Packer se connecte en SSH. N'est pas embarqué
+# dans l'image finale (cloud-init est nettoyé en fin de build).
+users:
+  - name: builder
+    plain_text_passwd: builder
+    lock_passwd: false
+    sudo: "ALL=(ALL) NOPASSWD:ALL"
+    shell: /bin/bash
+ssh_pwauth: true

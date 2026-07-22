@@ -1,0 +1,16 @@
+#cloud-config
+# ============================================================================
+# Zolabox — provisioning au premier démarrage, pour tout hyperviseur / cloud
+# supportant cloud-init (Proxmox, OpenStack, cloud providers…).
+# Fournir ce fichier comme user-data d'une image Ubuntu 22.04+.
+# Après boot : renseigner /opt/zolaos/deploy/zolabox/.env puis ./install.sh (cf. provision).
+# ============================================================================
+package_update: true
+packages:
+  - git
+
+runcmd:
+  - [ git, clone, --depth, "1", "https://github.com/Mukatu/Zola_llm.git", /opt/zolaos ]
+  - [ sh, /opt/zolaos/deploy/vm/provision.sh ]
+
+final_message: "Zolabox provisionnée. Configurer /opt/zolaos/deploy/zolabox/.env puis lancer ./install.sh"
