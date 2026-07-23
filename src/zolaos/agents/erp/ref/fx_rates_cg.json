@@ -1,0 +1,30 @@
+{
+  "base": "XAF",
+  "rates": {
+    "EUR": {
+      "taux_vers_xaf": "655.957",
+      "validated": true,
+      "source": "Parité fixe BEAC (garantie du Trésor français) — 1 EUR = 655,957 XAF"
+    },
+    "XOF": {
+      "taux_vers_xaf": "1",
+      "validated": true,
+      "source": "Parité identique du franc CFA (BEAC/BCEAO) — 1 XOF = 1 XAF"
+    },
+    "USD": {
+      "taux_vers_xaf": null,
+      "validated": false,
+      "source": ""
+    },
+    "GBP": {
+      "taux_vers_xaf": null,
+      "validated": false,
+      "source": ""
+    },
+    "CNY": {
+      "taux_vers_xaf": null,
+      "validated": false,
+      "source": ""
+    }
+  }
+}

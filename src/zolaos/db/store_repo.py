@@ -33,6 +33,7 @@ from zolaos.db.store_models import (
     EmployeeSkillRecord,
     EngagementRecord,
     EvaluationRecord,
+    FxRateRecord,
     IncidentRecord,
     InteractionRecord,
     InterviewRecord,
@@ -718,6 +719,58 @@ class PayrollValidationRepository:
         rec.validated_by = validated_by
         rec.note = note
         rec.validated_at = now
+        await self._s.flush()
+        return rec
+
+
+class FxRateRepository:
+    """Taux de change gouvernés (override tenant) par (tenant, pays) — MULTIDEV-1."""
+
+    def __init__(self, session: AsyncSession) -> None:
+        self._s = session
+
+    async def list(self, *, tenant_id: str, country: str) -> list[FxRateRecord]:
+        stmt = select(FxRateRecord).where(
+            FxRateRecord.tenant_id == tenant_id, FxRateRecord.country == country
+        )
+        return list((await self._s.scalars(stmt)).all())
+
+    async def get(
+        self, *, tenant_id: str, country: str, devise: str
+    ) -> FxRateRecord | None:
+        stmt = select(FxRateRecord).where(
+            FxRateRecord.tenant_id == tenant_id,
+            FxRateRecord.country == country,
+            FxRateRecord.devise == devise,
+        )
+        return (await self._s.scalars(stmt)).first()
+
+    async def upsert_taux(
+        self, *, tenant_id: str, country: str, devise: str, taux_vers_xaf: Decimal, source: str
+    ) -> FxRateRecord:
+        """Saisir/mettre à jour un taux ⇒ retombe non validé (re-validation requise)."""
+        rec = await self.get(tenant_id=tenant_id, country=country, devise=devise)
+        if rec is None:
+            rec = FxRateRecord(tenant_id=tenant_id, country=country, devise=devise)
+            self._s.add(rec)
+        rec.taux_vers_xaf = taux_vers_xaf
+        rec.source = source
+        rec.validated = False
+        rec.validated_by = ""
+        rec.validated_at = None
+        await self._s.flush()
+        return rec
+
+    async def set_validation(
+        self, *, tenant_id: str, country: str, devise: str, validated: bool, validated_by: str, note: str
+    ) -> FxRateRecord | None:
+        rec = await self.get(tenant_id=tenant_id, country=country, devise=devise)
+        if rec is None:
+            return None
+        rec.validated = validated
+        rec.validated_by = validated_by
+        rec.note = note
+        rec.validated_at = datetime.now(UTC) if validated else None
         await self._s.flush()
         return rec
 

@@ -37,6 +37,13 @@ from zolaos.agents.erp.engagements import (
     pilotage_budgetaire,
 )
 from zolaos.agents.erp.facility import Asset, Echeance, echeances_dues, maintenances_dues
+from zolaos.agents.erp.fx import (
+    FxRate,
+    FxRateNotValidated,
+    convertir,
+    effective_rates,
+    load_fx_seed,
+)
 from zolaos.agents.erp.hse import (
     Incident,
     Risque,
@@ -94,6 +101,7 @@ from zolaos.db.store_repo import (
     EmployeeRepository,
     EmployeeRubriqueRepository,
     EngagementRepository,
+    FxRateRepository,
     IncidentRepository,
     InvoiceRepository,
     JournalRepository,
@@ -3799,4 +3807,152 @@ async def corporate_echeances(
             }
             for a in alertes
         ]
+    }
+
+
+# ============================ Change / multi-devise (MULTIDEV-1) ============================
+
+
+class FxRateEditIn(BaseModel):
+    taux_vers_xaf: Decimal = Field(gt=0)
+    source: str = ""
+
+
+class FxValidationIn(BaseModel):
+    validated: bool
+    validated_by: str = ""
+    note: str = ""
+
+
+async def _fx_overrides(
+    session: AsyncSession, tenant_id: str, country: str
+) -> tuple[dict[str, FxRate], dict[str, Any]]:
+    """Charge les overrides tenant : (taux effectifs par devise, méta record)."""
+    recs = await FxRateRepository(session).list(tenant_id=tenant_id, country=country)
+    overrides = {
+        r.devise.upper(): FxRate(
+            devise=r.devise.upper(),
+            taux_vers_xaf=r.taux_vers_xaf,
+            validated=r.validated,
+            source=r.source,
+        )
+        for r in recs
+    }
+    meta = {r.devise.upper(): r for r in recs}
+    return overrides, meta
+
+
+async def _fx_rates_view(
+    session: AsyncSession, *, tenant_id: str, country: str
+) -> dict[str, Any]:
+    seed = load_fx_seed(country)
+    overrides, meta = await _fx_overrides(session, tenant_id, country)
+    eff = effective_rates(seed, overrides)
+    rates = []
+    for devise, rate in sorted(eff.items(), key=lambda kv: (kv[0] != "XAF", kv[0])):
+        rec = meta.get(devise)
+        rates.append(
+            {
+                "devise": devise,
+                "taux_vers_xaf": (
+                    str(rate.taux_vers_xaf) if rate.taux_vers_xaf is not None else None
+                ),
+                "validated": rate.validated,
+                "source": rate.source,
+                "source_donnees": "tenant" if rec is not None else "defaut",
+                "editable": devise != "XAF",
+                "validated_by": rec.validated_by if rec else "",
+                "note": rec.note if rec else "",
+                "validated_at": (
+                    rec.validated_at.isoformat() if rec and rec.validated_at else None
+                ),
+            }
+        )
+    return {"base": "XAF", "country": country, "rates": rates}
+
+
+@router.get("/fx/rates", summary="Taux de change gouvernés (graine + overrides tenant)")
+async def get_fx_rates(
+    country: str = "cg",
+    tenant_id: str = "local",
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    return await _fx_rates_view(session, tenant_id=tenant_id, country=country)
+
+
+@router.put("/fx/rates/{devise}", summary="Saisir/éditer un taux (override) — re-validation requise")
+async def edit_fx_rate(
+    devise: str,
+    body: FxRateEditIn,
+    country: str = "cg",
+    tenant_id: str = "local",
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    code = devise.upper()
+    if code == "XAF":
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="devise_base_non_editable"
+        )
+    await FxRateRepository(session).upsert_taux(
+        tenant_id=tenant_id,
+        country=country,
+        devise=code,
+        taux_vers_xaf=body.taux_vers_xaf,
+        source=body.source,
+    )
+    await session.commit()
+    return await _fx_rates_view(session, tenant_id=tenant_id, country=country)
+
+
+@router.post("/fx/rates/{devise}/validate", summary="Valider / révoquer un taux (lève le verrou)")
+async def validate_fx_rate(
+    devise: str,
+    body: FxValidationIn,
+    country: str = "cg",
+    tenant_id: str = "local",
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    rec = await FxRateRepository(session).set_validation(
+        tenant_id=tenant_id,
+        country=country,
+        devise=devise.upper(),
+        validated=body.validated,
+        validated_by=body.validated_by,
+        note=body.note,
+    )
+    if rec is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="aucun_taux_tenant_a_valider"
+        )
+    await session.commit()
+    return await _fx_rates_view(session, tenant_id=tenant_id, country=country)
+
+
+@router.get("/fx/convert", summary="Conversion déterministe entre devises (taux validés)")
+async def fx_convert(
+    montant: Decimal,
+    de: str,
+    vers: str = "XAF",
+    country: str = "cg",
+    tenant_id: str = "local",
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    seed = load_fx_seed(country)
+    overrides, _ = await _fx_overrides(session, tenant_id, country)
+    eff = effective_rates(seed, overrides)
+    try:
+        resultat = convertir(montant, de, vers, eff)
+    except FxRateNotValidated as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail=f"taux_non_valide:{exc.devise}"
+        ) from exc
+    td = eff[de.upper()].taux_vers_xaf
+    tv = eff[vers.upper()].taux_vers_xaf
+    return {
+        "montant": str(montant),
+        "de": de.upper(),
+        "vers": vers.upper(),
+        "resultat": str(resultat),
+        "taux_de_vers_xaf": str(td) if td is not None else None,
+        "taux_vers_vers_xaf": str(tv) if tv is not None else None,
     }
