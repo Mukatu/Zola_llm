@@ -197,6 +197,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         from zolaos.api.v1.box import router as box_router
         from zolaos.api.v1.categorisation import router as categorisation_router
         from zolaos.api.v1.crm import router as crm_router
+        from zolaos.api.v1.cyber import router as cyber_router
         from zolaos.api.v1.documents import router as documents_router
         from zolaos.api.v1.erp import router as erp_router
         from zolaos.api.v1.evaluation import router as evaluation_router
@@ -234,6 +235,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         app.include_router(imports_router)
         # Fintech — scoring de crédit (EMF) + KYC/AML (déterministe, indicatif).
         app.include_router(fintech_router)
+        # Cyber — audit de durcissement défensif (déterministe, indicatif).
+        app.include_router(cyber_router)
 
     # Routes Zolacortex (gestion missions) : exposées uniquement en profil `cortex`.
     # Inversement, en profil `box`, 404 sur /v1/cortex/*.
