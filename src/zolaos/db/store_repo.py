@@ -41,6 +41,7 @@ from zolaos.db.store_models import (
     JournalEntryRecord,
     KycRecordRecord,
     LoanInstallmentRecord,
+    MandateRecord,
     MarketingContactRecord,
     OpportunityRecord,
     PayrollScaleRecord,
@@ -53,6 +54,7 @@ from zolaos.db.store_models import (
     PurchaseBudgetRecord,
     PurchaseOrderRecord,
     QuoteRecord,
+    ResolutionRecord,
     RisqueRecord,
     RoleSkillRecord,
     SkillRecord,
@@ -781,6 +783,14 @@ class BudgetLineRepository(_CrudRepo):
         if project_id is not None:
             stmt = stmt.where(BudgetLineRecord.project_id == project_id)
         return list(await self._s.scalars(stmt))
+
+
+class MandateRepository(_CrudRepo):
+    model = MandateRecord
+
+
+class ResolutionRepository(_CrudRepo):
+    model = ResolutionRecord
 
 
 class EngagementRepository(_CrudRepo):

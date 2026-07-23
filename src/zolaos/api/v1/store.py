@@ -65,6 +65,7 @@ from zolaos.agents.erp.payroll import (
     taux_anciennete,
 )
 from zolaos.agents.erp.reconciliation import reconcilier
+from zolaos.agents.erp.secretariat import Mandat, echeance_ago, mandats_a_renouveler
 from zolaos.agents.erp.supply import StockItem, alertes_rupture, analyser_reappro
 from zolaos.agents.erp.treasury import (
     SEUIL_DECAISSEMENT_DEFAUT_XAF,
@@ -96,6 +97,7 @@ from zolaos.db.store_repo import (
     IncidentRepository,
     InvoiceRepository,
     JournalRepository,
+    MandateRepository,
     PayrollScaleRepository,
     PayrollValidationRepository,
     PayrollVariableRepository,
@@ -105,6 +107,7 @@ from zolaos.db.store_repo import (
     ProjectRepository,
     PurchaseBudgetRepository,
     PurchaseOrderRepository,
+    ResolutionRepository,
     RisqueRepository,
     StockMoveRepository,
     StockRepository,
@@ -3626,4 +3629,174 @@ async def projects_ventilation(
             "taux": _taux(v["realise"], v["budget_total"]),
         }
         for bailleur, v in sorted(par_bailleur.items())
+    }
+
+
+# ---------------------------------------------------------------- Secrétariat sociétaire
+
+
+class MandateIn(BaseModel):
+    titulaire: str
+    # Valeurs attendues (alignées sur le Literal `Fonction` du moteur) :
+    # gerant | administrateur | president_ca | directeur_general | commissaire_comptes | autre
+    fonction: str = "autre"
+    date_nomination: date
+    duree_annees: int = 0
+    organe: str | None = None
+    statut: str = "actif"
+    country: str = "cg"
+
+
+class MandatePatch(BaseModel):
+    titulaire: str | None = None
+    fonction: str | None = None
+    date_nomination: date | None = None
+    duree_annees: int | None = None
+    organe: str | None = None
+    statut: str | None = None
+
+
+class ResolutionIn(BaseModel):
+    type_reunion: str  # AGO|AGE|CA
+    date_reunion: date
+    objet: str
+    decision: str = ""
+    reference_pv: str | None = None
+    quorum: str | None = None
+    country: str = "cg"
+
+
+class ResolutionPatch(BaseModel):
+    type_reunion: str | None = None
+    date_reunion: date | None = None
+    objet: str | None = None
+    decision: str | None = None
+    reference_pv: str | None = None
+    quorum: str | None = None
+
+
+@router.post("/mandates", status_code=status.HTTP_201_CREATED, summary="Créer un mandat social")
+async def create_mandate(
+    body: MandateIn, tenant_id: str = "local", session: AsyncSession = Depends(get_session)
+) -> dict[str, Any]:
+    rec = await MandateRepository(session).create({**body.model_dump(), "tenant_id": tenant_id})
+    await session.commit()
+    return rec.to_dict()
+
+
+@router.get("/mandates", summary="Lister les mandats sociaux")
+async def list_mandates(
+    tenant_id: str = "local", session: AsyncSession = Depends(get_session)
+) -> dict[str, Any]:
+    rows = await MandateRepository(session).list(tenant_id=tenant_id)
+    return {"mandates": [r.to_dict() for r in rows]}
+
+
+@router.patch("/mandates/{mandate_id}", summary="Mettre à jour un mandat social")
+async def patch_mandate(
+    mandate_id: str,
+    body: MandatePatch,
+    tenant_id: str = "local",
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    rec = await MandateRepository(session).update(
+        mandate_id, tenant_id=tenant_id, fields=body.model_dump(exclude_none=True)
+    )
+    if rec is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="mandate_not_found")
+    await session.commit()
+    return rec.to_dict()
+
+
+@router.delete("/mandates/{mandate_id}", summary="Supprimer un mandat social")
+async def delete_mandate(
+    mandate_id: str, tenant_id: str = "local", session: AsyncSession = Depends(get_session)
+) -> dict[str, Any]:
+    ok = await MandateRepository(session).delete(mandate_id, tenant_id=tenant_id)
+    if not ok:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="mandate_not_found")
+    await session.commit()
+    return {"deleted": mandate_id}
+
+
+@router.post(
+    "/resolutions", status_code=status.HTTP_201_CREATED, summary="Créer une résolution AG/CA"
+)
+async def create_resolution(
+    body: ResolutionIn, tenant_id: str = "local", session: AsyncSession = Depends(get_session)
+) -> dict[str, Any]:
+    rec = await ResolutionRepository(session).create({**body.model_dump(), "tenant_id": tenant_id})
+    await session.commit()
+    return rec.to_dict()
+
+
+@router.get("/resolutions", summary="Lister les résolutions AG/CA")
+async def list_resolutions(
+    tenant_id: str = "local", session: AsyncSession = Depends(get_session)
+) -> dict[str, Any]:
+    rows = await ResolutionRepository(session).list(tenant_id=tenant_id)
+    return {"resolutions": [r.to_dict() for r in rows]}
+
+
+@router.patch("/resolutions/{resolution_id}", summary="Mettre à jour une résolution AG/CA")
+async def patch_resolution(
+    resolution_id: str,
+    body: ResolutionPatch,
+    tenant_id: str = "local",
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    rec = await ResolutionRepository(session).update(
+        resolution_id, tenant_id=tenant_id, fields=body.model_dump(exclude_none=True)
+    )
+    if rec is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="resolution_not_found")
+    await session.commit()
+    return rec.to_dict()
+
+
+@router.delete("/resolutions/{resolution_id}", summary="Supprimer une résolution AG/CA")
+async def delete_resolution(
+    resolution_id: str, tenant_id: str = "local", session: AsyncSession = Depends(get_session)
+) -> dict[str, Any]:
+    ok = await ResolutionRepository(session).delete(resolution_id, tenant_id=tenant_id)
+    if not ok:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="resolution_not_found")
+    await session.commit()
+    return {"deleted": resolution_id}
+
+
+@router.get("/corporate/echeances", summary="Échéancier légal (mandats à renouveler + AGO)")
+async def corporate_echeances(
+    tenant_id: str = "local",
+    date_cloture: date | None = None,
+    horizon_jours: int = 90,
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    rows = await MandateRepository(session).list(tenant_id=tenant_id)
+    mandats = [
+        Mandat(
+            id_externe=r.id,
+            titulaire=r.titulaire,
+            fonction=r.fonction,  # type: ignore[arg-type]
+            date_nomination=r.date_nomination,
+            duree_annees=r.duree_annees,
+            country=r.country,
+        )
+        for r in rows
+    ]
+    alertes = mandats_a_renouveler(mandats, horizon_jours=horizon_jours)
+    if date_cloture is not None:
+        alertes = [*alertes, echeance_ago(date_cloture)]
+    return {
+        "alertes": [
+            {
+                "categorie": a.categorie,
+                "reference": a.reference,
+                "libelle": a.libelle,
+                "date_cible": a.date_cible.isoformat(),
+                "jours_restants": a.jours_restants,
+                "urgence": a.urgence,
+            }
+            for a in alertes
+        ]
     }

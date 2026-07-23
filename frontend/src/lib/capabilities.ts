@@ -97,7 +97,7 @@ export const CAPABILITIES: Record<string, Capability> = Object.fromEntries(
       intents(["echeancier", "Échéancier"], ["ordre_travail", "Ordre de travail"])),
     cap("erp.secretariat_societaire", "Secrétariat sociétaire", FileSignature,
       "PV d'AG/CA, ordres du jour, registre des mandats (AUSCGIE).",
-      intents(["pv", "PV"], ["odj", "Ordre du jour"], ["mandats", "Mandats"])),
+      intents(["pv", "PV"], ["odj", "Ordre du jour"], ["mandats", "Mandats"]), "flagship"),
     cap("erp.hse", "HSE / RSE", HardHat,
       "Cartographie des risques, incidents, plans de prévention, RSE.",
       intents(["cartographie", "Cartographie"], ["plan", "Plan prévention"], ["rse", "Rapport RSE"])),

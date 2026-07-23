@@ -21,6 +21,7 @@ import { RecrutementScreen } from "@/components/flagship/RecrutementScreen";
 import { DeveloppementScreen } from "@/components/flagship/DeveloppementScreen";
 import { FintechScreen } from "@/components/flagship/FintechScreen";
 import { ProjetsOngScreen } from "@/components/flagship/ProjetsOngScreen";
+import { SecretariatScreen } from "@/components/flagship/SecretariatScreen";
 import { getCapability } from "@/lib/capabilities";
 import { Card } from "@/components/ui";
 import type { ComponentType } from "react";
@@ -35,6 +36,7 @@ const FLAGSHIPS: Record<string, ComponentType> = {
   "erp.hse": HseScreen,
   "erp.moyens_generaux": FacilityScreen,
   "erp.projets_ong": ProjetsOngScreen,
+  "erp.secretariat_societaire": SecretariatScreen,
   "commercial.crm": CrmScreen,
   "bi.pilotage": BiScreen,
   "erp.finance": FinanceScreen,

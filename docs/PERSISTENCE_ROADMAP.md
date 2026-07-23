@@ -112,8 +112,8 @@ Entité `store_payslips`. Endpoint `/v1/erp/payslips` (génère depuis l'employ�
 Entités `store_projects` + `store_budget_lines` (ventilation bailleur/projet). Endpoints `/v1/erp/projects` + `/budget-lines` (CRUD) + `/projects/{id}/suivi` (taux d'exécution/engagement par rubrique, dépassement, éligible vs total) + `/projects/ventilation` (agrégat par bailleur). Écran `ProjetsOngScreen` (registre projets + lignes budgétaires + suivi + ventilation). Tests `test_store_projets.py`.
 **Plus-value** : suivi budgétaire bailleurs, reporting (lien GRC reporting).
 
-**9. Secrétariat sociétaire — ⏳ (P2e)**
-Entités `store_mandates` + `store_resolutions` (AG/PV). Endpoints `/v1/erp/corporate` (CRUD + échéances légales). Écran Secrétariat (🆕).
+**9. Secrétariat sociétaire — ✅ (P2e)**
+Entités `store_mandates` + `store_resolutions` (AG/PV). Endpoints `/v1/erp/mandates` + `/resolutions` (CRUD) + `/corporate/echeances` (moteur légal sur le store : mandats à renouveler + date limite AGO AUSCGIE). Écran `SecretariatScreen`. Tests `test_store_secretariat.py`.
 **Plus-value** : registre des mandats, calendrier statutaire/légal.
 
 ### B. Pôles Commercial / Marketing / BI
@@ -186,7 +186,7 @@ Cyber : moteur + écran (hors persistance lourde initiale). Pôle K : dictionnai
 | P2b | Commercial | ✅ | back-end P2b-1 (registres + endpoints + moteur sur store + tests) + front P2b-2 (kanban persisté, drag-stage, score, relances, forecast, timeline, devis→facture) |
 | P2c | Achats, SIRH (RH pilotage), Paie | 🔄 | Achats ✅ (P2c-1 back-end + P2c-2 écran : registre noté, conformité, comparatif, réception→facture). SIRH livré séparément ; Paie historisée reste à faire |
 | P2d | Facility, HSE, Marketing | ✅ | back-end + écrans livrés (le doc était en retard) |
-| P2e | Finance, Secrétariat, Projets ONG | 🔄 | Finance ✅, **Projets ONG ✅** (2026-07-22) ; Secrétariat/Mandat reste |
+| P2e | Finance, Secrétariat, Projets ONG | ✅ | Finance ✅, **Projets ONG ✅**, **Secrétariat/Mandat ✅** (2026-07-22) |
 | P2f | Documents (Droit/Santé/Code) | ✅ | ORM/repo/routes ✅, écran (page `/documents` : liste + suppression) ✅, nav Sidebar ✅ ; tests dédiés ajoutés (2026-07-22) |
 | P3 | BI store, prévision ML, multi-devise | ☐ | — |
 | PX | Fintech, GRC, Cyber, Pôle K | ☐ | — |

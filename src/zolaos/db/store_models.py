@@ -1270,6 +1270,72 @@ class BudgetLineRecord(StoreBase):
         }
 
 
+class MandateRecord(StoreBase):
+    """Mandat social (registre) — Secrétariat sociétaire (OPS-4)."""
+
+    __tablename__ = "store_mandates"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    tenant_id: Mapped[str] = mapped_column(String(64), index=True)
+    titulaire: Mapped[str] = mapped_column(String(120))
+    fonction: Mapped[str] = mapped_column(String(60), default="autre")
+    date_nomination: Mapped[date] = mapped_column(Date)
+    duree_annees: Mapped[int] = mapped_column(Integer, default=0)  # 0 = durée indéterminée
+    organe: Mapped[str | None] = mapped_column(String(40), nullable=True)  # gerance|conseil|...
+    statut: Mapped[str] = mapped_column(String(20), default="actif")  # actif|expire|revoque
+    country: Mapped[str] = mapped_column(String(2), default="cg")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_now, onupdate=_now
+    )
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "tenant_id": self.tenant_id,
+            "titulaire": self.titulaire,
+            "fonction": self.fonction,
+            "date_nomination": self.date_nomination.isoformat() if self.date_nomination else None,
+            "duree_annees": self.duree_annees,
+            "organe": self.organe,
+            "statut": self.statut,
+            "country": self.country,
+        }
+
+
+class ResolutionRecord(StoreBase):
+    """Résolution d'assemblée/conseil (AG/CA) — Secrétariat sociétaire (OPS-4)."""
+
+    __tablename__ = "store_resolutions"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    tenant_id: Mapped[str] = mapped_column(String(64), index=True)
+    type_reunion: Mapped[str] = mapped_column(String(8))  # AGO|AGE|CA
+    date_reunion: Mapped[date] = mapped_column(Date)
+    objet: Mapped[str] = mapped_column(String(200))
+    decision: Mapped[str] = mapped_column(Text, default="")
+    reference_pv: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    quorum: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    country: Mapped[str] = mapped_column(String(2), default="cg")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_now, onupdate=_now
+    )
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "tenant_id": self.tenant_id,
+            "type_reunion": self.type_reunion,
+            "date_reunion": self.date_reunion.isoformat() if self.date_reunion else None,
+            "objet": self.objet,
+            "decision": self.decision,
+            "reference_pv": self.reference_pv,
+            "quorum": self.quorum,
+            "country": self.country,
+        }
+
+
 class IncidentRecord(StoreBase):
     """Incident HSE (accident, presqu'accident…) — OPS-1."""
 
