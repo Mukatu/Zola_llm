@@ -13,15 +13,20 @@ export interface InvoiceRec {
   montant_ttc_xaf: string;
   payee: boolean;
   devise: string;
+  montant_ttc_devise?: string | null;
+  taux_applique?: string | null;
 }
 
 export interface InvoiceCreate {
   numero: string;
   tiers: string;
   date_emission: string;
-  montant_ht_xaf: string;
-  montant_ttc_xaf: string;
+  montant_ht_xaf?: string;
+  montant_ttc_xaf?: string;
   sens?: string;
+  devise?: string;
+  montant_ht_devise?: string;
+  montant_ttc_devise?: string;
 }
 
 export interface TxInput {

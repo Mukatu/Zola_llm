@@ -5,11 +5,28 @@ import { Receipt, Plus, Trash2, Check, Activity } from "lucide-react";
 import { Card, Button } from "../ui";
 import { FlagshipHeader, Inp } from "./_shared";
 import { fmtXaf } from "@/lib/erp";
+import { fmt } from "@/lib/data";
 import { ApiError } from "@/lib/api";
+import { getFxRates, type FxRate } from "@/lib/fx";
 import {
   listInvoices, createInvoice, payInvoice, deleteInvoice, reconcile,
   type InvoiceRec, type TxInput, type ReconcileResult,
 } from "@/lib/store";
+
+// Traduit les codes d'erreur backend en messages FR sobres.
+function invoiceError(e: unknown): string {
+  if (!(e instanceof ApiError)) return "Création impossible (backend/DB).";
+  let detail = e.detail;
+  try {
+    const p = JSON.parse(e.detail) as { detail?: string };
+    if (p?.detail) detail = p.detail;
+  } catch { /* detail brut */ }
+  if (detail.startsWith("taux_non_valide")) {
+    return `Taux ${detail.split(":")[1] ?? ""} non validé — saisissez-le dans « Devises / Change ».`;
+  }
+  if (detail.includes("montant_devise_requis")) return "Indiquez le montant dans la devise choisie.";
+  return "Création impossible (backend/DB).";
+}
 
 const DEFAULT_TX: TxInput[] = [
   { id_externe: "T1", date_operation: "2026-06-12", libelle: "Virement client", montant_xaf: "1180", sens: "credit" },
@@ -20,7 +37,15 @@ export function RegistreScreen() {
   const [txs, setTxs] = useState<TxInput[]>(DEFAULT_TX);
   const [res, setRes] = useState<ReconcileResult | null>(null);
   const [err, setErr] = useState<string | null>(null);
-  const [form, setForm] = useState({ numero: "", tiers: "", date_emission: "2026-06-10", montant_ttc_xaf: "" });
+  const [rates, setRates] = useState<FxRate[]>([]);
+  const [form, setForm] = useState({ numero: "", tiers: "", date_emission: "2026-06-10", montant_ttc_xaf: "", devise: "XAF" });
+
+  const selRate = rates.find((r) => r.devise === form.devise);
+  const enDevise = form.devise !== "XAF";
+  const apercuXaf =
+    enDevise && form.montant_ttc_xaf && selRate?.taux_vers_xaf
+      ? Number(form.montant_ttc_xaf) * Number(selRate.taux_vers_xaf)
+      : null;
 
   const runReconcile = useCallback(async (list: TxInput[]) => {
     try { setRes(await reconcile(list)); setErr(null); }
@@ -39,6 +64,7 @@ export function RegistreScreen() {
 
   useEffect(() => {
     refresh(); // au montage
+    getFxRates().then((v) => setRates(v.rates)).catch(() => setRates([]));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -50,11 +76,16 @@ export function RegistreScreen() {
 
   async function add() {
     if (!form.numero || !form.montant_ttc_xaf) return;
+    const base = { numero: form.numero, tiers: form.tiers, date_emission: form.date_emission };
+    const payload = enDevise
+      ? { ...base, devise: form.devise, montant_ttc_devise: form.montant_ttc_xaf, montant_ht_devise: form.montant_ttc_xaf }
+      : { ...base, montant_ttc_xaf: form.montant_ttc_xaf, montant_ht_xaf: form.montant_ttc_xaf };
     try {
-      await createInvoice({ ...form, montant_ht_xaf: form.montant_ttc_xaf });
-      setForm({ numero: "", tiers: "", date_emission: form.date_emission, montant_ttc_xaf: "" });
+      await createInvoice(payload);
+      setForm({ numero: "", tiers: "", date_emission: form.date_emission, montant_ttc_xaf: "", devise: form.devise });
+      setErr(null);
       await refresh();
-    } catch { setErr("Création impossible (backend/DB)."); }
+    } catch (e) { setErr(invoiceError(e)); }
   }
   async function pay(id: string) { try { await payInvoice(id); await refresh(); } catch { setErr("Action impossible."); } }
   async function del(id: string) { try { await deleteInvoice(id); await refresh(); } catch { setErr("Suppression impossible."); } }
@@ -90,18 +121,40 @@ export function RegistreScreen() {
         {/* Registre des factures */}
         <Card>
           <h2 className="mb-2 text-sm font-semibold">Registre des factures de vente</h2>
-          <div className="mb-3 grid grid-cols-[1fr_1fr_110px_36px] gap-2">
+          <div className="mb-1 grid grid-cols-[1fr_1fr_100px_74px_36px] gap-2">
             <Inp value={form.numero} onChange={(v) => setForm({ ...form, numero: v })} placeholder="N°" />
             <Inp value={form.tiers} onChange={(v) => setForm({ ...form, tiers: v })} placeholder="Client" />
-            <Inp value={form.montant_ttc_xaf} type="number" onChange={(v) => setForm({ ...form, montant_ttc_xaf: v })} placeholder="TTC" />
+            <Inp value={form.montant_ttc_xaf} type="number" onChange={(v) => setForm({ ...form, montant_ttc_xaf: v })} placeholder={enDevise ? `TTC ${form.devise}` : "TTC"} />
+            <select
+              value={form.devise}
+              onChange={(e) => setForm({ ...form, devise: e.target.value })}
+              className="rounded-lg border border-black/10 bg-white px-1 text-sm outline-none focus:ring-2 focus:ring-primary/40"
+            >
+              {(rates.length ? rates : [{ devise: "XAF" } as FxRate]).map((r) => (
+                <option key={r.devise} value={r.devise}>{r.devise}</option>
+              ))}
+            </select>
             <button onClick={add} className="grid place-items-center rounded-lg bg-forest text-white"><Plus className="h-4 w-4" /></button>
+          </div>
+          <div className="mb-3 min-h-[1rem] text-xs">
+            {enDevise && apercuXaf !== null && (
+              <span className="text-muted">≈ {fmtXaf(String(Math.round(apercuXaf)))} au taux {fmt(selRate?.taux_vers_xaf ?? "0")}</span>
+            )}
+            {enDevise && selRate && !selRate.validated && (
+              <span className="text-amber-700">Taux {form.devise} non validé — à saisir/valider dans « Devises / Change ».</span>
+            )}
           </div>
           {invoices.length === 0 && <p className="text-sm text-muted">Aucune facture. Ajoutez-en une.</p>}
           {invoices.map((inv) => (
             <div key={inv.id} className="flex items-center justify-between border-b border-black/5 py-1.5 text-sm last:border-0">
               <span><b>{inv.numero}</b> · {inv.tiers || "—"}</span>
               <span className="flex items-center gap-2">
-                <span className="text-muted">{fmtXaf(inv.montant_ttc_xaf)}</span>
+                <span className="text-muted">
+                  {inv.montant_ttc_devise && inv.devise !== "XAF" && (
+                    <span className="mr-1 text-[11px]">{fmt(inv.montant_ttc_devise)} {inv.devise} →</span>
+                  )}
+                  {fmtXaf(inv.montant_ttc_xaf)}
+                </span>
                 {inv.payee
                   ? <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs text-emerald-700">payée</span>
                   : <button onClick={() => pay(inv.id)} title="Marquer payée" className="text-emerald-600 hover:text-emerald-800"><Check className="h-4 w-4" /></button>}
