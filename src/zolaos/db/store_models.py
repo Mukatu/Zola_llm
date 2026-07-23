@@ -2031,6 +2031,57 @@ class KycRecordRecord(StoreBase):
         }
 
 
+class AmlCaseRecord(StoreBase):
+    """Dossier de surveillance AML persisté (évaluation figée + workflow) — FINTECH-10.
+
+    Trace un lot d'opérations évalué (LBC-FT/GABAC) : alertes figées à la
+    création, statut de traitement (à examiner → classé sans suite | déclaré),
+    référence de déclaration de soupçon le cas échéant. Registre auditable.
+    """
+
+    __tablename__ = "store_aml_cases"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    tenant_id: Mapped[str] = mapped_column(String(64), index=True)
+    reference: Mapped[str] = mapped_column(String(64), default="")
+    client: Mapped[str] = mapped_column(String(200))
+    nb_operations: Mapped[int] = mapped_column(Integer, default=0)
+    volume_total_xaf: Mapped[Decimal] = mapped_column(Numeric(18, 2), default=Decimal("0"))
+    volume_especes_xaf: Mapped[Decimal] = mapped_column(Numeric(18, 2), default=Decimal("0"))
+    niveau: Mapped[str] = mapped_column(String(10), default="info")  # info|attention|alerte
+    nb_alertes: Mapped[int] = mapped_column(Integer, default=0)
+    # a_examiner | classee (sans suite) | declaree (déclaration de soupçon)
+    statut: Mapped[str] = mapped_column(String(12), default="a_examiner")
+    declaration_ref: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    transactions: Mapped[list[dict[str, Any]]] = mapped_column(JSON, default=list)
+    resultat: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    commentaire: Mapped[str | None] = mapped_column(Text, nullable=True)
+    country: Mapped[str] = mapped_column(String(2), default="cg")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_now, onupdate=_now
+    )
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "tenant_id": self.tenant_id,
+            "reference": self.reference,
+            "client": self.client,
+            "nb_operations": self.nb_operations,
+            "volume_total_xaf": str(self.volume_total_xaf),
+            "volume_especes_xaf": str(self.volume_especes_xaf),
+            "niveau": self.niveau,
+            "nb_alertes": self.nb_alertes,
+            "statut": self.statut,
+            "declaration_ref": self.declaration_ref,
+            "resultat": self.resultat,
+            "commentaire": self.commentaire,
+            "country": self.country,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
+
+
 class LoanInstallmentRecord(StoreBase):
     """Échéance d'un prêt décaissé (échéancier de remboursement) — FINTECH-6.
 

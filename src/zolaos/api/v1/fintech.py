@@ -19,6 +19,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from zolaos.agents.fintech.amortization import build_schedule
 from zolaos.agents.fintech.cohortes import cohortes
 from zolaos.agents.fintech.kyc import (
+    AmlBareme,
     KycProfile,
     Transaction,
     evaluate_aml,
@@ -34,6 +35,7 @@ from zolaos.agents.fintech.scoring import (
 )
 from zolaos.db.session import get_session
 from zolaos.db.store_repo import (
+    AmlCaseRepository,
     CreditApplicationRepository,
     KycRecordRepository,
     LoanInstallmentRepository,
@@ -121,6 +123,8 @@ def _application_record(
 
 _STATUTS_CREDIT = {"evaluee", "accordee", "refusee", "decaissee", "cloturee"}
 _STATUTS_KYC = {"a_valider", "valide", "refuse"}
+_STATUTS_AML = {"a_examiner", "classee", "declaree"}
+_NIVEAU_RANG = {"info": 0, "attention": 1, "alerte": 2}
 
 
 # ------------------------------------------------------------- calcul à la volée
@@ -148,6 +152,122 @@ class AmlRequest(BaseModel):
 @router.post("/aml", summary="Surveillance AML : seuils, structuration, espèces")
 def fintech_aml(req: AmlRequest) -> dict[str, Any]:
     return evaluate_aml(req.transactions).model_dump(mode="json")
+
+
+# ------------------------------------------------------------ registre AML (cas persistés)
+
+
+class AmlCaseCreate(BaseModel):
+    client: str
+    reference: str | None = None
+    transactions: list[Transaction] = Field(default_factory=list)
+    bareme: AmlBareme | None = None
+
+
+class AmlDecisionIn(BaseModel):
+    statut: str
+    commentaire: str | None = None
+    declaration_ref: str | None = None
+
+
+@router.post(
+    "/aml-cases",
+    status_code=status.HTTP_201_CREATED,
+    summary="Évaluer et enregistrer un dossier de surveillance AML",
+)
+async def create_aml_case(
+    body: AmlCaseCreate,
+    tenant_id: str = "local",
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    res = evaluate_aml(body.transactions, body.bareme)
+    reelles = [a for a in res.alertes if a.code != "ras"]
+    niveau = max(
+        (a.niveau for a in res.alertes), key=lambda n: _NIVEAU_RANG.get(n, 0), default="info"
+    )
+    rec = await AmlCaseRepository(session).create(
+        {
+            "tenant_id": tenant_id,
+            "reference": body.reference or "",
+            "client": body.client,
+            "nb_operations": res.nb_operations,
+            "volume_total_xaf": res.volume_total_xaf,
+            "volume_especes_xaf": res.volume_especes_xaf,
+            "niveau": niveau,
+            "nb_alertes": len(reelles),
+            "statut": "a_examiner",
+            "transactions": [t.model_dump(mode="json") for t in body.transactions],
+            "resultat": res.model_dump(mode="json"),
+        }
+    )
+    await session.commit()
+    return rec.to_dict()
+
+
+@router.get("/aml-cases", summary="Lister les dossiers de surveillance AML")
+async def list_aml_cases(
+    tenant_id: str = "local",
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    rows = await AmlCaseRepository(session).list(tenant_id=tenant_id)
+    rows.sort(key=lambda r: r.created_at, reverse=True)
+    return {"aml_cases": [r.to_dict() for r in rows]}
+
+
+@router.get("/aml-cases/{case_id}", summary="Lire un dossier AML")
+async def get_aml_case(
+    case_id: str,
+    tenant_id: str = "local",
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    rec = await AmlCaseRepository(session).get(case_id, tenant_id=tenant_id)
+    if rec is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="aml_case_not_found")
+    return rec.to_dict()
+
+
+@router.post("/aml-cases/{case_id}/decision", summary="Traiter un dossier AML (classer / déclarer)")
+async def decide_aml_case(
+    case_id: str,
+    body: AmlDecisionIn,
+    tenant_id: str = "local",
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    if body.statut not in _STATUTS_AML:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"statut_invalide (attendu : {sorted(_STATUTS_AML)})",
+        )
+    if body.statut == "declaree" and not body.declaration_ref:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="declaration_ref_requise"
+        )
+    rec = await AmlCaseRepository(session).update(
+        case_id,
+        tenant_id=tenant_id,
+        fields={
+            "statut": body.statut,
+            "commentaire": body.commentaire,
+            "declaration_ref": body.declaration_ref,
+        },
+    )
+    if rec is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="aml_case_not_found")
+    await session.commit()
+    return rec.to_dict()
+
+
+@router.delete("/aml-cases/{case_id}", summary="Supprimer un dossier AML")
+async def delete_aml_case(
+    case_id: str,
+    tenant_id: str = "local",
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, str]:
+    ok = await AmlCaseRepository(session).delete(case_id, tenant_id=tenant_id)
+    if not ok:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="aml_case_not_found")
+    await session.commit()
+    return {"status": "deleted"}
 
 
 # ------------------------------------------------------------ dossiers de crédit

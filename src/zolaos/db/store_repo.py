@@ -16,6 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from zolaos.db.store_models import (
     AbsenceRecord,
     AgentFeedbackRecord,
+    AmlCaseRecord,
     ApplicationRecord,
     AssetRecord,
     BankAccountRecord,
@@ -446,6 +447,10 @@ class SupplierRepository(_CrudRepo):
 
 class CreditApplicationRepository(_CrudRepo):
     model = CreditApplicationRecord
+
+
+class AmlCaseRepository(_CrudRepo):
+    model = AmlCaseRecord
 
 
 class KycRecordRepository(_CrudRepo):
