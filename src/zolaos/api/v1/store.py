@@ -87,6 +87,7 @@ from zolaos.db.session import get_session
 from zolaos.db.store_repo import (
     AssetRepository,
     BankAccountRepository,
+    BudgetLineRepository,
     CashFlowRepository,
     EcheanceRepository,
     EmployeeRepository,
@@ -101,6 +102,7 @@ from zolaos.db.store_repo import (
     PayslipArchiveRepository,
     PayslipRepository,
     PayslipTemplateRepository,
+    ProjectRepository,
     PurchaseBudgetRepository,
     PurchaseOrderRepository,
     RisqueRepository,
@@ -3391,3 +3393,237 @@ async def get_archive(
         media_type="text/html; charset=utf-8",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
+
+
+# ---------------------------------------------------------------- Projets ONG
+
+
+class ProjectIn(BaseModel):
+    intitule: str
+    bailleur: str
+    convention_ref: str | None = None
+    devise: str = "XAF"
+    budget_total: Decimal = Decimal("0")
+    date_debut: date | None = None
+    date_fin: date | None = None
+    statut: str = "en_cours"  # en_cours | clos | suspendu
+    responsable: str | None = None
+    country: str = "cg"
+
+
+class ProjectPatch(BaseModel):
+    intitule: str | None = None
+    bailleur: str | None = None
+    convention_ref: str | None = None
+    budget_total: Decimal | None = None
+    date_debut: date | None = None
+    date_fin: date | None = None
+    statut: str | None = None
+    responsable: str | None = None
+
+
+class BudgetLineIn(BaseModel):
+    project_id: str
+    rubrique: str
+    activite: str | None = None
+    montant_prevu: Decimal = Decimal("0")
+    montant_engage: Decimal = Decimal("0")
+    montant_realise: Decimal = Decimal("0")
+    eligible: bool = True
+
+
+class BudgetLinePatch(BaseModel):
+    rubrique: str | None = None
+    activite: str | None = None
+    montant_prevu: Decimal | None = None
+    montant_engage: Decimal | None = None
+    montant_realise: Decimal | None = None
+    eligible: bool | None = None
+
+
+@router.post("/projects", status_code=status.HTTP_201_CREATED, summary="Créer un projet")
+async def create_project(
+    body: ProjectIn, tenant_id: str = "local", session: AsyncSession = Depends(get_session)
+) -> dict[str, Any]:
+    rec = await ProjectRepository(session).create({**body.model_dump(), "tenant_id": tenant_id})
+    await session.commit()
+    return rec.to_dict()
+
+
+@router.get("/projects", summary="Lister les projets")
+async def list_projects(
+    tenant_id: str = "local", session: AsyncSession = Depends(get_session)
+) -> dict[str, Any]:
+    rows = await ProjectRepository(session).list(tenant_id=tenant_id)
+    return {"projects": [r.to_dict() for r in rows]}
+
+
+@router.patch("/projects/{project_id}", summary="Mettre à jour un projet")
+async def patch_project(
+    project_id: str,
+    body: ProjectPatch,
+    tenant_id: str = "local",
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    rec = await ProjectRepository(session).update(
+        project_id, tenant_id=tenant_id, fields=body.model_dump(exclude_none=True)
+    )
+    if rec is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="project_not_found")
+    await session.commit()
+    return rec.to_dict()
+
+
+@router.delete("/projects/{project_id}", summary="Supprimer un projet")
+async def delete_project(
+    project_id: str, tenant_id: str = "local", session: AsyncSession = Depends(get_session)
+) -> dict[str, Any]:
+    ok = await ProjectRepository(session).delete(project_id, tenant_id=tenant_id)
+    if not ok:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="project_not_found")
+    await session.commit()
+    return {"deleted": project_id}
+
+
+@router.post(
+    "/budget-lines", status_code=status.HTTP_201_CREATED, summary="Créer une ligne budgétaire"
+)
+async def create_budget_line(
+    body: BudgetLineIn, tenant_id: str = "local", session: AsyncSession = Depends(get_session)
+) -> dict[str, Any]:
+    rec = await BudgetLineRepository(session).create({**body.model_dump(), "tenant_id": tenant_id})
+    await session.commit()
+    return rec.to_dict()
+
+
+@router.get("/budget-lines", summary="Lister les lignes budgétaires")
+async def list_budget_lines(
+    tenant_id: str = "local",
+    project_id: str | None = None,
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    rows = await BudgetLineRepository(session).list(tenant_id=tenant_id, project_id=project_id)
+    return {"budget_lines": [r.to_dict() for r in rows]}
+
+
+@router.patch("/budget-lines/{line_id}", summary="Mettre à jour une ligne budgétaire")
+async def patch_budget_line(
+    line_id: str,
+    body: BudgetLinePatch,
+    tenant_id: str = "local",
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    rec = await BudgetLineRepository(session).update(
+        line_id, tenant_id=tenant_id, fields=body.model_dump(exclude_none=True)
+    )
+    if rec is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="budget_line_not_found")
+    await session.commit()
+    return rec.to_dict()
+
+
+@router.delete("/budget-lines/{line_id}", summary="Supprimer une ligne budgétaire")
+async def delete_budget_line(
+    line_id: str, tenant_id: str = "local", session: AsyncSession = Depends(get_session)
+) -> dict[str, Any]:
+    ok = await BudgetLineRepository(session).delete(line_id, tenant_id=tenant_id)
+    if not ok:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="budget_line_not_found")
+    await session.commit()
+    return {"deleted": line_id}
+
+
+def _taux(numerateur: Decimal, denominateur: Decimal) -> float:
+    """Ratio arrondi à 4 décimales ; 0 si le dénominateur est nul (évite division par zéro)."""
+    if denominateur == 0:
+        return 0.0
+    return float(round(numerateur / denominateur, 4))
+
+
+@router.get("/projects/{project_id}/suivi", summary="Suivi d'exécution budgétaire d'un projet")
+async def project_suivi(
+    project_id: str,
+    tenant_id: str = "local",
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    project = await ProjectRepository(session).get(project_id, tenant_id=tenant_id)
+    if project is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="project_not_found")
+    lignes = await BudgetLineRepository(session).list(tenant_id=tenant_id, project_id=project_id)
+
+    par_rubrique: dict[str, dict[str, Decimal]] = {}
+    for ligne in lignes:
+        acc = par_rubrique.setdefault(
+            ligne.rubrique,
+            {"prevu": Decimal("0"), "engage": Decimal("0"), "realise": Decimal("0")},
+        )
+        acc["prevu"] += ligne.montant_prevu
+        acc["engage"] += ligne.montant_engage
+        acc["realise"] += ligne.montant_realise
+
+    rubriques = [
+        {
+            "rubrique": rubrique,
+            "prevu": str(v["prevu"]),
+            "engage": str(v["engage"]),
+            "realise": str(v["realise"]),
+            "taux_execution": _taux(v["realise"], v["prevu"]),
+            "taux_engagement": _taux(v["engage"], v["prevu"]),
+            "depassement": v["realise"] > v["prevu"],
+        }
+        for rubrique, v in sorted(par_rubrique.items())
+    ]
+
+    total_prevu = sum((v["prevu"] for v in par_rubrique.values()), Decimal("0"))
+    total_engage = sum((v["engage"] for v in par_rubrique.values()), Decimal("0"))
+    total_realise = sum((v["realise"] for v in par_rubrique.values()), Decimal("0"))
+    realise_eligible = sum(
+        (ligne.montant_realise for ligne in lignes if ligne.eligible), Decimal("0")
+    )
+
+    return {
+        "project": project.to_dict(),
+        "par_rubrique": rubriques,
+        "totaux": {
+            "budget_total": str(project.budget_total),
+            "total_prevu": str(total_prevu),
+            "total_engage": str(total_engage),
+            "total_realise": str(total_realise),
+            "taux_global": _taux(total_realise, total_prevu),
+            "reste_a_realiser": str(total_prevu - total_realise),
+            "realise_eligible": str(realise_eligible),
+            "realise_total": str(total_realise),
+        },
+    }
+
+
+@router.get("/projects/ventilation", summary="Ventilation budgétaire par bailleur")
+async def projects_ventilation(
+    tenant_id: str = "local",
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    projects = await ProjectRepository(session).list(tenant_id=tenant_id)
+    lignes = await BudgetLineRepository(session).list(tenant_id=tenant_id)
+
+    realise_par_projet: dict[str, Decimal] = {}
+    for ligne in lignes:
+        realise_par_projet[ligne.project_id] = (
+            realise_par_projet.get(ligne.project_id, Decimal("0")) + ligne.montant_realise
+        )
+
+    par_bailleur: dict[str, dict[str, Decimal]] = {}
+    for project in projects:
+        acc = par_bailleur.setdefault(
+            project.bailleur, {"budget_total": Decimal("0"), "realise": Decimal("0")}
+        )
+        acc["budget_total"] += project.budget_total
+        acc["realise"] += realise_par_projet.get(project.id, Decimal("0"))
+
+    return {
+        bailleur: {
+            "budget_total": str(v["budget_total"]),
+            "realise": str(v["realise"]),
+            "taux": _taux(v["realise"], v["budget_total"]),
+        }
+        for bailleur, v in sorted(par_bailleur.items())
+    }

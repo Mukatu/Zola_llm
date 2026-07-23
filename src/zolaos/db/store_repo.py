@@ -19,6 +19,7 @@ from zolaos.db.store_models import (
     ApplicationRecord,
     AssetRecord,
     BankAccountRecord,
+    BudgetLineRecord,
     CampaignRecord,
     CandidateRecord,
     CashFlowRecord,
@@ -48,6 +49,7 @@ from zolaos.db.store_models import (
     PayslipArchiveRecord,
     PayslipRecord,
     PayslipTemplateRecord,
+    ProjectRecord,
     PurchaseBudgetRecord,
     PurchaseOrderRecord,
     QuoteRecord,
@@ -762,6 +764,22 @@ class CashFlowRepository(_CrudRepo):
         if statut is not None:
             stmt = stmt.where(CashFlowRecord.statut == statut)
         stmt = stmt.order_by(CashFlowRecord.date_operation.desc())
+        return list(await self._s.scalars(stmt))
+
+
+class ProjectRepository(_CrudRepo):
+    model = ProjectRecord
+
+
+class BudgetLineRepository(_CrudRepo):
+    model = BudgetLineRecord
+
+    async def list(  # type: ignore[override]
+        self, *, tenant_id: str, project_id: str | None = None
+    ) -> list[BudgetLineRecord]:
+        stmt = select(BudgetLineRecord).where(BudgetLineRecord.tenant_id == tenant_id)
+        if project_id is not None:
+            stmt = stmt.where(BudgetLineRecord.project_id == project_id)
         return list(await self._s.scalars(stmt))
 
 

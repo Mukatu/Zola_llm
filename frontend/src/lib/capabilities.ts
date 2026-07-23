@@ -85,7 +85,7 @@ export const CAPABILITIES: Record<string, Capability> = Object.fromEntries(
       intents(["registre", "Registre"], ["cloture", "Clôture vivante"]), "flagship"),
     cap("erp.projets_ong", "Projets ONG", Handshake,
       "Gestion financière ONG, ventilation bailleur/projet.",
-      intents(["suivi", "Suivi budget"], ["rapport", "Rapport"])),
+      intents(["suivi", "Suivi budget"], ["rapport", "Rapport"]), "flagship"),
     cap("erp.supply_chain", "Supply Chain & Stocks", Boxes,
       "Réapprovisionnement, alertes rupture, bons de commande.",
       intents(["reappro", "Réappro"], ["alertes", "Alertes rupture"], ["bon_commande", "Bon de commande"])),

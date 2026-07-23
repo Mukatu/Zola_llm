@@ -1198,6 +1198,78 @@ class RisqueRecord(StoreBase):
         }
 
 
+class ProjectRecord(StoreBase):
+    """Projet financé par bailleur (Projets ONG)."""
+
+    __tablename__ = "store_projects"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    tenant_id: Mapped[str] = mapped_column(String(64), index=True)
+    intitule: Mapped[str] = mapped_column(String(200))
+    bailleur: Mapped[str] = mapped_column(String(200))
+    convention_ref: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    devise: Mapped[str] = mapped_column(String(3), default="XAF")
+    budget_total: Mapped[Decimal] = mapped_column(Numeric(18, 2), default=Decimal("0"))
+    date_debut: Mapped[date | None] = mapped_column(Date, nullable=True)
+    date_fin: Mapped[date | None] = mapped_column(Date, nullable=True)
+    statut: Mapped[str] = mapped_column(String(20), default="en_cours")  # en_cours|clos|suspendu
+    responsable: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    country: Mapped[str] = mapped_column(String(2), default="cg")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_now, onupdate=_now
+    )
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "tenant_id": self.tenant_id,
+            "intitule": self.intitule,
+            "bailleur": self.bailleur,
+            "convention_ref": self.convention_ref,
+            "devise": self.devise,
+            "budget_total": str(self.budget_total),
+            "date_debut": self.date_debut.isoformat() if self.date_debut else None,
+            "date_fin": self.date_fin.isoformat() if self.date_fin else None,
+            "statut": self.statut,
+            "responsable": self.responsable,
+            "country": self.country,
+        }
+
+
+class BudgetLineRecord(StoreBase):
+    """Ligne budgétaire d'un projet (rubrique × activité) — Projets ONG."""
+
+    __tablename__ = "store_budget_lines"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    tenant_id: Mapped[str] = mapped_column(String(64), index=True)
+    project_id: Mapped[str] = mapped_column(String(36), index=True)
+    rubrique: Mapped[str] = mapped_column(String(120))
+    activite: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    montant_prevu: Mapped[Decimal] = mapped_column(Numeric(18, 2), default=Decimal("0"))
+    montant_engage: Mapped[Decimal] = mapped_column(Numeric(18, 2), default=Decimal("0"))
+    montant_realise: Mapped[Decimal] = mapped_column(Numeric(18, 2), default=Decimal("0"))
+    eligible: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_now, onupdate=_now
+    )
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "tenant_id": self.tenant_id,
+            "project_id": self.project_id,
+            "rubrique": self.rubrique,
+            "activite": self.activite,
+            "montant_prevu": str(self.montant_prevu),
+            "montant_engage": str(self.montant_engage),
+            "montant_realise": str(self.montant_realise),
+            "eligible": self.eligible,
+        }
+
+
 class IncidentRecord(StoreBase):
     """Incident HSE (accident, presqu'accident…) — OPS-1."""
 

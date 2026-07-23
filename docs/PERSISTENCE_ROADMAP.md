@@ -108,8 +108,8 @@ effectif total + **ETP**, répartition par département/contrat/genre ; **masse 
 Entité `store_payslips`. Endpoint `/v1/erp/payslips` (génère depuis l'employé **stocké** + barème, persiste). Écran `PaieScreen` (🔁 : sélection employé du registre → bulletin → historique).
 **Plus-value** : historique des bulletins, **masse salariale réelle** qui alimente le tableau de bord RH **et** la BI.
 
-**8. Projets ONG — ⏳ (P2e)**
-Entités `store_projects` + `store_budget_lines` (ventilation bailleur/projet). Endpoints `/v1/erp/projects` (CRUD + suivi budget). Écran Projets (🆕).
+**8. Projets ONG — ✅ (P2e)**
+Entités `store_projects` + `store_budget_lines` (ventilation bailleur/projet). Endpoints `/v1/erp/projects` + `/budget-lines` (CRUD) + `/projects/{id}/suivi` (taux d'exécution/engagement par rubrique, dépassement, éligible vs total) + `/projects/ventilation` (agrégat par bailleur). Écran `ProjetsOngScreen` (registre projets + lignes budgétaires + suivi + ventilation). Tests `test_store_projets.py`.
 **Plus-value** : suivi budgétaire bailleurs, reporting (lien GRC reporting).
 
 **9. Secrétariat sociétaire — ⏳ (P2e)**
@@ -185,9 +185,9 @@ Cyber : moteur + écran (hors persistance lourde initiale). Pôle K : dictionnai
 | P1/P1b/P2 | Factures, Écritures, Stocks | ✅ | `de476ea`,`22eccbd`,`16d3c1b`,`8edc431`,`6612f3a` |
 | P2b | Commercial | ✅ | back-end P2b-1 (registres + endpoints + moteur sur store + tests) + front P2b-2 (kanban persisté, drag-stage, score, relances, forecast, timeline, devis→facture) |
 | P2c | Achats, SIRH (RH pilotage), Paie | 🔄 | Achats ✅ (P2c-1 back-end + P2c-2 écran : registre noté, conformité, comparatif, réception→facture). SIRH livré séparément ; Paie historisée reste à faire |
-| P2d | Facility, HSE, Marketing | ☐ | — |
-| P2e | Finance, Secrétariat, Projets ONG | ☐ | — |
-| P2f | Documents (Droit/Santé/Code) | ☐ | — |
+| P2d | Facility, HSE, Marketing | ✅ | back-end + écrans livrés (le doc était en retard) |
+| P2e | Finance, Secrétariat, Projets ONG | 🔄 | Finance ✅, **Projets ONG ✅** (2026-07-22) ; Secrétariat/Mandat reste |
+| P2f | Documents (Droit/Santé/Code) | 🔄 | back-end + ORM + routes ✅ ; reste tests dédiés + écran + nav |
 | P3 | BI store, prévision ML, multi-devise | ☐ | — |
 | PX | Fintech, GRC, Cyber, Pôle K | ☐ | — |
 
