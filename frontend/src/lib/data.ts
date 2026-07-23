@@ -39,6 +39,21 @@ export function biBrief(): Promise<{ brief: string; signals_apercu: string }> {
 export function biAsk(question: string): Promise<{ answer: string }> {
   return api("/v1/bi/ask", { body: { question } });
 }
+// Pilotage de trésorerie — prévisionnel daté + indicateurs (moteur canonique /v1/erp/treasury).
+export interface PeriodeForecast { libelle: string; debut: string; encaissements_xaf: string; decaissements_xaf: string; flux_net_xaf: string; solde_projete_xaf: string }
+export interface Previsionnel {
+  position_initiale_xaf: string; encaissements_total_xaf: string; decaissements_total_xaf: string;
+  position_finale_xaf: string; decouvert_periode: string | null; decouvert_xaf: string | null;
+  periodes: PeriodeForecast[];
+}
+export interface IndicateursTreso {
+  encours_clients_xaf: string; encours_fournisseurs_xaf: string;
+  dso_jours: number; dpo_jours: number; bfr_xaf: string; runway_mois: string | null;
+}
+export interface TreasuryPilotage { previsionnel: Previsionnel; indicateurs: IndicateursTreso }
+export function treasuryPilotage(horizon_jours = 90): Promise<TreasuryPilotage> {
+  return api(`/v1/erp/treasury/pilotage?horizon_jours=${horizon_jours}`);
+}
 
 // ----- Finance -----
 export interface FinanceFinding { type: string; severity: string; libelle: string; montant_xaf: string; references: string[] }

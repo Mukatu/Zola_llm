@@ -1,12 +1,112 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { BarChart3, Sparkles, AlertTriangle, CalendarClock, Send, Loader2 } from "lucide-react";
+import { BarChart3, Sparkles, AlertTriangle, CalendarClock, Send, Loader2, TrendingDown } from "lucide-react";
 import { Card, Button } from "../ui";
 import { FlagshipHeader } from "./_shared";
 import { Prose } from "../Prose";
-import { biCockpit, biBrief, biAsk, fmt, type Cockpit, type Signal, type Kpi } from "@/lib/data";
+import { biCockpit, biBrief, biAsk, treasuryPilotage, fmt, type Cockpit, type Signal, type Kpi, type TreasuryPilotage } from "@/lib/data";
 import { ApiError } from "@/lib/api";
+
+const jm = (s: string) => `${s.slice(8, 10)}/${s.slice(5, 7)}`;
+
+/** Trajectoire du solde projeté — sparkline SVG autoporté (sans lib). */
+function TrajectoireTreso({ pilotage }: { pilotage: TreasuryPilotage }) {
+  const { previsionnel } = pilotage;
+  const serie = [Number(previsionnel.position_initiale_xaf), ...previsionnel.periodes.map((p) => Number(p.solde_projete_xaf))];
+  const W = 320, H = 96, PAD = 8;
+  const min = Math.min(...serie, 0);
+  const max = Math.max(...serie, 0);
+  const span = max - min || 1;
+  const x = (i: number) => PAD + (i * (W - 2 * PAD)) / Math.max(1, serie.length - 1);
+  const y = (v: number) => PAD + ((max - v) / span) * (H - 2 * PAD);
+  const pts = serie.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(" ");
+  const zeroY = y(0);
+  const aire = `${x(0)},${zeroY} ${pts} ${x(serie.length - 1)},${zeroY}`;
+  const decouvert = previsionnel.decouvert_periode !== null;
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} className="w-full" preserveAspectRatio="none" role="img" aria-label="Trajectoire du solde de trésorerie projeté">
+      <polygon points={aire} fill={decouvert ? "rgb(239 68 68 / 0.10)" : "rgb(20 184 166 / 0.10)"} />
+      <line x1={PAD} y1={zeroY} x2={W - PAD} y2={zeroY} stroke="rgb(0 0 0 / 0.25)" strokeWidth="1" strokeDasharray="3 3" />
+      <polyline points={pts} fill="none" stroke={decouvert ? "rgb(220 38 38)" : "rgb(13 148 136)"} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+/** Pilotage de trésorerie : solde projeté daté + indicateurs de rotation (moteur canonique). */
+function PilotageCard({ pilotage }: { pilotage: TreasuryPilotage }) {
+  const { previsionnel: prev, indicateurs: ind } = pilotage;
+  const decouvert = prev.decouvert_periode !== null;
+  const decDate = decouvert ? prev.periodes.find((p) => p.libelle === prev.decouvert_periode)?.debut : null;
+  const p0 = prev.periodes[0]?.debut;
+  const pN = prev.periodes[prev.periodes.length - 1]?.debut;
+  return (
+    <Card className={decouvert ? "ring-red-200" : undefined}>
+      <div className="flex items-center gap-2">
+        <TrendingDown className="h-5 w-5 text-primary" />
+        <h2 className="text-sm font-semibold">Pilotage de trésorerie (90 j)</h2>
+      </div>
+      <p className="mt-0.5 text-xs text-muted">
+        Projection déterministe du solde à partir des flux prévus du registre. Le moteur calcule, aucune valeur n&apos;est inventée.
+      </p>
+
+      {decouvert && (
+        <div className="mt-3 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+          <span className="font-semibold">Découvert prévu{decDate ? ` — semaine du ${jm(decDate)}` : ""}.</span>{" "}
+          Solde projeté {fmt(prev.decouvert_xaf ?? "0")} XAF. Anticipez un financement ou décalez des décaissements.
+        </div>
+      )}
+
+      <div className="mt-3 grid grid-cols-3 gap-3">
+        <div>
+          <div className="text-xs text-muted">Position actuelle</div>
+          <div className="mt-0.5 text-lg font-semibold tabular-nums">{fmt(prev.position_initiale_xaf)}</div>
+        </div>
+        <div>
+          <div className="text-xs text-muted">Flux prévus (enc. / déc.)</div>
+          <div className="mt-0.5 text-sm font-semibold tabular-nums">
+            <span className="text-emerald-600">+{fmt(prev.encaissements_total_xaf)}</span>
+            {" / "}
+            <span className="text-red-600">−{fmt(prev.decaissements_total_xaf)}</span>
+          </div>
+        </div>
+        <div>
+          <div className="text-xs text-muted">Position projetée (90 j)</div>
+          <div className={"mt-0.5 text-lg font-semibold tabular-nums " + (Number(prev.position_finale_xaf) < 0 ? "text-red-600" : "")}>
+            {fmt(prev.position_finale_xaf)}
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-3">
+        <TrajectoireTreso pilotage={pilotage} />
+        <div className="mt-1 flex justify-between text-[10px] text-muted">
+          <span>{p0 ? jm(p0) : ""}</span>
+          <span>{pN ? jm(pN) : ""}</span>
+        </div>
+      </div>
+
+      <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+        <div className="rounded-xl border border-black/10 bg-black/[0.02] p-2">
+          <div className="text-[11px] text-muted">DSO (encaissement)</div>
+          <div className="text-sm font-semibold tabular-nums">{ind.dso_jours} j</div>
+        </div>
+        <div className="rounded-xl border border-black/10 bg-black/[0.02] p-2">
+          <div className="text-[11px] text-muted">DPO (paiement)</div>
+          <div className="text-sm font-semibold tabular-nums">{ind.dpo_jours} j</div>
+        </div>
+        <div className="rounded-xl border border-black/10 bg-black/[0.02] p-2">
+          <div className="text-[11px] text-muted">BFR</div>
+          <div className="text-sm font-semibold tabular-nums">{fmt(ind.bfr_xaf)}</div>
+        </div>
+        <div className="rounded-xl border border-black/10 bg-black/[0.02] p-2">
+          <div className="text-[11px] text-muted">Runway</div>
+          <div className="text-sm font-semibold tabular-nums">{ind.runway_mois !== null ? `${fmt(ind.runway_mois)} mois` : "—"}</div>
+        </div>
+      </div>
+    </Card>
+  );
+}
 
 const DOMAINE: Record<string, string> = {
   commercial: "Commercial",
@@ -25,6 +125,7 @@ const NIVEAU: Record<string, string> = {
 
 export function BiScreen() {
   const [cockpit, setCockpit] = useState<Cockpit | null>(null);
+  const [pilotage, setPilotage] = useState<TreasuryPilotage | null>(null);
   const [err, setErr] = useState<string | null>(null);
 
   const [brief, setBrief] = useState<string | null>(null);
@@ -39,6 +140,7 @@ export function BiScreen() {
     biCockpit()
       .then(setCockpit)
       .catch(() => setErr("Backend indisponible (DB requise)."));
+    treasuryPilotage().then(setPilotage).catch(() => setPilotage(null));
   }, []);
 
   async function genererBrief() {
@@ -123,6 +225,9 @@ export function BiScreen() {
           </div>
         </section>
       )}
+
+      {/* Pilotage de trésorerie — prévisionnel + indicateurs (moteur canonique) */}
+      {pilotage && pilotage.previsionnel.periodes.length > 0 && <PilotageCard pilotage={pilotage} />}
 
       {/* Échéances indicatives */}
       {echeances.length > 0 && (
