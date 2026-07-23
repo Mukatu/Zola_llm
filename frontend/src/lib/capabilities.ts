@@ -4,7 +4,7 @@
 // mais un écran tailored par capacité.
 
 import {
-  BarChart3, Boxes, Calculator, Code2, FileSignature, GraduationCap, HardHat, Handshake,
+  BarChart3, Boxes, Calculator, Code2, Coins, FileSignature, GraduationCap, HardHat, Handshake,
   Landmark, Megaphone, Network, Receipt, ScrollText, ShieldCheck, ShoppingCart, Stethoscope,
   UserPlus, Users, Wallet, Wrench, type LucideIcon,
 } from "lucide-react";
@@ -101,6 +101,9 @@ export const CAPABILITIES: Record<string, Capability> = Object.fromEntries(
     cap("erp.hse", "HSE / RSE", HardHat,
       "Cartographie des risques, incidents, plans de prévention, RSE.",
       intents(["cartographie", "Cartographie"], ["plan", "Plan prévention"], ["rse", "Rapport RSE"])),
+    cap("erp.devises", "Devises / Change", Coins,
+      "Taux de change gouvernés (référence XAF) et conversion déterministe.",
+      intents(["taux", "Taux"], ["convertir", "Convertir"]), "flagship"),
     cap("bi.pilotage", "Pilotage / BI", BarChart3,
       "KPIs cross-métiers, synthèse et questions en langage naturel.",
       intents(["kpis", "KPIs"], ["synthese", "Synthèse"], ["question", "Question"]), "flagship"),
