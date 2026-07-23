@@ -187,7 +187,7 @@ Cyber : moteur + écran (hors persistance lourde initiale). Pôle K : dictionnai
 | P2c | Achats, SIRH (RH pilotage), Paie | 🔄 | Achats ✅ (P2c-1 back-end + P2c-2 écran : registre noté, conformité, comparatif, réception→facture). SIRH livré séparément ; Paie historisée reste à faire |
 | P2d | Facility, HSE, Marketing | ✅ | back-end + écrans livrés (le doc était en retard) |
 | P2e | Finance, Secrétariat, Projets ONG | 🔄 | Finance ✅, **Projets ONG ✅** (2026-07-22) ; Secrétariat/Mandat reste |
-| P2f | Documents (Droit/Santé/Code) | 🔄 | back-end + ORM + routes ✅ ; reste tests dédiés + écran + nav |
+| P2f | Documents (Droit/Santé/Code) | ✅ | ORM/repo/routes ✅, écran (page `/documents` : liste + suppression) ✅, nav Sidebar ✅ ; tests dédiés ajoutés (2026-07-22) |
 | P3 | BI store, prévision ML, multi-devise | ☐ | — |
 | PX | Fintech, GRC, Cyber, Pôle K | ☐ | — |
 
