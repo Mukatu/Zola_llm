@@ -58,6 +58,12 @@ class InvoiceRecord(StoreBase):
     montant_tva_xaf: Mapped[Decimal | None] = mapped_column(Numeric(18, 2), nullable=True)
     montant_ttc_xaf: Mapped[Decimal] = mapped_column(Numeric(18, 2), default=Decimal("0"))
     devise: Mapped[str] = mapped_column(String(3), default="XAF")
+    # Traçabilité multi-devise (MULTIDEV-2) : montant d'origine + taux appliqué à
+    # l'écriture. Nuls quand la facture est déjà en XAF (les colonnes `_xaf`
+    # restent la valeur canonique, normalisée, qu'exploite toute l'agrégation).
+    montant_ht_devise: Mapped[Decimal | None] = mapped_column(Numeric(18, 2), nullable=True)
+    montant_ttc_devise: Mapped[Decimal | None] = mapped_column(Numeric(18, 2), nullable=True)
+    taux_applique: Mapped[Decimal | None] = mapped_column(Numeric(18, 6), nullable=True)
     payee: Mapped[bool] = mapped_column(Boolean, default=False)
     country: Mapped[str] = mapped_column(String(2), default="cg")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
@@ -80,6 +86,13 @@ class InvoiceRecord(StoreBase):
             ),
             "montant_ttc_xaf": str(self.montant_ttc_xaf),
             "devise": self.devise,
+            "montant_ht_devise": (
+                str(self.montant_ht_devise) if self.montant_ht_devise is not None else None
+            ),
+            "montant_ttc_devise": (
+                str(self.montant_ttc_devise) if self.montant_ttc_devise is not None else None
+            ),
+            "taux_applique": str(self.taux_applique) if self.taux_applique is not None else None,
             "payee": self.payee,
             "country": self.country,
             "created_at": self.created_at.isoformat() if self.created_at else None,

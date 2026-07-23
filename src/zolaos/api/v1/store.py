@@ -138,6 +138,11 @@ class InvoiceIn(BaseModel):
     montant_tva_xaf: Decimal | None = None
     montant_ttc_xaf: Decimal = Decimal("0")
     devise: str = "XAF"
+    # Saisie en devise étrangère (MULTIDEV-2) : si `devise != XAF`, fournir le
+    # montant TTC (et éventuellement HT) dans la devise ; le serveur normalise en
+    # XAF au taux **validé** et conserve l'original + le taux pour la traçabilité.
+    montant_ht_devise: Decimal | None = None
+    montant_ttc_devise: Decimal | None = None
     payee: bool = False
     country: str = "cg"
 
@@ -163,7 +168,41 @@ async def create_invoice(
     tenant_id: str = "local",
     session: AsyncSession = Depends(get_session),
 ) -> dict[str, Any]:
-    rec = await InvoiceRepository(session).create({**body.model_dump(), "tenant_id": tenant_id})
+    data = {**body.model_dump(), "tenant_id": tenant_id}
+    devise = (body.devise or "XAF").upper()
+    data["devise"] = devise
+    if devise != "XAF":
+        # Facture en devise étrangère : normaliser en XAF au taux validé.
+        if body.montant_ttc_devise is None:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="montant_devise_requis"
+            )
+        overrides, _ = await _fx_overrides(session, tenant_id, body.country)
+        rates = effective_rates(load_fx_seed(body.country), overrides)
+        ht_source = (
+            body.montant_ht_devise
+            if body.montant_ht_devise is not None
+            else body.montant_ttc_devise
+        )
+        try:
+            ttc_xaf = convertir(body.montant_ttc_devise, devise, "XAF", rates)
+            ht_xaf = convertir(ht_source, devise, "XAF", rates)
+        except FxRateNotValidated as exc:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT, detail=f"taux_non_valide:{exc.devise}"
+            ) from exc
+        data["montant_ttc_xaf"] = ttc_xaf
+        data["montant_ht_xaf"] = ht_xaf
+        data["montant_tva_xaf"] = ttc_xaf - ht_xaf
+        data["montant_ht_devise"] = body.montant_ht_devise
+        data["montant_ttc_devise"] = body.montant_ttc_devise
+        data["taux_applique"] = rates[devise].taux_vers_xaf
+    else:
+        # XAF : valeurs canoniques stockées telles quelles (aucun champ devise).
+        data["montant_ht_devise"] = None
+        data["montant_ttc_devise"] = None
+        data["taux_applique"] = None
+    rec = await InvoiceRepository(session).create(data)
     await session.commit()
     return rec.to_dict()
 
