@@ -172,11 +172,16 @@ def dashboard_kpis(
     effectif_actif: int,
     masse_salariale_xaf: Decimal,
     periode: str | None = None,
+    cout_employeur_xaf: Decimal | None = None,
+    realise_projets_xaf: Decimal | None = None,
+    taux_execution_projets: Decimal | None = None,
 ) -> list[KpiValue]:
     """Cockpit transversal : KPIs agrégés sur le **store** (déterministe).
 
     Les scalaires sont déjà calculés par l'appelant (à partir des registres
     persistés). Cette fonction n'assemble que la liste typée d'indicateurs.
+    Les KPIs optionnels (coût employeur, exécution des projets) n'apparaissent
+    que si les registres correspondants sont alimentés.
     """
     rows: list[tuple[str, str, Decimal | int, str, str]] = [
         ("ca_ht", "Chiffre d'affaires (HT)", _xaf(ca_ht), "XAF", "commercial"),
@@ -203,6 +208,30 @@ def dashboard_kpis(
         ("effectif", "Effectif actif", effectif_actif, "unité", "rh"),
         ("masse_salariale", "Masse salariale brute", _xaf(masse_salariale_xaf), "XAF", "rh"),
     ]
+    if cout_employeur_xaf is not None:
+        rows.append(
+            ("cout_employeur", "Coût employeur (chargé)", _xaf(cout_employeur_xaf), "XAF", "rh")
+        )
+    if realise_projets_xaf is not None:
+        rows.append(
+            (
+                "realise_projets",
+                "Réalisé projets (bailleurs)",
+                _xaf(realise_projets_xaf),
+                "XAF",
+                "projets",
+            )
+        )
+    if taux_execution_projets is not None:
+        rows.append(
+            (
+                "execution_projets",
+                "Exécution budgétaire projets",
+                taux_execution_projets,
+                "%",
+                "projets",
+            )
+        )
     return [
         KpiValue(code=c, libelle=lib, valeur=Decimal(v), unite=u, domaine=d, periode=periode)
         for c, lib, v, u, d in rows

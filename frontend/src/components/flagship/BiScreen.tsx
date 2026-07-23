@@ -114,8 +114,9 @@ const DOMAINE: Record<string, string> = {
   achats: "Achats",
   supply: "Supply Chain",
   rh: "RH",
+  projets: "Projets / Bailleurs",
 };
-const ORDRE = ["commercial", "finance", "achats", "supply", "rh"];
+const ORDRE = ["commercial", "finance", "achats", "supply", "rh", "projets"];
 
 const NIVEAU: Record<string, string> = {
   alerte: "border-red-200 bg-red-50 text-red-800",

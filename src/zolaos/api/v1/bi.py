@@ -15,10 +15,11 @@ from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from zolaos.agents.bi.agent import BIAgent
-from zolaos.agents.bi.echeances import prochaines_echeances
+from zolaos.agents.bi.echeances import Echeance, prochaines_echeances
 from zolaos.agents.bi.kpi import KpiValue, compute_kpis, dashboard_kpis
 from zolaos.agents.bi.signals import compute_signals
 from zolaos.agents.crm.engine import STAGE_PROBABILITY
+from zolaos.agents.erp.secretariat import Mandat, mandats_a_renouveler
 from zolaos.agents.erp.treasury import CompteTresorerie, FluxTresorerie, position_tresorerie
 from zolaos.api.dependencies import get_router_client
 from zolaos.connectors.models import BankTransaction, Employee, Invoice
@@ -26,11 +27,15 @@ from zolaos.core.settings import Settings, get_settings
 from zolaos.db.session import get_session
 from zolaos.db.store_repo import (
     BankAccountRepository,
+    BudgetLineRepository,
     CashFlowRepository,
     EmployeeRepository,
     EngagementRepository,
     InvoiceRepository,
+    MandateRepository,
     OpportunityRepository,
+    PayslipRepository,
+    ProjectRepository,
     StockRepository,
 )
 from zolaos.llm.base import LLMClient
@@ -130,9 +135,33 @@ async def _aggregate_kpis(
         _ZERO,
     )
 
-    # RH : effectif actif + masse salariale.
+    # RH : effectif actif + masse salariale. Si des bulletins sont historisés, on
+    # prend la masse **réelle** de la dernière période (brut + coût employeur
+    # chargé) ; sinon on retombe sur les salaires de base des actifs.
     actifs = [e for e in employees if e.statut == "actif"]
-    masse = sum((e.salaire_base_xaf for e in actifs), _ZERO)
+    payslips = await PayslipRepository(session).list(tenant_id=tenant_id)
+    cout_employeur: Decimal | None = None
+    if payslips:
+        derniere = max((p.periode for p in payslips if p.periode), default="")
+        du_mois = [p for p in payslips if p.periode == derniere]
+        masse = sum((p.brut_xaf for p in du_mois), _ZERO)
+        cout_employeur = sum((p.cout_employeur_xaf for p in du_mois), _ZERO)
+    else:
+        masse = sum((e.salaire_base_xaf for e in actifs), _ZERO)
+
+    # Projets (bailleurs) : exécution budgétaire, si des projets sont suivis.
+    projects = await ProjectRepository(session).list(tenant_id=tenant_id)
+    realise_projets: Decimal | None = None
+    taux_execution_projets: Decimal | None = None
+    if projects:
+        lignes = await BudgetLineRepository(session).list(tenant_id=tenant_id)
+        realise_projets = sum((line.montant_realise for line in lignes), _ZERO)
+        budget_total = sum((p.budget_total for p in projects), _ZERO)
+        taux_execution_projets = (
+            (realise_projets / budget_total * Decimal("100")).quantize(Decimal("0.1"))
+            if budget_total > 0
+            else _ZERO
+        )
 
     return dashboard_kpis(
         ca_ht=ca_ht,
@@ -147,6 +176,9 @@ async def _aggregate_kpis(
         effectif_actif=len(actifs),
         masse_salariale_xaf=masse,
         periode=periode,
+        cout_employeur_xaf=cout_employeur,
+        realise_projets_xaf=realise_projets,
+        taux_execution_projets=taux_execution_projets,
     )
 
 
@@ -160,6 +192,39 @@ async def bi_dashboard(
     return {"kpis": [k.model_dump(mode="json") for k in kpis]}
 
 
+async def _mandate_echeances(session: AsyncSession, tenant_id: str) -> list[Echeance]:
+    """Renouvellements de mandats sociaux à venir, en échéances de cockpit."""
+    rows = await MandateRepository(session).list(tenant_id=tenant_id)
+    mandats: list[Mandat] = []
+    for r in rows:
+        if r.statut != "actif":
+            continue
+        try:
+            mandats.append(
+                Mandat(
+                    id_externe=r.id,
+                    titulaire=r.titulaire,
+                    fonction=r.fonction,  # type: ignore[arg-type]
+                    date_nomination=r.date_nomination,
+                    duree_annees=r.duree_annees,
+                    country=r.country,
+                )
+            )
+        except ValueError:
+            continue  # donnée mandat non conforme : on l'ignore plutôt que planter
+    return [
+        Echeance(
+            code=f"mandat-{a.reference[:8]}",
+            libelle=a.libelle,
+            periodicite="mandat",
+            date_limite=a.date_cible,
+            jours_restants=a.jours_restants,
+            note="Renouvellement de mandat social — vérifiez les statuts et l'organe compétent.",
+        )
+        for a in mandats_a_renouveler(mandats, horizon_jours=120)
+    ]
+
+
 @router.get("/cockpit", summary="Cockpit v2 : KPIs + signaux + échéances (déterministe)")
 async def bi_cockpit(
     tenant_id: str = "local",
@@ -167,10 +232,12 @@ async def bi_cockpit(
     session: AsyncSession = Depends(get_session),
 ) -> dict[str, Any]:
     """Cockpit décisionnel **déterministe** (sans LLM) : chiffres, signaux dérivés
-    et rappels d'échéances. Le brief narré est servi séparément par ``/brief``."""
+    et rappels d'échéances (obligations fiscales + renouvellements de mandats).
+    Le brief narré est servi séparément par ``/brief``."""
     kpis = await _aggregate_kpis(session, tenant_id, periode)
     signals = compute_signals(kpis)
-    echeances = prochaines_echeances()
+    echeances = [*prochaines_echeances(), *await _mandate_echeances(session, tenant_id)]
+    echeances.sort(key=lambda e: e.date_limite)
     return {
         "generated_at": datetime.now(UTC).isoformat(),
         "kpis": [k.model_dump(mode="json") for k in kpis],
