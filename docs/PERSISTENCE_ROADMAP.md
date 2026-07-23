@@ -42,7 +42,7 @@ Pour chaque métier, **7 livrables** :
 | **P2e** | **Finance** (relevés bancaires persistés) + **Secrétariat** (Mandat) + **Projets ONG** (Projet/Budget) | ⏳ |
 | **P2f** | **Documents** (transverse) : artefacts générés (contrats Droit, rapports, bulletins) → métiers génératifs | ⏳ |
 | **P3** | BI branché sur le store (KPIs réels) ✅ · **trésorerie prévisionnelle** surfacée (moteur canonique) ✅ · multi-devise (MULTIDEV-1 socle gouverné ✅ · MULTIDEV-2 saisie en devise ✅) | ✅ |
-| **PX** | Pôles à construire : **Fintech** (scoring/KYC), **GRC complet**, **Cyber**, **Pôle K** | ⏳ |
+| **PX** | **Fintech** (scoring/KYC/AML + persistance + pilotage + **registre AML**) 🔄 quasi complet · **GRC complet**, **Cyber**, **Pôle K** à construire ⏳ | 🔄 |
 
 ---
 
@@ -150,9 +150,10 @@ Pas de registre métier ; on persiste les **artefacts générés** (contrats, fi
 
 ### E. Pôles à construire (moteur + écran + persistance — hors « léger », vrai chantier)
 
-**16-17. Fintech — Scoring crédit & KYC/AML — ⏳ (PX)**
-Construire d'abord les **moteurs** (scoring déterministe ; KYC : complétude + screening sanctions filtré), puis persistance `store_credit_applications` + `store_kyc_files`, endpoints `/v1/fintech/*`, écrans dédiés. Connecteurs MoMo/Airtel (sandbox) en option.
-**Plus-value** : dossiers de crédit et KYC tracés (conformité ANIF/COBAC).
+**16-17. Fintech — Scoring crédit & KYC/AML — 🔄 quasi complet (PX)**
+**Livré** (FINTECH-1→10) : moteurs déterministes `agents/fintech/` (scoring EMF, KYC complétude+sanctions, AML seuils/structuration/espèces, amortissement, portfolio/PAR, cohortes) ; persistance `store_credit_applications`, `store_kyc_records`, `store_loan_installments`, **`store_aml_cases`** (registre AML : évaluation figée + workflow classer/déclarer + réf. déclaration de soupçon) ; endpoints `/v1/fintech/*` (score/kyc/aml + CRUD dossiers + décaissement/échéancier + `/portfolio`, `/cohortes` + import Excel) ; écran `FintechScreen` (5 onglets). RAG `rag_fintech` (schéma+agent+router câblés).
+**Reste** : corpus `rag_fintech` (1/4 textes ingéré — LBC-FT/paiements bloqués OCR) ; overlays Polaris scoring/kyc encore sur `rag_legal` ; historisation des KPIs portefeuille (série temporelle) ; connecteurs MoMo/Airtel (sandbox) optionnels ; flag catalogue `/v1/agents` (enabled) = décision GA.
+**Plus-value** : dossiers de crédit, KYC et **surveillance AML tracés** (conformité ANIF/COBAC/GABAC).
 
 **18. GRC complet — ⏳ (PX)**
 Compléter les moteurs (conformité, audit institutionnel, reporting bailleurs), persistance `store_obligations` + `store_controls` + `store_findings`, endpoints `/v1/grc/*`, écrans.
@@ -191,7 +192,7 @@ Cyber : moteur + écran (hors persistance lourde initiale). Pôle K : dictionnai
 | P2e | Finance, Secrétariat, Projets ONG | ✅ | Finance ✅, **Projets ONG ✅**, **Secrétariat/Mandat ✅** (2026-07-22) |
 | P2f | Documents (Droit/Santé/Code) | ✅ | ORM/repo/routes ✅, écran (page `/documents` : liste + suppression) ✅, nav Sidebar ✅ ; tests dédiés ajoutés (2026-07-22) |
 | P3 | BI store, prévision trésorerie, multi-devise | 🔄 | BI cockpit sur store ✅ ; trésorerie prévisionnelle surfacée (moteur canonique, zéro réinvention) ✅ ; multi-devise MULTIDEV-1 (taux gouvernés + conversion + écran) ✅, MULTIDEV-2 (factures en devise → normalisation XAF, traçabilité) ✅ → **P3 clos** |
-| PX | Fintech, GRC, Cyber, Pôle K | ☐ | — |
+| PX | Fintech, GRC, Cyber, Pôle K | 🔄 | Fintech quasi complet (scoring/KYC/AML + persistance + pilotage + registre AML FINTECH-10) ; GRC/Cyber/Pôle K à construire |
 
 ---
 
