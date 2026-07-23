@@ -41,7 +41,7 @@ Pour chaque métier, **7 livrables** :
 | **P2d** | **Opérations** : Facility (Asset/Echeance), HSE (Risque/Incident), Marketing (MarketingContact/Campaign) | ⏳ |
 | **P2e** | **Finance** (relevés bancaires persistés) + **Secrétariat** (Mandat) + **Projets ONG** (Projet/Budget) | ⏳ |
 | **P2f** | **Documents** (transverse) : artefacts générés (contrats Droit, rapports, bulletins) → métiers génératifs | ⏳ |
-| **P3** | BI branché sur le store (KPIs réels) ✅ · **trésorerie prévisionnelle** surfacée (moteur canonique) ✅ · multi-devise ⏳ | 🔄 |
+| **P3** | BI branché sur le store (KPIs réels) ✅ · **trésorerie prévisionnelle** surfacée (moteur canonique) ✅ · multi-devise (MULTIDEV-1 socle gouverné ✅ · MULTIDEV-2 saisie en devise ⏳) | 🔄 |
 | **PX** | Pôles à construire : **Fintech** (scoring/KYC), **GRC complet**, **Cyber**, **Pôle K** | ⏳ |
 
 ---
@@ -165,7 +165,7 @@ Cyber : moteur + écran (hors persistance lourde initiale). Pôle K : dictionnai
 
 ## 5. Transverses (jalons techniques)
 - **`store_documents`** (P2f) : socle des artefacts génératifs (réutilisé par Droit/Santé/Code/rapports).
-- **Multi-devise** (P3) : champ `devise` déjà présent ; ajouter table de taux + conversion à l'affichage.
+- **Multi-devise** (P3) : **MULTIDEV-1 ✅** — table de taux **gouvernée** `store_fx_rates` (graine `ref/fx_rates_cg.json` : EUR 655,957 validé/parité BEAC, XOF 1:1 ; USD/GBP/CNY non validés = à saisir), moteur `agents/erp/fx.py` (`convertir`, abstention si non validé), endpoints `/v1/erp/fx/*`, écran `erp.devises` (panneau gouverné + convertisseur). XAF reste la référence canonique. **MULTIDEV-2 ⏳** : saisie de montants en devise sur factures → normalisation XAF à l'écriture (stocker devise+montant d'origine+taux appliqué pour la traçabilité), + affichage converti.
 - **Prévision de trésorerie** (P3) : ✅ **déterministe** (pas ML, pas LLM) — `previsionnel_tresorerie` (moteur canonique `agents/erp/treasury.py`, exposé `/v1/erp/treasury/pilotage`) surfacée dans le cockpit BI. Une brique ML resterait optionnelle (au-delà du déterministe) si un besoin de saisonnalité émergeait.
 - **Sync connecteurs → store** : import Odoo/CSV alimente les tables `store_*` (interop + standalone).
 - **Audit** : journaliser les écritures sensibles (réutilise `audit`).
@@ -190,7 +190,7 @@ Cyber : moteur + écran (hors persistance lourde initiale). Pôle K : dictionnai
 | P2d | Facility, HSE, Marketing | ✅ | back-end + écrans livrés (le doc était en retard) |
 | P2e | Finance, Secrétariat, Projets ONG | ✅ | Finance ✅, **Projets ONG ✅**, **Secrétariat/Mandat ✅** (2026-07-22) |
 | P2f | Documents (Droit/Santé/Code) | ✅ | ORM/repo/routes ✅, écran (page `/documents` : liste + suppression) ✅, nav Sidebar ✅ ; tests dédiés ajoutés (2026-07-22) |
-| P3 | BI store, prévision trésorerie, multi-devise | 🔄 | BI cockpit sur store ✅ ; trésorerie prévisionnelle surfacée dans le cockpit (moteur canonique `previsionnel_tresorerie`, zéro réinvention) ✅ ; multi-devise ⏳ |
+| P3 | BI store, prévision trésorerie, multi-devise | 🔄 | BI cockpit sur store ✅ ; trésorerie prévisionnelle surfacée (moteur canonique, zéro réinvention) ✅ ; multi-devise MULTIDEV-1 (taux gouvernés + conversion + écran) ✅, MULTIDEV-2 (saisie en devise → normalisation XAF) ⏳ |
 | PX | Fintech, GRC, Cyber, Pôle K | ☐ | — |
 
 ---
