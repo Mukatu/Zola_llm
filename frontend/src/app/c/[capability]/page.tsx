@@ -55,6 +55,7 @@ const FLAGSHIPS: Record<string, ComponentType> = {
   "marketing.campagnes": MarketingScreen,
   "fintech.scoring": FintechScreen,
   "fintech.kyc": FintechScreen,
+  "fintech.aml": FintechScreen,
 };
 
 export default function CapabilityPage() {

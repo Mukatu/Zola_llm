@@ -5,7 +5,7 @@
 
 import {
   BarChart3, Boxes, Calculator, Code2, Coins, FileSignature, GraduationCap, HardHat, Handshake,
-  Landmark, Megaphone, Network, Receipt, ScrollText, ShieldCheck, ShoppingCart, Stethoscope,
+  Landmark, Megaphone, Network, Receipt, ScrollText, ShieldAlert, ShieldCheck, ShoppingCart, Stethoscope,
   UserPlus, Users, Wallet, Wrench, type LucideIcon,
 } from "lucide-react";
 
@@ -125,6 +125,9 @@ export const CAPABILITIES: Record<string, Capability> = Object.fromEntries(
     cap("fintech.kyc", "KYC", Landmark,
       "Vérification d'identité et conformité AML/CFT.",
       intents(["verifier", "Vérifier"], ["screening", "Screening"])),
+    cap("fintech.aml", "Surveillance AML", ShieldAlert,
+      "Surveillance des opérations, alertes et registre de déclarations (ANIF/CFT).",
+      intents(["analyser", "Analyser"], ["declarer", "Déclarer"], ["registre", "Registre"]), "flagship"),
     cap("cyber.defense", "Cyber-défense", ShieldCheck,
       "Audit de configuration et durcissement (défensif).",
       intents(["audit", "Audit config"], ["durcissement", "Durcissement"])),

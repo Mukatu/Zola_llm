@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useParams } from "next/navigation";
 import clsx from "clsx";
 import {
   Landmark,
@@ -34,6 +35,10 @@ import {
   listKycRecords,
   decideKycRecord,
   deleteKycRecord,
+  createAmlCase,
+  listAmlCases,
+  decideAmlCase,
+  deleteAmlCase,
   getPortfolio,
   disburse,
   getSchedule,
@@ -48,6 +53,7 @@ import {
   type TransactionInput,
   type CreditApplication,
   type KycRecordItem,
+  type AmlCase,
   type PortfolioStats,
   type ScheduleResult,
   type CohortStat,
@@ -60,11 +66,15 @@ const SECTEURS = ["", "change_manuel", "immobilier", "transfert_fonds", "or_meta
 const fmt = (s: string) => Number(s).toLocaleString("fr-FR");
 
 export function FintechScreen() {
+  const params = useParams<{ capability?: string }>();
   const [tab, setTab] = useState<Tab>(() => {
     if (typeof window !== "undefined") {
       const t = new URLSearchParams(window.location.search).get("tab");
       if (t === "kyc" || t === "aml" || t === "registre" || t === "pilotage") return t;
     }
+    const code = params?.capability ? decodeURIComponent(params.capability) : "";
+    if (code === "fintech.kyc") return "kyc";
+    if (code === "fintech.aml") return "aml";
     return "scoring";
   });
   return (
@@ -340,6 +350,29 @@ function AmlTab() {
   const [err, setErr] = useState<string | null>(null);
   const upd = (i: number, k: keyof TransactionInput, v: string) => setTxs((s) => s.map((t, j) => (j === i ? { ...t, [k]: v } : t)));
 
+  const [client, setClient] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState<string | null>(null);
+  const [cases, setCases] = useState<AmlCase[]>([]);
+  const [casesLoading, setCasesLoading] = useState(true);
+  const [casesErr, setCasesErr] = useState<string | null>(null);
+  const [declInput, setDeclInput] = useState<Record<string, string>>({});
+
+  const refreshCases = useCallback(async () => {
+    setCasesLoading(true);
+    try {
+      const r = await listAmlCases();
+      setCases(r.aml_cases);
+    } catch (e) {
+      setCasesErr(e instanceof ApiError ? e.message : "Chargement du registre impossible.");
+    } finally {
+      setCasesLoading(false);
+    }
+  }, []);
+  useEffect(() => {
+    refreshCases();
+  }, [refreshCases]);
+
   async function run() {
     setLoading(true); setErr(null); setRes(null);
     try {
@@ -350,6 +383,59 @@ function AmlTab() {
       setLoading(false);
     }
   }
+
+  async function save() {
+    setSaving(true); setErr(null); setSaved(null);
+    try {
+      const rec = await createAmlCase({ client: client.trim() || "Client", transactions: txs.filter((t) => t.montant_xaf) });
+      setSaved(rec.reference);
+      await refreshCases();
+    } catch (e) {
+      setErr(e instanceof ApiError ? e.message : "Enregistrement impossible.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const classer = async (id: string) => {
+    setCasesErr(null);
+    try {
+      await decideAmlCase(id, { statut: "classee" });
+      await refreshCases();
+    } catch (e) {
+      setCasesErr(e instanceof ApiError ? e.message : "Action impossible.");
+    }
+  };
+
+  const declarer = async (id: string) => {
+    setCasesErr(null);
+    const ref = (declInput[id] || "").trim();
+    if (!ref) {
+      setCasesErr("Référence de déclaration requise pour déclarer ce dossier.");
+      return;
+    }
+    try {
+      await decideAmlCase(id, { statut: "declaree", declaration_ref: ref });
+      setDeclInput((s) => ({ ...s, [id]: "" }));
+      await refreshCases();
+    } catch (e) {
+      if (e instanceof ApiError && e.detail.includes("declaration_ref_requise")) {
+        setCasesErr("Référence de déclaration requise pour déclarer ce dossier.");
+      } else {
+        setCasesErr(e instanceof ApiError ? e.message : "Action impossible.");
+      }
+    }
+  };
+
+  const supprimer = async (id: string) => {
+    setCasesErr(null);
+    try {
+      await deleteAmlCase(id);
+      await refreshCases();
+    } catch (e) {
+      setCasesErr(e instanceof ApiError ? e.message : "Suppression impossible.");
+    }
+  };
 
   return (
     <>
@@ -393,6 +479,52 @@ function AmlTab() {
           <p className="text-xs text-muted">{res.reference_cadre}</p>
         </Card>
       )}
+
+      <Card className="flex flex-col gap-2">
+        <div className="mb-1 text-sm font-semibold">Enregistrer au registre AML</div>
+        <div className="flex flex-wrap items-center gap-2">
+          <Inp className="w-56" value={client} onChange={setClient} placeholder="Nom du client" />
+          <Button onClick={save} disabled={saving || txs.filter((t) => t.montant_xaf).length === 0}>
+            <Save className="h-4 w-4" /> Enregistrer le dossier
+          </Button>
+          {saved && <span className="flex items-center gap-1.5 text-sm font-medium text-forest"><CheckCircle2 className="h-4 w-4" /> Enregistré — {saved}</span>}
+        </div>
+      </Card>
+
+      <Card className="flex flex-col gap-2">
+        <div className="mb-1 flex items-center gap-2 text-sm font-semibold"><ScanSearch className="h-4 w-4 text-forest" /> Registre AML ({cases.length})</div>
+        {casesErr && <p className="text-sm text-amber-700">{casesErr}</p>}
+        {casesLoading && <Skeleton className="h-5 w-1/2" />}
+        {!casesLoading && cases.length === 0 && <p className="text-sm text-muted">Aucun dossier enregistré.</p>}
+        {cases.map((c) => (
+          <div key={c.id} className="rounded-lg border border-black/5 p-2.5 text-sm">
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="min-w-40">
+                <div className="font-medium">{c.client}</div>
+                <div className="text-xs text-muted">{c.reference} · {c.created_at ? new Date(c.created_at).toLocaleDateString("fr-FR") : "—"}</div>
+              </div>
+              <NiveauBadge niveau={c.niveau} />
+              <span className="text-xs text-muted">{c.nb_alertes} alerte(s) · {fmt(c.volume_total_xaf)} XAF</span>
+              <AmlStatutBadge statut={c.statut} declarationRef={c.declaration_ref} />
+              <div className="ml-auto flex flex-wrap items-center gap-1.5">
+                {c.statut === "a_examiner" && (
+                  <>
+                    <MiniBtn onClick={() => classer(c.id)} tone="forest">Classer sans suite</MiniBtn>
+                    <Inp
+                      className="w-32"
+                      value={declInput[c.id] || ""}
+                      onChange={(v) => setDeclInput((s) => ({ ...s, [c.id]: v }))}
+                      placeholder="Réf. déclaration"
+                    />
+                    <MiniBtn onClick={() => declarer(c.id)} tone="red">Déclarer (soupçon)</MiniBtn>
+                  </>
+                )}
+                <button onClick={() => supprimer(c.id)} className="grid h-7 w-7 place-items-center rounded-lg text-muted hover:bg-black/5 hover:text-red-600"><Trash2 className="h-3.5 w-3.5" /></button>
+              </div>
+            </div>
+          </div>
+        ))}
+      </Card>
     </>
   );
 }
@@ -607,6 +739,30 @@ const STATUT_MAP: Record<string, { c: string; t: string }> = {
 function StatutBadge({ statut }: { statut: string }) {
   const m = STATUT_MAP[statut] ?? { c: "bg-black/5 text-ink/70", t: statut };
   return <span className={clsx("rounded-full px-2.5 py-0.5 text-xs font-semibold", m.c)}>{m.t}</span>;
+}
+
+function NiveauBadge({ niveau }: { niveau: string }) {
+  const map: Record<string, { c: string; t: string }> = {
+    info: { c: "bg-black/5 text-ink/60", t: "Info" },
+    attention: { c: "bg-amber-100 text-amber-800", t: "Attention" },
+    alerte: { c: "bg-red-100 text-red-700", t: "Alerte" },
+  };
+  const m = map[niveau] ?? map.info;
+  return <span className={clsx("rounded-full px-2.5 py-0.5 text-xs font-semibold", m.c)}>{m.t}</span>;
+}
+
+function AmlStatutBadge({ statut, declarationRef }: { statut: string; declarationRef: string | null }) {
+  if (statut === "declaree") {
+    return (
+      <span className="rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-semibold text-red-700">
+        Déclaré ANIF{declarationRef ? ` — ${declarationRef}` : ""}
+      </span>
+    );
+  }
+  if (statut === "classee") {
+    return <span className="rounded-full bg-black/5 px-2.5 py-0.5 text-xs font-semibold text-ink/60">Classé sans suite</span>;
+  }
+  return <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-800">À examiner</span>;
 }
 
 function MiniBtn({ onClick, tone, children }: { onClick: () => void; tone: "forest" | "red"; children: React.ReactNode }) {

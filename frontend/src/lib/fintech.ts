@@ -173,6 +173,53 @@ export async function deleteKycRecord(id: string): Promise<void> {
   await api(`/v1/fintech/kyc-records/${id}`, { method: "DELETE" });
 }
 
+// --- Registre AML (surveillance des opérations) ----------------------------
+
+export interface AmlCase {
+  id: string;
+  tenant_id: string;
+  reference: string;
+  client: string;
+  nb_operations: number;
+  volume_total_xaf: string;
+  volume_especes_xaf: string;
+  niveau: "info" | "attention" | "alerte";
+  nb_alertes: number;
+  statut: "a_examiner" | "classee" | "declaree";
+  declaration_ref: string | null;
+  resultat: AmlResult;
+  commentaire: string | null;
+  country: string;
+  created_at: string | null;
+}
+
+export async function createAmlCase(body: {
+  client: string;
+  reference?: string;
+  transactions: TransactionInput[];
+}): Promise<AmlCase> {
+  return api<AmlCase>("/v1/fintech/aml-cases", { body });
+}
+
+export async function listAmlCases(): Promise<{ aml_cases: AmlCase[] }> {
+  return api<{ aml_cases: AmlCase[] }>("/v1/fintech/aml-cases");
+}
+
+export async function getAmlCase(id: string): Promise<AmlCase> {
+  return api<AmlCase>(`/v1/fintech/aml-cases/${id}`);
+}
+
+export async function decideAmlCase(
+  id: string,
+  body: { statut: string; commentaire?: string; declaration_ref?: string },
+): Promise<AmlCase> {
+  return api<AmlCase>(`/v1/fintech/aml-cases/${id}/decision`, { body });
+}
+
+export async function deleteAmlCase(id: string): Promise<{ status: string }> {
+  return api<{ status: string }>(`/v1/fintech/aml-cases/${id}`, { method: "DELETE" });
+}
+
 export interface PortfolioStats {
   nb_dossiers: number;
   par_statut: Record<string, number>;
