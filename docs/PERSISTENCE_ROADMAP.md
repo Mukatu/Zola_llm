@@ -41,7 +41,7 @@ Pour chaque métier, **7 livrables** :
 | **P2d** | **Opérations** : Facility (Asset/Echeance), HSE (Risque/Incident), Marketing (MarketingContact/Campaign) | ⏳ |
 | **P2e** | **Finance** (relevés bancaires persistés) + **Secrétariat** (Mandat) + **Projets ONG** (Projet/Budget) | ⏳ |
 | **P2f** | **Documents** (transverse) : artefacts générés (contrats Droit, rapports, bulletins) → métiers génératifs | ⏳ |
-| **P3** | BI branché sur le store (KPIs réels) · **prévision de trésorerie** (ML) · multi-devise | ⏳ |
+| **P3** | BI branché sur le store (KPIs réels) ✅ · **trésorerie prévisionnelle** surfacée (moteur canonique) ✅ · multi-devise ⏳ | 🔄 |
 | **PX** | Pôles à construire : **Fintech** (scoring/KYC), **GRC complet**, **Cyber**, **Pôle K** | ⏳ |
 
 ---
@@ -126,9 +126,11 @@ Entités `store_customers` + `store_opportunities` + `store_quotes` + `store_int
 Entités `store_marketing_contacts` (canonique : `mkt.models.MarketingContact`) + `store_campaigns`. Endpoints `/v1/mkt/contacts` (CRUD) + `/mkt/audience` (🔁 sur contacts stockés) + `/campaigns`. Écran `MarketingScreen` (🔁 : base contacts + journal de consentement persistant).
 **Plus-value** : base d'audience réelle, **traçabilité du consentement** (Loi 29-2019) dans le temps.
 
-**12. BI / Pilotage — ⏳ (P3)**
-Pas d'entité propre. Endpoint `/v1/bi/kpis` (🔁 : agrège le **store** au lieu du corps de requête). Écran `BiScreen` (🔁 : KPIs sur données réelles).
-**Plus-value** : pilotage sur chiffres réels et continus (CA, marge, DSO, trésorerie, masse salariale).
+**12. BI / Pilotage — ✅ (P3, cockpit + trésorerie prévisionnelle)**
+Pas d'entité propre. Cockpit agrégé sur le **store** : `/v1/bi/{dashboard,cockpit}` (KPIs réels cross-métiers + signaux + échéances), `/brief` et `/ask` (LLM narre). `BiScreen` consomme ces flux réels.
+**Prévision de trésorerie** surfacée dans le cockpit via le **moteur canonique** `/v1/erp/treasury/pilotage` (`previsionnel_tresorerie` — *zéro réinvention*) : trajectoire du solde projeté 90 j (sparkline SVG), alerte de découvert daté, DSO/DPO/BFR/runway. Écran `PilotageCard` dans `BiScreen`.
+**Plus-value** : pilotage sur chiffres réels et continus (CA, marge, DSO, trésorerie) **+ vue prospective** (découvert anticipé, runway).
+**Reste P3** : multi-devise (table de taux + conversion à l'affichage) ; enrichissements cockpit (masse salariale sur paie réelle, exécution budgétaire projets ONG, échéances mandats).
 
 ### C. Pôle Opérations (Facility / HSE)
 
@@ -164,7 +166,7 @@ Cyber : moteur + écran (hors persistance lourde initiale). Pôle K : dictionnai
 ## 5. Transverses (jalons techniques)
 - **`store_documents`** (P2f) : socle des artefacts génératifs (réutilisé par Droit/Santé/Code/rapports).
 - **Multi-devise** (P3) : champ `devise` déjà présent ; ajouter table de taux + conversion à l'affichage.
-- **Prévision de trésorerie** (P3) : **brique ML dédiée** (pas LLM), sur `store_bank_transactions` + factures.
+- **Prévision de trésorerie** (P3) : ✅ **déterministe** (pas ML, pas LLM) — `previsionnel_tresorerie` (moteur canonique `agents/erp/treasury.py`, exposé `/v1/erp/treasury/pilotage`) surfacée dans le cockpit BI. Une brique ML resterait optionnelle (au-delà du déterministe) si un besoin de saisonnalité émergeait.
 - **Sync connecteurs → store** : import Odoo/CSV alimente les tables `store_*` (interop + standalone).
 - **Audit** : journaliser les écritures sensibles (réutilise `audit`).
 
@@ -188,7 +190,7 @@ Cyber : moteur + écran (hors persistance lourde initiale). Pôle K : dictionnai
 | P2d | Facility, HSE, Marketing | ✅ | back-end + écrans livrés (le doc était en retard) |
 | P2e | Finance, Secrétariat, Projets ONG | ✅ | Finance ✅, **Projets ONG ✅**, **Secrétariat/Mandat ✅** (2026-07-22) |
 | P2f | Documents (Droit/Santé/Code) | ✅ | ORM/repo/routes ✅, écran (page `/documents` : liste + suppression) ✅, nav Sidebar ✅ ; tests dédiés ajoutés (2026-07-22) |
-| P3 | BI store, prévision ML, multi-devise | ☐ | — |
+| P3 | BI store, prévision trésorerie, multi-devise | 🔄 | BI cockpit sur store ✅ ; trésorerie prévisionnelle surfacée dans le cockpit (moteur canonique `previsionnel_tresorerie`, zéro réinvention) ✅ ; multi-devise ⏳ |
 | PX | Fintech, GRC, Cyber, Pôle K | ☐ | — |
 
 ---
