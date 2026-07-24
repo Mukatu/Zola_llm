@@ -145,6 +145,17 @@ async def rag_search(
             )
         effective = sorted(requested)
 
+    # Garde de spécificité (défense en profondeur) : un scope réduit au seul tag
+    # pays (quasi-universel) donnerait accès à tout le corpus cg de TOUS les
+    # schémas — y compris les documents privés du client (`rag_tenant`, sensible).
+    # Une mission d'audit est toujours scopée à un domaine → on exige au moins un
+    # tag non-universel dans les tags effectifs.
+    if all(t.startswith("country:") for t in effective):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="mission_scope_too_broad",
+        )
+
     request_id = uuid.uuid4()
 
     try:
