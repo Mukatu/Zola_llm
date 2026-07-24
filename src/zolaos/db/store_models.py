@@ -2400,3 +2400,31 @@ class CyberParamsRecord(StoreBase):
             "note": self.note,
             "validated_at": self.validated_at.isoformat() if self.validated_at else None,
         }
+
+
+class SnapshotRecord(StoreBase):
+    """Instantané de pilotage horodaté (historisation des KPIs) — PILOT-HIST.
+
+    Générique : ``domaine`` distingue la source (``bi`` cockpit, ``fintech_portfolio``…)
+    et ``payload`` fige les indicateurs à l'instant t. Permet les courbes de tendance
+    (le pilotage passe de l'instantané à la série temporelle).
+    """
+
+    __tablename__ = "store_snapshots"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    tenant_id: Mapped[str] = mapped_column(String(64), index=True)
+    domaine: Mapped[str] = mapped_column(String(30), index=True)  # bi | fintech_portfolio | …
+    payload: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    captured_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    country: Mapped[str] = mapped_column(String(2), default="cg")
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "tenant_id": self.tenant_id,
+            "domaine": self.domaine,
+            "payload": self.payload,
+            "captured_at": self.captured_at.isoformat() if self.captured_at else None,
+            "country": self.country,
+        }

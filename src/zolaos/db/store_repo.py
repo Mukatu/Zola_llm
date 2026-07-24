@@ -66,6 +66,7 @@ from zolaos.db.store_models import (
     RisqueRecord,
     RoleSkillRecord,
     SkillRecord,
+    SnapshotRecord,
     StockItemRecord,
     StockMoveRecord,
     SupplierRecord,
@@ -465,6 +466,28 @@ class CyberAuditRepository(_CrudRepo):
 
 class CyberDetectionRepository(_CrudRepo):
     model = CyberDetectionRecord
+
+
+class SnapshotRepository:
+    """Instantanés de pilotage horodatés (historisation) — PILOT-HIST."""
+
+    def __init__(self, session: AsyncSession) -> None:
+        self._s = session
+
+    async def create(self, data: dict[str, Any]) -> SnapshotRecord:
+        rec = SnapshotRecord(**data)
+        self._s.add(rec)
+        await self._s.flush()
+        return rec
+
+    async def list(self, *, tenant_id: str, domaine: str, limit: int = 60) -> list[SnapshotRecord]:
+        stmt = (
+            select(SnapshotRecord)
+            .where(SnapshotRecord.tenant_id == tenant_id, SnapshotRecord.domaine == domaine)
+            .order_by(SnapshotRecord.captured_at.asc())
+            .limit(limit)
+        )
+        return list(await self._s.scalars(stmt))
 
 
 class CyberParamsRepository:

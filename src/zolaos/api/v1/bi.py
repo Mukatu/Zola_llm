@@ -36,6 +36,7 @@ from zolaos.db.store_repo import (
     OpportunityRepository,
     PayslipRepository,
     ProjectRepository,
+    SnapshotRepository,
     StockRepository,
 )
 from zolaos.llm.base import LLMClient
@@ -223,6 +224,40 @@ async def _mandate_echeances(session: AsyncSession, tenant_id: str) -> list[Eche
         )
         for a in mandats_a_renouveler(mandats, horizon_jours=120)
     ]
+
+
+@router.post("/snapshot", summary="Capturer un instantané des KPIs (historisation)")
+async def bi_snapshot(
+    tenant_id: str = "local",
+    periode: str | None = None,
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    """Fige les KPIs du cockpit à l'instant t → série temporelle pour les tendances."""
+    kpis = await _aggregate_kpis(session, tenant_id, periode)
+    rec = await SnapshotRepository(session).create(
+        {
+            "tenant_id": tenant_id,
+            "domaine": "bi",
+            "payload": {"kpis": [k.model_dump(mode="json") for k in kpis]},
+        }
+    )
+    await session.commit()
+    return rec.to_dict()
+
+
+@router.get("/snapshots", summary="Historique des instantanés KPIs (tendances)")
+async def bi_snapshots(
+    tenant_id: str = "local",
+    limit: int = 60,
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    rows = await SnapshotRepository(session).list(tenant_id=tenant_id, domaine="bi", limit=limit)
+    return {
+        "snapshots": [
+            {"captured_at": r.captured_at.isoformat(), "kpis": r.payload.get("kpis", [])}
+            for r in rows
+        ]
+    }
 
 
 @router.get("/cockpit", summary="Cockpit v2 : KPIs + signaux + échéances (déterministe)")

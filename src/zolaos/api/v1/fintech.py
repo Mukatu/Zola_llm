@@ -39,6 +39,7 @@ from zolaos.db.store_repo import (
     CreditApplicationRepository,
     KycRecordRepository,
     LoanInstallmentRepository,
+    SnapshotRepository,
 )
 from zolaos.imports.framework import Column, EntitySpec, build_template, parse_sheet, validate_row
 
@@ -563,6 +564,53 @@ async def portfolio(
     kyc = await KycRecordRepository(session).list(tenant_id=tenant_id)
     installments = await LoanInstallmentRepository(session).list(tenant_id=tenant_id)
     return portfolio_stats(apps, kyc, installments).model_dump(mode="json")
+
+
+# Métriques de tendance suivies dans l'historique du portefeuille.
+_PORTFOLIO_TREND = (
+    "nb_dossiers",
+    "taux_acceptation_pct",
+    "taux_decaissement_pct",
+    "encours_restant_du_xaf",
+    "montant_en_retard_xaf",
+    "par30_pct",
+    "par90_pct",
+)
+
+
+@router.post("/portfolio/snapshot", summary="Capturer un instantané du portefeuille (historisation)")
+async def portfolio_snapshot(
+    tenant_id: str = "local",
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    apps = await CreditApplicationRepository(session).list(tenant_id=tenant_id)
+    kyc = await KycRecordRepository(session).list(tenant_id=tenant_id)
+    installments = await LoanInstallmentRepository(session).list(tenant_id=tenant_id)
+    stats = portfolio_stats(apps, kyc, installments).model_dump(mode="json")
+    rec = await SnapshotRepository(session).create(
+        {"tenant_id": tenant_id, "domaine": "fintech_portfolio", "payload": stats}
+    )
+    await session.commit()
+    return rec.to_dict()
+
+
+@router.get("/portfolio/history", summary="Historique du portefeuille (tendances PAR/acceptation)")
+async def portfolio_history(
+    tenant_id: str = "local",
+    limit: int = 60,
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    rows = await SnapshotRepository(session).list(
+        tenant_id=tenant_id, domaine="fintech_portfolio", limit=limit
+    )
+    points = [
+        {
+            "captured_at": r.captured_at.isoformat(),
+            **{k: r.payload.get(k) for k in _PORTFOLIO_TREND},
+        }
+        for r in rows
+    ]
+    return {"history": points}
 
 
 @router.get("/cohortes", summary="Cohortes (millésimes) : performance par mois de décaissement")
