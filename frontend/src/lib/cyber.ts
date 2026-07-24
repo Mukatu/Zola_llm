@@ -202,3 +202,53 @@ export async function decideCyberDetection(id: string, body: { statut: string; c
 export async function deleteCyberDetection(id: string): Promise<{ status: string }> {
   return api<{ status: string }>(`/v1/cyber/detections/${id}`, { method: "DELETE" });
 }
+
+// --- Paramètres gouvernés (seuils de détection + base de durcissement) ------
+
+export interface CyberSeuils {
+  fenetre_minutes: number;
+  seuil_echecs: number;
+  heure_ouverture: number;
+  heure_fermeture: number;
+  seuil_ips_par_user: number;
+}
+
+export interface CyberControleParam {
+  cle: string;
+  libelle: string;
+  fonction: string;
+  severite: Severite;
+  active: boolean;
+}
+
+export interface CyberParamsView {
+  seuils: CyberSeuils;
+  controles: CyberControleParam[];
+  source_donnees: "tenant" | "defaut";
+  validated: boolean;
+  validated_by: string;
+  validated_at: string | null;
+}
+
+export function getCyberParams(country = "cg"): Promise<CyberParamsView> {
+  return api<CyberParamsView>(`/v1/cyber/params?country=${encodeURIComponent(country)}`);
+}
+
+export function editCyberParams(
+  body: { seuils?: Partial<CyberSeuils>; controles?: Record<string, { severite?: string; active?: boolean }> },
+  country = "cg",
+): Promise<CyberParamsView> {
+  return api<CyberParamsView>(`/v1/cyber/params?country=${encodeURIComponent(country)}`, {
+    method: "PUT",
+    body,
+  });
+}
+
+export function validateCyberParams(
+  body: { validated: boolean; validated_by?: string; note?: string },
+  country = "cg",
+): Promise<CyberParamsView> {
+  return api<CyberParamsView>(`/v1/cyber/params/validate?country=${encodeURIComponent(country)}`, {
+    body,
+  });
+}

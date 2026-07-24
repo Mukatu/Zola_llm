@@ -14,6 +14,7 @@ import {
   Radar,
   Plus,
   AlertTriangle,
+  Settings,
 } from "lucide-react";
 import { Card, Button, Skeleton, SeverityBadge } from "../ui";
 import { FlagshipHeader, Inp } from "./_shared";
@@ -30,6 +31,9 @@ import {
   listCyberDetections,
   decideCyberDetection,
   deleteCyberDetection,
+  getCyberParams,
+  editCyberParams,
+  validateCyberParams,
   TYPE_EVENEMENT_LABELS,
   type Controle,
   type ConfigAudit,
@@ -37,11 +41,28 @@ import {
   type AuditResult,
   type CyberAudit,
   type Fonction,
+  type Severite,
   type LogEvent,
   type TypeEvenement,
   type AnalyseAnomalies,
   type CyberDetection,
+  type CyberSeuils,
+  type CyberParamsView,
 } from "@/lib/cyber";
+
+// Traduit les codes d'erreur backend (detail JSON `{"detail": "..."}`) en messages FR.
+function messageFromCyberError(e: unknown, fallback: string): string {
+  if (!(e instanceof ApiError)) return fallback;
+  let detail = e.detail;
+  try {
+    const parsed = JSON.parse(e.detail) as { detail?: string };
+    if (parsed?.detail) detail = parsed.detail;
+  } catch {
+    /* detail n'est pas du JSON — on garde le texte brut */
+  }
+  if (detail.includes("aucun_parametre_tenant_a_valider")) return "Éditez d'abord un paramètre avant de le valider.";
+  return fallback;
+}
 
 const FONCTION_LABELS: Record<Fonction, string> = {
   identify: "Identifier",
@@ -53,7 +74,7 @@ const FONCTION_LABELS: Record<Fonction, string> = {
 
 const FONCTION_ORDER: Fonction[] = ["identify", "protect", "detect", "respond", "recover"];
 
-type Tab = "durcissement" | "detection";
+type Tab = "durcissement" | "detection" | "parametres";
 
 export function CyberScreen() {
   const [tab, setTab] = useState<Tab>("durcissement");
@@ -67,9 +88,11 @@ export function CyberScreen() {
       <div className="flex flex-wrap gap-2">
         <TabBtn active={tab === "durcissement"} onClick={() => setTab("durcissement")} icon={ShieldCheck} label="Durcissement" />
         <TabBtn active={tab === "detection"} onClick={() => setTab("detection")} icon={Radar} label="Détection d'anomalies" />
+        <TabBtn active={tab === "parametres"} onClick={() => setTab("parametres")} icon={Settings} label="Paramètres" />
       </div>
       {tab === "durcissement" && <DurcissementTab />}
       {tab === "detection" && <DetectionTab />}
+      {tab === "parametres" && <ParametresTab />}
     </div>
   );
 }
@@ -491,6 +514,209 @@ function DetectionTab() {
             </div>
           </div>
         ))}
+      </Card>
+    </>
+  );
+}
+
+// --- Paramètres gouvernés (seuils + base de durcissement) --------------------
+
+const SEUIL_FIELDS: { key: keyof CyberSeuils; label: string }[] = [
+  { key: "fenetre_minutes", label: "Fenêtre (minutes)" },
+  { key: "seuil_echecs", label: "Seuil d'échecs" },
+  { key: "heure_ouverture", label: "Heure d'ouverture" },
+  { key: "heure_fermeture", label: "Heure de fermeture" },
+  { key: "seuil_ips_par_user", label: "Seuil IP / utilisateur" },
+];
+
+const SEVERITE_OPTIONS: Severite[] = ["critical", "high", "medium", "low"];
+
+type ControleDraft = { severite: Severite; active: boolean };
+
+function ParametresTab() {
+  const [view, setView] = useState<CyberParamsView | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [validatedBy, setValidatedBy] = useState("");
+
+  const [seuilsDraft, setSeuilsDraft] = useState<Record<string, string>>({});
+  const [controlesDraft, setControlesDraft] = useState<Record<string, ControleDraft>>({});
+
+  const applyView = useCallback((v: CyberParamsView) => {
+    setView(v);
+    setSeuilsDraft({
+      fenetre_minutes: String(v.seuils.fenetre_minutes),
+      seuil_echecs: String(v.seuils.seuil_echecs),
+      heure_ouverture: String(v.seuils.heure_ouverture),
+      heure_fermeture: String(v.seuils.heure_fermeture),
+      seuil_ips_par_user: String(v.seuils.seuil_ips_par_user),
+    });
+    setControlesDraft(Object.fromEntries(v.controles.map((c) => [c.cle, { severite: c.severite, active: c.active }])));
+  }, []);
+
+  const refresh = useCallback(async () => {
+    setLoading(true);
+    try {
+      applyView(await getCyberParams());
+      setErr(null);
+    } catch (e) {
+      setErr(messageFromCyberError(e, "Chargement des paramètres impossible."));
+    } finally {
+      setLoading(false);
+    }
+  }, [applyView]);
+
+  useEffect(() => {
+    void refresh();
+  }, [refresh]);
+
+  async function saveSeuils() {
+    setBusy(true);
+    setErr(null);
+    try {
+      const seuils: Partial<CyberSeuils> = {
+        fenetre_minutes: Number(seuilsDraft.fenetre_minutes),
+        seuil_echecs: Number(seuilsDraft.seuil_echecs),
+        heure_ouverture: Number(seuilsDraft.heure_ouverture),
+        heure_fermeture: Number(seuilsDraft.heure_fermeture),
+        seuil_ips_par_user: Number(seuilsDraft.seuil_ips_par_user),
+      };
+      applyView(await editCyberParams({ seuils }));
+    } catch (e) {
+      setErr(messageFromCyberError(e, "Échec de l'enregistrement des seuils."));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function saveControles() {
+    setBusy(true);
+    setErr(null);
+    try {
+      const controles = Object.fromEntries(
+        Object.entries(controlesDraft).map(([cle, v]) => [cle, { severite: v.severite, active: v.active }]),
+      );
+      applyView(await editCyberParams({ controles }));
+    } catch (e) {
+      setErr(messageFromCyberError(e, "Échec de l'enregistrement de la base de durcissement."));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function setValidation(validated: boolean) {
+    setBusy(true);
+    setErr(null);
+    try {
+      applyView(await validateCyberParams({ validated, validated_by: validatedBy }));
+    } catch (e) {
+      setErr(messageFromCyberError(e, "Échec de l'opération de validation."));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const updControle = (cle: string, patch: Partial<ControleDraft>) =>
+    setControlesDraft((s) => ({ ...s, [cle]: { ...s[cle], ...patch } }));
+
+  if (loading) {
+    return (
+      <Card>
+        <Skeleton className="mb-2 h-5 w-1/3" />
+        <Skeleton className="h-4 w-full" />
+      </Card>
+    );
+  }
+
+  return (
+    <>
+      {err && <Card className="ring-amber-200"><p className="text-sm text-amber-700">{err}</p></Card>}
+
+      <Card className="flex flex-col gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            {view?.validated ? (
+              <span className="flex items-center gap-1 rounded-full bg-green-100 px-2 py-0.5 text-xs font-semibold text-green-700">
+                <ShieldCheck className="h-3.5 w-3.5" /> validé
+              </span>
+            ) : (
+              <span className="flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-700">
+                <ShieldAlert className="h-3.5 w-3.5" /> à valider
+              </span>
+            )}
+            <span className="text-xs text-muted">({view?.source_donnees === "tenant" ? "édité" : "par défaut"})</span>
+            {view?.validated && view.validated_by && (
+              <span className="text-xs text-muted">
+                — validé par {view.validated_by}
+                {view.validated_at ? ` le ${new Date(view.validated_at).toLocaleDateString("fr-FR")}` : ""}
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            <Inp value={validatedBy} onChange={setValidatedBy} placeholder="Validé par (nom)" className="w-40" />
+            {view?.validated ? (
+              <Button variant="ghost" disabled={busy} onClick={() => setValidation(false)}>Révoquer</Button>
+            ) : (
+              <Button disabled={busy} onClick={() => setValidation(true)}>Valider</Button>
+            )}
+          </div>
+        </div>
+        <p className="flex items-start gap-1.5 text-xs text-muted">
+          <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" /> Toute modification des seuils ou de la base de durcissement invalide la validation en cours (re-validation requise).
+        </p>
+      </Card>
+
+      <Card className="flex flex-col gap-3">
+        <h2 className="text-sm font-semibold">Seuils de détection</h2>
+        <div className="grid gap-3 sm:grid-cols-2">
+          {SEUIL_FIELDS.map((f) => (
+            <label key={f.key} className="flex flex-col gap-1 text-xs text-muted">
+              {f.label}
+              <Inp type="number" value={seuilsDraft[f.key] ?? ""} onChange={(v) => setSeuilsDraft((s) => ({ ...s, [f.key]: v }))} />
+            </label>
+          ))}
+        </div>
+        <div className="flex justify-end border-t border-black/5 pt-3">
+          <Button onClick={saveSeuils} disabled={busy}><Save className="h-4 w-4" /> Enregistrer les seuils</Button>
+        </div>
+      </Card>
+
+      <Card className="flex flex-col gap-2">
+        <h2 className="text-sm font-semibold">Base de durcissement</h2>
+        <div className="flex flex-col gap-1.5">
+          {(view?.controles ?? []).map((c) => {
+            const draft = controlesDraft[c.cle] ?? { severite: c.severite, active: c.active };
+            return (
+              <div key={c.cle} className="flex flex-wrap items-center gap-3 rounded-lg border border-black/5 p-2.5 text-sm">
+                <div className="min-w-0 flex-1">
+                  <div className="font-medium">{c.libelle}</div>
+                  <div className="text-xs text-muted">{FONCTION_LABELS[c.fonction as Fonction] ?? c.fonction}</div>
+                </div>
+                <select
+                  value={draft.severite}
+                  onChange={(e) => updControle(c.cle, { severite: e.target.value as Severite })}
+                  className="rounded-lg border border-black/10 bg-white px-2 py-1.5 text-sm"
+                >
+                  {SEVERITE_OPTIONS.map((s) => (
+                    <option key={s} value={s}>{s}</option>
+                  ))}
+                </select>
+                <label className="flex items-center gap-1.5 text-xs">
+                  <input
+                    type="checkbox"
+                    checked={draft.active}
+                    onChange={(e) => updControle(c.cle, { active: e.target.checked })}
+                  />
+                  actif
+                </label>
+              </div>
+            );
+          })}
+        </div>
+        <div className="flex justify-end border-t border-black/5 pt-3">
+          <Button onClick={saveControles} disabled={busy}><Save className="h-4 w-4" /> Enregistrer la base de durcissement</Button>
+        </div>
       </Card>
     </>
   );
