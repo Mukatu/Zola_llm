@@ -112,3 +112,93 @@ export async function getCyberAudit(id: string): Promise<CyberAudit> {
 export async function deleteCyberAudit(id: string): Promise<{ status: string }> {
   return api<{ status: string }>(`/v1/cyber/audits/${id}`, { method: "DELETE" });
 }
+
+// --- Détection d'anomalies (analyse de journaux déclarés, défensif) ---------
+
+export type TypeEvenement = "auth_success" | "auth_failure" | "access" | "privilege_change" | "config_change";
+export type NiveauAnomalie = "alerte" | "attention" | "info";
+
+export interface LogEvent {
+  horodatage: string;
+  type: TypeEvenement;
+  utilisateur?: string;
+  source_ip?: string;
+  ressource?: string;
+}
+
+export interface ParamsDetection {
+  fenetre_minutes?: number;
+  seuil_echecs?: number;
+  heure_ouverture?: number;
+  heure_fermeture?: number;
+  seuil_ips_par_user?: number;
+}
+
+export interface Anomalie {
+  code: string;
+  niveau: NiveauAnomalie;
+  titre: string;
+  detail: string;
+  entite: string;
+  occurrences: number;
+}
+
+export interface AnalyseAnomalies {
+  nb_events: number;
+  nb_echecs_auth: number;
+  nb_succes_auth: number;
+  nb_ip_distinctes: number;
+  nb_utilisateurs: number;
+  periode_debut: string | null;
+  periode_fin: string | null;
+  niveau: NiveauAnomalie | "aucun";
+  anomalies: Anomalie[];
+  reference_cadre: string;
+}
+
+export interface CyberDetection {
+  id: string;
+  tenant_id: string;
+  cible: string;
+  nb_events: number;
+  nb_anomalies: number;
+  niveau: string;
+  statut: "a_examiner" | "classee" | "traitee";
+  params: ParamsDetection;
+  resultat: AnalyseAnomalies;
+  commentaire: string | null;
+  country: string;
+  created_at: string | null;
+}
+
+export const TYPE_EVENEMENT_LABELS: Record<TypeEvenement, string> = {
+  auth_success: "Authentification réussie",
+  auth_failure: "Échec d'authentification",
+  access: "Accès",
+  privilege_change: "Changement de privilège",
+  config_change: "Changement de configuration",
+};
+
+export async function cyberAnomalies(body: { events: LogEvent[]; params?: ParamsDetection }): Promise<AnalyseAnomalies> {
+  return api<AnalyseAnomalies>("/v1/cyber/anomalies", { body });
+}
+
+export async function createCyberDetection(body: { cible: string; events: LogEvent[]; params?: ParamsDetection }): Promise<CyberDetection> {
+  return api<CyberDetection>("/v1/cyber/detections?tenant_id=local", { body });
+}
+
+export async function listCyberDetections(): Promise<{ detections: CyberDetection[] }> {
+  return api<{ detections: CyberDetection[] }>("/v1/cyber/detections");
+}
+
+export async function getCyberDetection(id: string): Promise<CyberDetection> {
+  return api<CyberDetection>(`/v1/cyber/detections/${id}`);
+}
+
+export async function decideCyberDetection(id: string, body: { statut: string; commentaire?: string }): Promise<CyberDetection> {
+  return api<CyberDetection>(`/v1/cyber/detections/${id}/decision`, { body });
+}
+
+export async function deleteCyberDetection(id: string): Promise<{ status: string }> {
+  return api<{ status: string }>(`/v1/cyber/detections/${id}`, { method: "DELETE" });
+}

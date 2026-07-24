@@ -2,7 +2,19 @@
 
 import { useCallback, useEffect, useState } from "react";
 import clsx from "clsx";
-import { ShieldCheck, ShieldAlert, CheckCircle2, XCircle, HelpCircle, Save, Trash2, Info } from "lucide-react";
+import {
+  ShieldCheck,
+  ShieldAlert,
+  CheckCircle2,
+  XCircle,
+  HelpCircle,
+  Save,
+  Trash2,
+  Info,
+  Radar,
+  Plus,
+  AlertTriangle,
+} from "lucide-react";
 import { Card, Button, Skeleton, SeverityBadge } from "../ui";
 import { FlagshipHeader, Inp } from "./_shared";
 import { ApiError } from "@/lib/api";
@@ -13,12 +25,22 @@ import {
   listCyberAudits,
   deleteCyberAudit,
   EMPTY_CONFIG_AUDIT,
+  cyberAnomalies,
+  createCyberDetection,
+  listCyberDetections,
+  decideCyberDetection,
+  deleteCyberDetection,
+  TYPE_EVENEMENT_LABELS,
   type Controle,
   type ConfigAudit,
   type ControleKey,
   type AuditResult,
   type CyberAudit,
   type Fonction,
+  type LogEvent,
+  type TypeEvenement,
+  type AnalyseAnomalies,
+  type CyberDetection,
 } from "@/lib/cyber";
 
 const FONCTION_LABELS: Record<Fonction, string> = {
@@ -31,7 +53,36 @@ const FONCTION_LABELS: Record<Fonction, string> = {
 
 const FONCTION_ORDER: Fonction[] = ["identify", "protect", "detect", "respond", "recover"];
 
+type Tab = "durcissement" | "detection";
+
 export function CyberScreen() {
+  const [tab, setTab] = useState<Tab>("durcissement");
+  return (
+    <div className="mx-auto flex max-w-3xl flex-col gap-4">
+      <FlagshipHeader
+        icon={ShieldCheck}
+        title="Cyber-défense"
+        subtitle="Durcissement de configuration et détection d'anomalies — défensif, déterministe, sans action offensive."
+      />
+      <div className="flex flex-wrap gap-2">
+        <TabBtn active={tab === "durcissement"} onClick={() => setTab("durcissement")} icon={ShieldCheck} label="Durcissement" />
+        <TabBtn active={tab === "detection"} onClick={() => setTab("detection")} icon={Radar} label="Détection d'anomalies" />
+      </div>
+      {tab === "durcissement" && <DurcissementTab />}
+      {tab === "detection" && <DetectionTab />}
+    </div>
+  );
+}
+
+function TabBtn({ active, onClick, icon: Icon, label }: { active: boolean; onClick: () => void; icon: typeof ShieldCheck; label: string }) {
+  return (
+    <button onClick={onClick} className={clsx("flex items-center gap-2 rounded-xl px-3 py-1.5 text-sm transition", active ? "bg-forest text-white" : "bg-black/5 text-ink/70 hover:bg-black/10")}>
+      <Icon className="h-4 w-4" /> {label}
+    </button>
+  );
+}
+
+function DurcissementTab() {
   const [controles, setControles] = useState<Controle[]>([]);
   const [referenceCadre, setReferenceCadre] = useState("");
   const [config, setConfig] = useState<ConfigAudit>(EMPTY_CONFIG_AUDIT);
@@ -125,13 +176,7 @@ export function CyberScreen() {
   );
 
   return (
-    <div className="mx-auto flex max-w-3xl flex-col gap-4">
-      <FlagshipHeader
-        icon={ShieldCheck}
-        title="Cyber-défense — Durcissement"
-        subtitle="Audit de configuration défensif et déterministe (aucune action offensive) — base indicative CIS / ANSSI / NIST CSF."
-      />
-
+    <>
       {loadingBaseline && <Card><Skeleton className="mb-2 h-5 w-1/3" /><Skeleton className="h-4 w-full" /></Card>}
       {baselineErr && <Card className="ring-amber-200"><p className="text-sm text-amber-700">{baselineErr}</p></Card>}
 
@@ -240,7 +285,214 @@ export function CyberScreen() {
           </div>
         ))}
       </Card>
-    </div>
+    </>
+  );
+}
+
+// --- Détection d'anomalies ---------------------------------------------------
+
+const NEW_LOG_EVENT: LogEvent = { horodatage: "", type: "auth_failure", utilisateur: "", source_ip: "" };
+const TYPE_EVENEMENT_OPTIONS = Object.keys(TYPE_EVENEMENT_LABELS) as TypeEvenement[];
+
+function DetectionTab() {
+  const [events, setEvents] = useState<LogEvent[]>([
+    { horodatage: "2026-07-24T08:00", type: "auth_success", utilisateur: "jmabiala", source_ip: "10.0.0.14" },
+    { horodatage: "2026-07-24T02:15", type: "auth_failure", utilisateur: "admin", source_ip: "41.exemple.203.9" },
+  ]);
+  const [res, setRes] = useState<AnalyseAnomalies | null>(null);
+  const [analysing, setAnalysing] = useState(false);
+  const [analyseErr, setAnalyseErr] = useState<string | null>(null);
+
+  const [cible, setCible] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState<string | null>(null);
+
+  const [detections, setDetections] = useState<CyberDetection[]>([]);
+  const [detLoading, setDetLoading] = useState(true);
+  const [detErr, setDetErr] = useState<string | null>(null);
+
+  const refreshDetections = useCallback(async () => {
+    setDetLoading(true);
+    try {
+      const r = await listCyberDetections();
+      setDetections(r.detections);
+    } catch (e) {
+      setDetErr(e instanceof ApiError ? e.message : "Chargement du registre impossible.");
+    } finally {
+      setDetLoading(false);
+    }
+  }, []);
+  useEffect(() => {
+    refreshDetections();
+  }, [refreshDetections]);
+
+  const updEvent = (i: number, k: keyof LogEvent, v: string) =>
+    setEvents((s) => s.map((e, j) => (j === i ? { ...e, [k]: v } : e)));
+  const removeEvent = (i: number) => setEvents((s) => s.filter((_, j) => j !== i));
+  const addEvent = () => setEvents((s) => [...s, { ...NEW_LOG_EVENT }]);
+
+  const validEvents = () => events.filter((e) => e.horodatage.trim() !== "");
+
+  async function analyser() {
+    setAnalysing(true);
+    setAnalyseErr(null);
+    setRes(null);
+    setSaved(null);
+    try {
+      setRes(await cyberAnomalies({ events: validEvents() }));
+    } catch (e) {
+      setAnalyseErr(e instanceof ApiError ? e.message : "Service indisponible.");
+    } finally {
+      setAnalysing(false);
+    }
+  }
+
+  async function enregistrer() {
+    setSaving(true);
+    setAnalyseErr(null);
+    try {
+      const rec = await createCyberDetection({ cible: cible.trim() || "Cible non nommée", events: validEvents() });
+      setSaved(rec.id);
+      await refreshDetections();
+    } catch (e) {
+      setAnalyseErr(e instanceof ApiError ? e.message : "Enregistrement impossible.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const decider = async (id: string, statut: "classee" | "traitee") => {
+    setDetErr(null);
+    try {
+      await decideCyberDetection(id, { statut });
+      await refreshDetections();
+    } catch (e) {
+      setDetErr(e instanceof ApiError ? e.message : "Action impossible.");
+    }
+  };
+
+  const supprimer = async (id: string) => {
+    setDetErr(null);
+    try {
+      await deleteCyberDetection(id);
+      await refreshDetections();
+    } catch (e) {
+      setDetErr(e instanceof ApiError ? e.message : "Suppression impossible.");
+    }
+  };
+
+  return (
+    <>
+      <Card className="flex flex-col gap-2">
+        <div className="mb-1 text-sm font-semibold">Journal d&apos;événements à analyser</div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="text-xs text-muted">
+              <tr className="text-left">
+                <th className="py-1 pr-3">Horodatage</th>
+                <th className="pr-3">Type</th>
+                <th className="pr-3">Utilisateur</th>
+                <th className="pr-3">IP source</th>
+                <th />
+              </tr>
+            </thead>
+            <tbody>
+              {events.map((e, i) => (
+                <tr key={i} className="border-t border-black/5">
+                  <td className="py-1.5 pr-3"><Inp className="w-44" value={e.horodatage} onChange={(v) => updEvent(i, "horodatage", v)} type="datetime-local" /></td>
+                  <td className="pr-3">
+                    <select value={e.type} onChange={(ev) => updEvent(i, "type", ev.target.value)} className="rounded-lg border border-black/10 bg-white px-2 py-1.5 text-sm">
+                      {TYPE_EVENEMENT_OPTIONS.map((t) => (
+                        <option key={t} value={t}>{TYPE_EVENEMENT_LABELS[t]}</option>
+                      ))}
+                    </select>
+                  </td>
+                  <td className="pr-3"><Inp className="w-32" value={e.utilisateur ?? ""} onChange={(v) => updEvent(i, "utilisateur", v)} placeholder="ex : jmabiala" /></td>
+                  <td className="pr-3"><Inp className="w-36" value={e.source_ip ?? ""} onChange={(v) => updEvent(i, "source_ip", v)} placeholder="ex : 10.0.0.14" /></td>
+                  <td>
+                    <button onClick={() => removeEvent(i)} className="grid h-8 w-8 place-items-center rounded-lg text-muted hover:bg-black/5 hover:text-red-600"><Trash2 className="h-4 w-4" /></button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <div className="flex items-center justify-between border-t border-black/5 pt-3">
+          <button onClick={addEvent} className="flex items-center gap-1.5 text-sm text-forest hover:underline"><Plus className="h-4 w-4" /> Ajouter un événement</button>
+          <Button onClick={analyser} disabled={analysing || validEvents().length === 0}>Analyser</Button>
+        </div>
+      </Card>
+
+      {analysing && <Card><Skeleton className="mb-2 h-6 w-1/3" /><Skeleton className="h-4 w-full" /></Card>}
+      {analyseErr && <Card className="ring-amber-200"><p className="text-sm text-amber-700">{analyseErr}</p></Card>}
+
+      {res && (
+        <Card className="flex flex-col gap-4">
+          <div className="flex flex-wrap items-center gap-4">
+            <DetectionNiveauBadge niveau={res.niveau} />
+            <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-sm sm:grid-cols-4">
+              <Stat label="Événements" value={String(res.nb_events)} />
+              <Stat label="Échecs d'authentification" value={String(res.nb_echecs_auth)} />
+              <Stat label="IP distinctes" value={String(res.nb_ip_distinctes)} />
+              <Stat label="Utilisateurs" value={String(res.nb_utilisateurs)} />
+            </div>
+          </div>
+
+          {res.anomalies.length === 0 ? (
+            <p className="flex items-center gap-1.5 text-sm text-forest"><CheckCircle2 className="h-4 w-4" /> Aucune anomalie détectée sur ce journal.</p>
+          ) : (
+            <div className="flex flex-col gap-2">
+              {res.anomalies.map((a, i) => (
+                <div key={i} className={clsx("flex items-start gap-2 rounded-lg p-3 text-sm",
+                  a.niveau === "alerte" ? "bg-red-50 text-red-700" : a.niveau === "attention" ? "bg-amber-50 text-amber-800" : "bg-mint/15 text-forest")}>
+                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                  <div>
+                    <div className="font-semibold">{a.titre} <span className="font-normal opacity-70">— {a.entite}</span></div>
+                    <div className="opacity-90">{a.detail}</div>
+                    <div className="text-xs opacity-70">{a.occurrences} occurrence(s)</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <p className="flex items-start gap-1.5 text-xs text-muted"><Info className="mt-0.5 h-3.5 w-3.5 shrink-0" /> {res.reference_cadre}</p>
+
+          <div className="flex flex-wrap items-center gap-3 border-t border-black/5 pt-3">
+            <Inp className="w-56" value={cible} onChange={setCible} placeholder="Cible (ex : Serveur applicatif prod)" />
+            <Button onClick={enregistrer} disabled={saving}><Save className="h-4 w-4" /> Enregistrer la détection</Button>
+            {saved && <span className="flex items-center gap-1.5 text-sm font-medium text-forest"><CheckCircle2 className="h-4 w-4" /> Enregistré</span>}
+          </div>
+        </Card>
+      )}
+
+      <Card className="flex flex-col gap-2">
+        <div className="mb-1 flex items-center gap-2 text-sm font-semibold"><Radar className="h-4 w-4 text-forest" /> Registre des détections ({detections.length})</div>
+        {detErr && <p className="text-sm text-amber-700">{detErr}</p>}
+        {detLoading && <Skeleton className="h-5 w-1/2" />}
+        {!detLoading && detections.length === 0 && <p className="text-sm text-muted">Aucune détection enregistrée.</p>}
+        {detections.map((d) => (
+          <div key={d.id} className="flex flex-wrap items-center gap-3 rounded-lg border border-black/5 p-2.5 text-sm">
+            <div className="min-w-40">
+              <div className="font-medium">{d.cible}</div>
+              <div className="text-xs text-muted">{d.created_at ? new Date(d.created_at).toLocaleDateString("fr-FR") : "—"}</div>
+            </div>
+            <DetectionNiveauBadge niveau={d.niveau} />
+            <span className="text-xs text-muted">{d.nb_anomalies} anomalie(s) · {d.nb_events} événement(s)</span>
+            <DetectionStatutBadge statut={d.statut} />
+            <div className="ml-auto flex flex-wrap items-center gap-1.5">
+              {d.statut === "a_examiner" && (
+                <>
+                  <MiniBtn onClick={() => decider(d.id, "classee")} tone="forest">Classer sans suite</MiniBtn>
+                  <MiniBtn onClick={() => decider(d.id, "traitee")} tone="red">Traité</MiniBtn>
+                </>
+              )}
+              <button onClick={() => supprimer(d.id)} className="grid h-7 w-7 place-items-center rounded-lg text-muted hover:bg-black/5 hover:text-red-600"><Trash2 className="h-3.5 w-3.5" /></button>
+            </div>
+          </div>
+        ))}
+      </Card>
+    </>
   );
 }
 
@@ -298,5 +550,40 @@ function ScoreDial({ score }: { score: number }) {
         <div className="text-xs font-semibold" style={{ color }}>Conformité</div>
       </div>
     </div>
+  );
+}
+
+const DETECTION_NIVEAU_MAP: Record<string, { c: string; t: string }> = {
+  alerte: { c: "bg-red-100 text-red-700", t: "Alerte" },
+  attention: { c: "bg-amber-100 text-amber-800", t: "Attention" },
+  info: { c: "bg-gray-100 text-gray-600", t: "Info" },
+  aucun: { c: "bg-mint/25 text-forest", t: "Aucun" },
+};
+
+function DetectionNiveauBadge({ niveau }: { niveau: string }) {
+  const m = DETECTION_NIVEAU_MAP[niveau] ?? { c: "bg-gray-100 text-gray-600", t: niveau };
+  return <span className={clsx("w-fit rounded-full px-2.5 py-0.5 text-xs font-semibold", m.c)}>{m.t}</span>;
+}
+
+const DETECTION_STATUT_MAP: Record<string, { c: string; t: string }> = {
+  a_examiner: { c: "bg-amber-100 text-amber-800", t: "À examiner" },
+  classee: { c: "bg-black/5 text-ink/60", t: "Classée sans suite" },
+  traitee: { c: "bg-forest text-white", t: "Traitée" },
+};
+
+function DetectionStatutBadge({ statut }: { statut: string }) {
+  const m = DETECTION_STATUT_MAP[statut] ?? { c: "bg-gray-100 text-gray-600", t: statut };
+  return <span className={clsx("w-fit rounded-full px-2.5 py-0.5 text-xs font-semibold", m.c)}>{m.t}</span>;
+}
+
+function Stat({ label, value }: { label: string; value: string }) {
+  return <div><div className="text-xs text-muted">{label}</div><div className="font-semibold tabular-nums text-ink">{value}</div></div>;
+}
+
+function MiniBtn({ onClick, tone, children }: { onClick: () => void; tone: "forest" | "red"; children: React.ReactNode }) {
+  return (
+    <button onClick={onClick} className={clsx("rounded-lg px-2.5 py-1 text-xs font-medium transition", tone === "forest" ? "bg-forest/10 text-forest hover:bg-forest/20" : "bg-red-50 text-red-600 hover:bg-red-100")}>
+      {children}
+    </button>
   );
 }
