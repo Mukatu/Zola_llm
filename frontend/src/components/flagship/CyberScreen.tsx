@@ -16,7 +16,7 @@ import {
   AlertTriangle,
   Settings,
 } from "lucide-react";
-import { Card, Button, Skeleton, SeverityBadge } from "../ui";
+import { Card, Button, Skeleton, SeverityBadge, Badge, type BadgeTone } from "../ui";
 import { FlagshipHeader, Inp } from "./_shared";
 import { ApiError } from "@/lib/api";
 import {
@@ -637,13 +637,9 @@ function ParametresTab() {
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex flex-wrap items-center gap-2">
             {view?.validated ? (
-              <span className="flex items-center gap-1 rounded-full bg-green-100 px-2 py-0.5 text-xs font-semibold text-green-700">
-                <ShieldCheck className="h-3.5 w-3.5" /> validé
-              </span>
+              <Badge tone="green"><ShieldCheck className="h-3.5 w-3.5" /> validé</Badge>
             ) : (
-              <span className="flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-700">
-                <ShieldAlert className="h-3.5 w-3.5" /> à valider
-              </span>
+              <Badge tone="amber" className="!text-amber-700"><ShieldAlert className="h-3.5 w-3.5" /> à valider</Badge>
             )}
             <span className="text-xs text-muted">({view?.source_donnees === "tenant" ? "édité" : "par défaut"})</span>
             {view?.validated && view.validated_by && (
@@ -741,28 +737,40 @@ function TriState({ value, onChange }: { value: boolean | null; onChange: (v: bo
   );
 }
 
-const NIVEAU_MAP: Record<string, { c: string; t: string }> = {
-  critical: { c: "bg-red-100 text-red-700", t: "Critique" },
-  high: { c: "bg-orange-100 text-orange-700", t: "Élevé" },
-  medium: { c: "bg-amber-100 text-amber-800", t: "Moyen" },
-  low: { c: "bg-emerald-100 text-emerald-700", t: "Faible" },
-  aucun: { c: "bg-mint/25 text-forest", t: "Aucun" },
+const NIVEAU_TONE: Record<string, BadgeTone> = { critical: "red", high: "amber", medium: "amber", low: "green", aucun: "mint" };
+const NIVEAU_LABEL: Record<string, string> = { critical: "Critique", high: "Élevé", medium: "Moyen", low: "Faible", aucun: "Aucun" };
+// "high" (orange) et "low" (emerald) divergent des tons génériques rouge/vert — couleur exacte préservée.
+const NIVEAU_CLS_OVERRIDE: Record<string, string> = {
+  high: "!bg-orange-100 !text-orange-700",
+  low: "!bg-emerald-100 !text-emerald-700",
 };
 
 function NiveauBadge({ niveau }: { niveau: string }) {
-  const m = NIVEAU_MAP[niveau] ?? { c: "bg-gray-100 text-gray-600", t: niveau };
-  return <span className={clsx("w-fit rounded-full px-2.5 py-0.5 text-xs font-semibold", m.c)}>Niveau {m.t}</span>;
+  const tone = NIVEAU_TONE[niveau] ?? "grey";
+  return (
+    <Badge tone={tone} className={clsx("w-fit !px-2.5", NIVEAU_CLS_OVERRIDE[niveau] ?? (!NIVEAU_TONE[niveau] && "!bg-gray-100 !text-gray-600"))}>
+      Niveau {NIVEAU_LABEL[niveau] ?? niveau}
+    </Badge>
+  );
 }
 
-const STATUT_MAP: Record<string, { c: string; t: string }> = {
-  conforme: { c: "bg-emerald-100 text-emerald-700", t: "Conforme" },
-  non_conforme: { c: "bg-red-100 text-red-700", t: "Non conforme" },
-  a_verifier: { c: "bg-gray-100 text-gray-600", t: "À vérifier" },
-};
+const STATUT_TONE: Record<string, BadgeTone> = { conforme: "green", non_conforme: "red", a_verifier: "grey" };
+const STATUT_LABEL: Record<string, string> = { conforme: "Conforme", non_conforme: "Non conforme", a_verifier: "À vérifier" };
 
 function StatutBadge({ statut }: { statut: string }) {
-  const m = STATUT_MAP[statut] ?? { c: "bg-gray-100 text-gray-600", t: statut };
-  return <span className={clsx("w-fit rounded-full px-2.5 py-0.5 text-xs font-semibold", m.c)}>{m.t}</span>;
+  const tone = STATUT_TONE[statut] ?? "grey";
+  return (
+    <Badge
+      tone={tone}
+      className={clsx(
+        "w-fit !px-2.5",
+        statut === "conforme" && "!bg-emerald-100 !text-emerald-700",
+        (statut === "a_verifier" || !STATUT_TONE[statut]) && "!bg-gray-100 !text-gray-600",
+      )}
+    >
+      {STATUT_LABEL[statut] ?? statut}
+    </Badge>
+  );
 }
 
 function ScoreDial({ score }: { score: number }) {
@@ -779,27 +787,33 @@ function ScoreDial({ score }: { score: number }) {
   );
 }
 
-const DETECTION_NIVEAU_MAP: Record<string, { c: string; t: string }> = {
-  alerte: { c: "bg-red-100 text-red-700", t: "Alerte" },
-  attention: { c: "bg-amber-100 text-amber-800", t: "Attention" },
-  info: { c: "bg-gray-100 text-gray-600", t: "Info" },
-  aucun: { c: "bg-mint/25 text-forest", t: "Aucun" },
-};
+const DETECTION_NIVEAU_TONE: Record<string, BadgeTone> = { alerte: "red", attention: "amber", info: "grey", aucun: "mint" };
+const DETECTION_NIVEAU_LABEL: Record<string, string> = { alerte: "Alerte", attention: "Attention", info: "Info", aucun: "Aucun" };
 
 function DetectionNiveauBadge({ niveau }: { niveau: string }) {
-  const m = DETECTION_NIVEAU_MAP[niveau] ?? { c: "bg-gray-100 text-gray-600", t: niveau };
-  return <span className={clsx("w-fit rounded-full px-2.5 py-0.5 text-xs font-semibold", m.c)}>{m.t}</span>;
+  const tone = DETECTION_NIVEAU_TONE[niveau] ?? "grey";
+  return (
+    <Badge tone={tone} className={clsx("w-fit !px-2.5", (niveau === "info" || !DETECTION_NIVEAU_TONE[niveau]) && "!bg-gray-100 !text-gray-600")}>
+      {DETECTION_NIVEAU_LABEL[niveau] ?? niveau}
+    </Badge>
+  );
 }
 
-const DETECTION_STATUT_MAP: Record<string, { c: string; t: string }> = {
-  a_examiner: { c: "bg-amber-100 text-amber-800", t: "À examiner" },
-  classee: { c: "bg-black/5 text-ink/60", t: "Classée sans suite" },
-  traitee: { c: "bg-forest text-white", t: "Traitée" },
+const DETECTION_STATUT_TONE: Record<string, BadgeTone> = { a_examiner: "amber", classee: "grey", traitee: "green" };
+const DETECTION_STATUT_LABEL: Record<string, string> = { a_examiner: "À examiner", classee: "Classée sans suite", traitee: "Traitée" };
+// "classee" (opacité ink) et "traitee" (aplat forest/blanc) divergent du ton générique — couleur exacte préservée.
+const DETECTION_STATUT_CLS_OVERRIDE: Record<string, string> = {
+  classee: "!bg-black/5 !text-ink/60",
+  traitee: "!bg-forest !text-white",
 };
 
 function DetectionStatutBadge({ statut }: { statut: string }) {
-  const m = DETECTION_STATUT_MAP[statut] ?? { c: "bg-gray-100 text-gray-600", t: statut };
-  return <span className={clsx("w-fit rounded-full px-2.5 py-0.5 text-xs font-semibold", m.c)}>{m.t}</span>;
+  const tone = DETECTION_STATUT_TONE[statut] ?? "grey";
+  return (
+    <Badge tone={tone} className={clsx("w-fit !px-2.5", DETECTION_STATUT_CLS_OVERRIDE[statut] ?? (!DETECTION_STATUT_TONE[statut] && "!bg-gray-100 !text-gray-600"))}>
+      {DETECTION_STATUT_LABEL[statut] ?? statut}
+    </Badge>
+  );
 }
 
 function Stat({ label, value }: { label: string; value: string }) {

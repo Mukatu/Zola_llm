@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Coins, Pencil, ShieldAlert, ShieldCheck } from "lucide-react";
-import { Card, Button } from "../ui";
+import { Card, Button, Badge } from "../ui";
 import { FlagshipHeader, Inp } from "./_shared";
 import { ApiError } from "@/lib/api";
 import { fmt } from "@/lib/data";
@@ -200,13 +200,9 @@ export function DevisesScreen() {
                     </div>
                     <div className="flex items-center gap-2">
                       {r.validated ? (
-                        <span className="flex items-center gap-1 rounded-full bg-green-100 px-2 py-0.5 text-xs font-semibold text-green-700">
-                          <ShieldCheck className="h-3.5 w-3.5" /> validé
-                        </span>
+                        <Badge tone="green"><ShieldCheck className="h-3.5 w-3.5" /> validé</Badge>
                       ) : (
-                        <span className="flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-700">
-                          <ShieldAlert className="h-3.5 w-3.5" /> à valider
-                        </span>
+                        <Badge tone="amber" className="!text-amber-700"><ShieldAlert className="h-3.5 w-3.5" /> à valider</Badge>
                       )}
                       {r.editable && (
                         <>

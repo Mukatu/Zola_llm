@@ -31,17 +31,41 @@ export function Button({
   );
 }
 
-const SEV: Record<string, string> = {
-  critical: "bg-red-100 text-red-700", high: "bg-orange-100 text-orange-700",
-  medium: "bg-amber-100 text-amber-700", low: "bg-emerald-100 text-emerald-700",
+export type BadgeTone = "red" | "amber" | "green" | "grey" | "blue" | "mint";
+
+const TONE_CLASSES: Record<BadgeTone, string> = {
+  red: "bg-red-100 text-red-700",
+  amber: "bg-amber-100 text-amber-800",
+  green: "bg-green-100 text-green-700",
+  grey: "bg-black/5 text-muted",
+  blue: "bg-blue-100 text-blue-700",
+  mint: "bg-mint/25 text-forest",
+};
+
+/** Pastille colorée générique — la correspondance valeur→tone reste locale à chaque écran. */
+export function Badge({
+  tone = "grey", className = "", children,
+}: {
+  tone?: BadgeTone; className?: string; children: React.ReactNode;
+}) {
+  return (
+    <span className={clsx("inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold", TONE_CLASSES[tone], className)}>
+      {children}
+    </span>
+  );
+}
+
+// Sévérité des contrôles de durcissement (Cyber) — "high" (orange) et "low" (emerald) ne
+// correspondent pas exactement aux 6 tons partagés : couleur exacte préservée via override.
+const SEV_OVERRIDE: Record<string, string> = {
+  critical: "!bg-red-100 !text-red-700",
+  high: "!bg-orange-100 !text-orange-700",
+  medium: "!bg-amber-100 !text-amber-700",
+  low: "!bg-emerald-100 !text-emerald-700",
 };
 
 export function SeverityBadge({ level }: { level: string }) {
-  return (
-    <span className={clsx("rounded-full px-2 py-0.5 text-xs font-semibold", SEV[level] ?? "bg-gray-100 text-gray-600")}>
-      {level}
-    </span>
-  );
+  return <Badge className={SEV_OVERRIDE[level] ?? "!bg-gray-100 !text-gray-600"}>{level}</Badge>;
 }
 
 export function Skeleton({ className }: { className?: string }) {

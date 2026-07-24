@@ -22,7 +22,7 @@ import {
   Loader2,
   Camera,
 } from "lucide-react";
-import { Card, Button, Skeleton } from "../ui";
+import { Card, Button, Skeleton, Badge, type BadgeTone } from "../ui";
 import { FlagshipHeader, Inp, LineTrend, type TrendPoint } from "./_shared";
 import { ApiError } from "@/lib/api";
 import {
@@ -731,44 +731,55 @@ function SchedulePanel({ appId }: { appId: string }) {
   );
 }
 
-const STATUT_MAP: Record<string, { c: string; t: string }> = {
-  evaluee: { c: "bg-black/5 text-ink/70", t: "Évaluée" },
-  accordee: { c: "bg-forest text-white", t: "Accordée" },
-  decaissee: { c: "bg-mint/30 text-forest", t: "Décaissée" },
-  refusee: { c: "bg-red-100 text-red-700", t: "Refusée" },
-  cloturee: { c: "bg-black/5 text-ink/50", t: "Clôturée" },
-  a_valider: { c: "bg-amber-100 text-amber-800", t: "À valider" },
-  valide: { c: "bg-forest text-white", t: "Validé" },
-  refuse: { c: "bg-red-100 text-red-700", t: "Refusé" },
+const STATUT_TONE: Record<string, BadgeTone> = {
+  evaluee: "grey", accordee: "green", decaissee: "mint", refusee: "red",
+  cloturee: "grey", a_valider: "amber", valide: "green", refuse: "red",
+};
+// Overrides ponctuels pour préserver exactement les nuances déjà en place (états "forts"
+// en aplat forest/blanc, opacités ink/mint spécifiques) — non couvertes par les 6 tons génériques.
+const STATUT_CLS_OVERRIDE: Record<string, string> = {
+  evaluee: "!px-2.5 !bg-black/5 !text-ink/70",
+  accordee: "!px-2.5 !bg-forest !text-white",
+  decaissee: "!px-2.5 !bg-mint/30",
+  cloturee: "!px-2.5 !bg-black/5 !text-ink/50",
+  valide: "!px-2.5 !bg-forest !text-white",
+};
+const STATUT_LABEL: Record<string, string> = {
+  evaluee: "Évaluée", accordee: "Accordée", decaissee: "Décaissée", refusee: "Refusée",
+  cloturee: "Clôturée", a_valider: "À valider", valide: "Validé", refuse: "Refusé",
 };
 
 function StatutBadge({ statut }: { statut: string }) {
-  const m = STATUT_MAP[statut] ?? { c: "bg-black/5 text-ink/70", t: statut };
-  return <span className={clsx("rounded-full px-2.5 py-0.5 text-xs font-semibold", m.c)}>{m.t}</span>;
+  return (
+    <Badge
+      tone={STATUT_TONE[statut] ?? "grey"}
+      className={clsx("!px-2.5", STATUT_CLS_OVERRIDE[statut] ?? (!STATUT_TONE[statut] && "!bg-black/5 !text-ink/70"))}
+    >
+      {STATUT_LABEL[statut] ?? statut}
+    </Badge>
+  );
 }
 
+const NIVEAU_TONE: Record<string, BadgeTone> = { info: "grey", attention: "amber", alerte: "red" };
+const NIVEAU_LABEL: Record<string, string> = { info: "Info", attention: "Attention", alerte: "Alerte" };
+
 function NiveauBadge({ niveau }: { niveau: string }) {
-  const map: Record<string, { c: string; t: string }> = {
-    info: { c: "bg-black/5 text-ink/60", t: "Info" },
-    attention: { c: "bg-amber-100 text-amber-800", t: "Attention" },
-    alerte: { c: "bg-red-100 text-red-700", t: "Alerte" },
-  };
-  const m = map[niveau] ?? map.info;
-  return <span className={clsx("rounded-full px-2.5 py-0.5 text-xs font-semibold", m.c)}>{m.t}</span>;
+  const key = NIVEAU_TONE[niveau] ? niveau : "info";
+  return (
+    <Badge tone={NIVEAU_TONE[key]} className={clsx("!px-2.5", key === "info" && "!bg-black/5 !text-ink/60")}>
+      {NIVEAU_LABEL[key] ?? niveau}
+    </Badge>
+  );
 }
 
 function AmlStatutBadge({ statut, declarationRef }: { statut: string; declarationRef: string | null }) {
   if (statut === "declaree") {
-    return (
-      <span className="rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-semibold text-red-700">
-        Déclaré ANIF{declarationRef ? ` — ${declarationRef}` : ""}
-      </span>
-    );
+    return <Badge tone="red" className="!px-2.5">Déclaré ANIF{declarationRef ? ` — ${declarationRef}` : ""}</Badge>;
   }
   if (statut === "classee") {
-    return <span className="rounded-full bg-black/5 px-2.5 py-0.5 text-xs font-semibold text-ink/60">Classé sans suite</span>;
+    return <Badge tone="grey" className="!px-2.5 !bg-black/5 !text-ink/60">Classé sans suite</Badge>;
   }
-  return <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-800">À examiner</span>;
+  return <Badge tone="amber" className="!px-2.5">À examiner</Badge>;
 }
 
 function MiniBtn({ onClick, tone, children }: { onClick: () => void; tone: "forest" | "red"; children: React.ReactNode }) {

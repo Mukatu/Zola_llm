@@ -13,7 +13,7 @@ import {
   CalendarClock,
   CheckCircle2,
 } from "lucide-react";
-import { Card, Button, Skeleton } from "../ui";
+import { Card, Button, Skeleton, Badge, type BadgeTone } from "../ui";
 import { FlagshipHeader, Inp } from "./_shared";
 import { ApiError } from "@/lib/api";
 import {
@@ -614,53 +614,95 @@ function MiniBtn({ onClick, tone, children }: { onClick: () => void; tone: "fore
 }
 
 function DomaineBadge({ domaine }: { domaine: string }) {
-  return <span className="rounded-full bg-black/5 px-2.5 py-0.5 text-xs font-semibold text-ink/70">{domaine}</span>;
+  return <Badge tone="grey" className="!px-2.5 !bg-black/5 !text-ink/70">{domaine}</Badge>;
 }
+
+const STATUT_OBLIGATION_TONE: Record<string, BadgeTone> = { active: "green", suspendue: "grey" };
+const STATUT_OBLIGATION_LABEL: Record<string, string> = { active: "Active", suspendue: "Suspendue" };
 
 function StatutObligationBadge({ statut }: { statut: string }) {
-  const m: Record<string, { c: string; t: string }> = {
-    active: { c: "bg-forest text-white", t: "Active" },
-    suspendue: { c: "bg-black/5 text-ink/60", t: "Suspendue" },
-  };
-  const x = m[statut] ?? { c: "bg-black/5 text-ink/70", t: statut };
-  return <span className={clsx("rounded-full px-2.5 py-0.5 text-xs font-semibold", x.c)}>{x.t}</span>;
+  const tone = STATUT_OBLIGATION_TONE[statut] ?? "grey";
+  return (
+    <Badge
+      tone={tone}
+      className={clsx(
+        "!px-2.5",
+        statut === "active" && "!bg-forest !text-white",
+        statut === "suspendue" && "!bg-black/5 !text-ink/60",
+        !STATUT_OBLIGATION_TONE[statut] && "!bg-black/5 !text-ink/70",
+      )}
+    >
+      {STATUT_OBLIGATION_LABEL[statut] ?? statut}
+    </Badge>
+  );
 }
+
+const TYPE_CONTROLE_TONE: Record<string, BadgeTone> = { preventif: "mint", detectif: "grey" };
+const TYPE_CONTROLE_LABEL: Record<string, string> = { preventif: "Préventif", detectif: "Détectif" };
 
 function TypeControleBadge({ type }: { type: string }) {
-  const m: Record<string, { c: string; t: string }> = {
-    preventif: { c: "bg-mint/25 text-forest", t: "Préventif" },
-    detectif: { c: "bg-black/5 text-ink/70", t: "Détectif" },
-  };
-  const x = m[type] ?? { c: "bg-black/5 text-ink/70", t: type };
-  return <span className={clsx("rounded-full px-2.5 py-0.5 text-xs font-semibold", x.c)}>{x.t}</span>;
+  const tone = TYPE_CONTROLE_TONE[type] ?? "grey";
+  return (
+    <Badge tone={tone} className={clsx("!px-2.5", tone === "grey" && "!bg-black/5 !text-ink/70")}>
+      {TYPE_CONTROLE_LABEL[type] ?? type}
+    </Badge>
+  );
 }
+
+const STATUT_CONTROL_TONE: Record<string, BadgeTone> = { planifie: "amber", realise: "green", suspendu: "grey" };
+const STATUT_CONTROL_LABEL: Record<string, string> = { planifie: "Planifié", realise: "Réalisé", suspendu: "Suspendu" };
 
 function StatutControlBadge({ statut }: { statut: string }) {
-  const m: Record<string, { c: string; t: string }> = {
-    planifie: { c: "bg-amber-100 text-amber-800", t: "Planifié" },
-    realise: { c: "bg-forest text-white", t: "Réalisé" },
-    suspendu: { c: "bg-black/5 text-ink/60", t: "Suspendu" },
-  };
-  const x = m[statut] ?? { c: "bg-black/5 text-ink/70", t: statut };
-  return <span className={clsx("rounded-full px-2.5 py-0.5 text-xs font-semibold", x.c)}>{x.t}</span>;
+  const tone = STATUT_CONTROL_TONE[statut] ?? "grey";
+  return (
+    <Badge
+      tone={tone}
+      className={clsx(
+        "!px-2.5",
+        statut === "realise" && "!bg-forest !text-white",
+        statut === "suspendu" && "!bg-black/5 !text-ink/60",
+        !STATUT_CONTROL_TONE[statut] && "!bg-black/5 !text-ink/70",
+      )}
+    >
+      {STATUT_CONTROL_LABEL[statut] ?? statut}
+    </Badge>
+  );
 }
+
+const GRAVITE_TONE: Record<string, BadgeTone> = { critique: "red", majeur: "amber", mineur: "grey" };
+const GRAVITE_LABEL: Record<string, string> = { critique: "Critique", majeur: "Majeur", mineur: "Mineur" };
 
 function GraviteBadge({ gravite }: { gravite: string }) {
-  const m: Record<string, { c: string; t: string }> = {
-    critique: { c: "bg-red-100 text-red-700", t: "Critique" },
-    majeur: { c: "bg-amber-100 text-amber-800", t: "Majeur" },
-    mineur: { c: "bg-black/5 text-ink/60", t: "Mineur" },
-  };
-  const x = m[gravite] ?? { c: "bg-black/5 text-ink/70", t: gravite };
-  return <span className={clsx("rounded-full px-2.5 py-0.5 text-xs font-semibold", x.c)}>{x.t}</span>;
+  const tone = GRAVITE_TONE[gravite] ?? "grey";
+  return (
+    <Badge
+      tone={tone}
+      className={clsx(
+        "!px-2.5",
+        gravite === "mineur" && "!bg-black/5 !text-ink/60",
+        !GRAVITE_TONE[gravite] && "!bg-black/5 !text-ink/70",
+      )}
+    >
+      {GRAVITE_LABEL[gravite] ?? gravite}
+    </Badge>
+  );
 }
 
+const STATUT_FINDING_TONE: Record<string, BadgeTone> = { ouvert: "red", en_cours: "amber", resolu: "green" };
+const STATUT_FINDING_LABEL: Record<string, string> = { ouvert: "Ouvert", en_cours: "En cours", resolu: "Résolu" };
+
 function StatutFindingBadge({ statut }: { statut: string }) {
-  const m: Record<string, { c: string; t: string }> = {
-    ouvert: { c: "bg-red-100 text-red-700", t: "Ouvert" },
-    en_cours: { c: "bg-amber-100 text-amber-800", t: "En cours" },
-    resolu: { c: "bg-forest text-white", t: "Résolu" },
-  };
-  const x = m[statut] ?? { c: "bg-black/5 text-ink/70", t: statut };
-  return <span className={clsx("rounded-full px-2.5 py-0.5 text-xs font-semibold", x.c)}>{x.t}</span>;
+  const tone = STATUT_FINDING_TONE[statut] ?? "grey";
+  return (
+    <Badge
+      tone={tone}
+      className={clsx(
+        "!px-2.5",
+        statut === "resolu" && "!bg-forest !text-white",
+        !STATUT_FINDING_TONE[statut] && "!bg-black/5 !text-ink/70",
+      )}
+    >
+      {STATUT_FINDING_LABEL[statut] ?? statut}
+    </Badge>
+  );
 }
