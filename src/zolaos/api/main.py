@@ -12,7 +12,7 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager, suppress
 from typing import Any
 
-from fastapi import FastAPI, HTTPException, Request, Response, status
+from fastapi import Depends, FastAPI, HTTPException, Request, Response, status
 from fastapi.middleware.cors import CORSMiddleware
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 
@@ -193,6 +193,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     # profil `cortex`, le router n'est pas monté → 404 sur /v1/box/* (préférable
     # à un 500 ProfileError qui révélerait l'existence des routes).
     if settings.ZOLAOS_PROFILE == "box":
+        # Le plan de données de la box exige une identité authentifiée (401 sinon).
+        # Appliqué au montage → protège d'un coup tous les endpoints métier.
+        from zolaos.api.auth import require_box_auth
         from zolaos.api.v1.bi import router as bi_router
         from zolaos.api.v1.box import router as box_router
         from zolaos.api.v1.categorisation import router as categorisation_router
@@ -211,35 +214,37 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         from zolaos.api.v1.recrutement import router as recrutement_router
         from zolaos.api.v1.store import router as store_router
 
+        _box_auth = [Depends(require_box_auth)]
+
         app.include_router(box_router)
         # Moteurs déterministes (ERP/ops, CRM, BI, Marketing) exposés au frontend client.
-        app.include_router(erp_router)
-        app.include_router(categorisation_router)
-        app.include_router(crm_router)
-        app.include_router(bi_router)
-        app.include_router(mkt_router)
+        app.include_router(erp_router, dependencies=_box_auth)
+        app.include_router(categorisation_router, dependencies=_box_auth)
+        app.include_router(crm_router, dependencies=_box_auth)
+        app.include_router(bi_router, dependencies=_box_auth)
+        app.include_router(mkt_router, dependencies=_box_auth)
         # Système de référence léger (persistance Factures + clôture continue).
-        app.include_router(store_router)
+        app.include_router(store_router, dependencies=_box_auth)
         # SIRH — Core HR & pilotage (registres + tableau de bord + échéancier).
-        app.include_router(hr_router)
+        app.include_router(hr_router, dependencies=_box_auth)
         # SIRH — Référentiels (RME/RMC) + matrice de compétences + écarts GPEC.
-        app.include_router(gpec_router)
+        app.include_router(gpec_router, dependencies=_box_auth)
         # SIRH — Recrutement (vacances, candidats, pipeline, indicateurs).
-        app.include_router(recrutement_router)
+        app.include_router(recrutement_router, dependencies=_box_auth)
         # Documents (artefacts générés, transverse) + génération RH.
-        app.include_router(documents_router)
+        app.include_router(documents_router, dependencies=_box_auth)
         # SIRH — Formation (catalogue, sessions, inscriptions, indicateurs).
-        app.include_router(formation_router)
+        app.include_router(formation_router, dependencies=_box_auth)
         # SIRH — Évaluations (9-box) + GPEC avancé (plan formation, risques/opportunités).
-        app.include_router(evaluation_router)
+        app.include_router(evaluation_router, dependencies=_box_auth)
         # Import/Export Excel (alimentation des tables store_*).
-        app.include_router(imports_router)
+        app.include_router(imports_router, dependencies=_box_auth)
         # Fintech — scoring de crédit (EMF) + KYC/AML (déterministe, indicatif).
-        app.include_router(fintech_router)
+        app.include_router(fintech_router, dependencies=_box_auth)
         # Cyber — audit de durcissement défensif (déterministe, indicatif).
-        app.include_router(cyber_router)
+        app.include_router(cyber_router, dependencies=_box_auth)
         # GRC — registre de conformité (obligations/contrôles/constats) + plan de contrôle.
-        app.include_router(grc_router)
+        app.include_router(grc_router, dependencies=_box_auth)
 
     # Routes Zolacortex (gestion missions) : exposées uniquement en profil `cortex`.
     # Inversement, en profil `box`, 404 sur /v1/cortex/*.

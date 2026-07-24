@@ -190,3 +190,17 @@ async def require_admin(principal: Principal = Depends(authenticate)) -> Princip
     if SCOPE_ADMIN_USERS not in principal.scopes:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="admin_scope_required")
     return principal
+
+
+async def require_box_auth(principal: Principal = Depends(authenticate)) -> Principal:
+    """Exige une identité authentifiée pour le **plan de données de la box**.
+
+    Appliquée au montage des routers métier (ERP, BI, Fintech, Cyber, GRC…) : toute
+    requête doit porter une identité valide (cookie httpOnly, Bearer ou X-API-Key),
+    sinon 401 — le plan de données n'est plus accessible sans authentification.
+
+    Distincte d'`authenticate` et des gardes RBAC : cette séparation permet un
+    override de test unique (cf. `tests/conftest.py`) sans neutraliser les tests de
+    rejet d'authentification ni les gardes `require_admin`/`require_curator`.
+    """
+    return principal
