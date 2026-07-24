@@ -12,6 +12,8 @@ export interface Project {
   convention_ref: string | null;
   devise: string;
   budget_total: string;
+  budget_total_devise: string | null;
+  taux_applique: string | null;
   date_debut: string | null;
   date_fin: string | null;
   statut: StatutProjet;
@@ -77,7 +79,8 @@ export function createProject(b: {
   bailleur: string;
   convention_ref?: string | null;
   devise?: string;
-  budget_total: string;
+  budget_total?: string;
+  budget_total_devise?: string;
   date_debut?: string | null;
   date_fin?: string | null;
   statut?: StatutProjet;

@@ -11,6 +11,8 @@ export interface BankAccountRec {
   devise: string;
   iban: string | null;
   solde_initial_xaf: string;
+  solde_initial_devise: string | null;
+  taux_applique: string | null;
 }
 
 export interface CashFlowRec {
@@ -19,6 +21,9 @@ export interface CashFlowRec {
   compte_code: string;
   sens: string;
   montant_xaf: string;
+  devise: string;
+  montant_devise: string | null;
+  taux_applique: string | null;
   date_operation: string | null;
   date_prevue: string | null;
   statut: string;
@@ -63,6 +68,7 @@ export function createBankAccount(b: {
   type?: string;
   devise?: string;
   solde_initial_xaf?: string;
+  solde_initial_devise?: string;
 }): Promise<BankAccountRec> {
   return api("/v1/erp/bank-accounts", { body: b });
 }
@@ -85,7 +91,9 @@ export function createCashFlow(b: {
   reference: string;
   compte_code: string;
   sens: string;
-  montant_xaf: string;
+  montant_xaf?: string;
+  devise?: string;
+  montant_devise?: string;
   date_operation: string;
   date_prevue?: string | null;
   statut?: string;

@@ -4,7 +4,10 @@ import { useCallback, useEffect, useState } from "react";
 import { Handshake, Plus, Trash2 } from "lucide-react";
 import { Card, Button, SeverityBadge, Skeleton } from "../ui";
 import { FlagshipHeader, Inp } from "./_shared";
+import { fmt } from "@/lib/data";
+import { fmtXaf } from "@/lib/erp";
 import { ApiError } from "@/lib/api";
+import { getFxRates, type FxRate } from "@/lib/fx";
 import {
   listProjects,
   createProject,
@@ -36,6 +39,21 @@ function montant(v: string, devise = ""): string {
   return devise ? `${s} ${devise}` : s;
 }
 
+// Traduit les codes d'erreur backend en messages FR sobres (même contrat que le Registre / factures).
+function fxError(e: unknown): string {
+  if (!(e instanceof ApiError)) return "Création impossible (backend/DB).";
+  let detail = e.detail;
+  try {
+    const p = JSON.parse(e.detail) as { detail?: string };
+    if (p?.detail) detail = p.detail;
+  } catch { /* detail brut */ }
+  if (detail.startsWith("taux_non_valide")) {
+    return `Taux ${detail.split(":")[1] ?? ""} non validé — saisissez-le dans « Devises / Change ».`;
+  }
+  if (detail.includes("montant_devise_requis")) return "Indiquez le montant dans la devise choisie.";
+  return "Création impossible (backend/DB).";
+}
+
 export function ProjetsOngScreen() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [ventilation, setVentilation] = useState<Ventilation | null>(null);
@@ -45,9 +63,17 @@ export function ProjetsOngScreen() {
   const [loading, setLoading] = useState(true);
   const [detailLoading, setDetailLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [rates, setRates] = useState<FxRate[]>([]);
 
   const [pForm, setPForm] = useState({ intitule: "", bailleur: "", budget_total: "", devise: "XAF", date_debut: TODAY });
   const [lForm, setLForm] = useState({ rubrique: "", activite: "", montant_prevu: "" });
+
+  const selRateP = rates.find((r) => r.devise === pForm.devise);
+  const enDeviseP = pForm.devise !== "XAF";
+  const apercuXafP =
+    enDeviseP && pForm.budget_total && selRateP?.taux_vers_xaf
+      ? Number(pForm.budget_total) * Number(selRateP.taux_vers_xaf)
+      : null;
 
   const refresh = useCallback(async () => {
     try {
@@ -64,6 +90,7 @@ export function ProjetsOngScreen() {
 
   useEffect(() => {
     refresh();
+    getFxRates().then((v) => setRates(v.rates)).catch(() => setRates([]));
   }, [refresh]);
 
   const refreshDetail = useCallback(async (projectId: string) => {
@@ -92,18 +119,17 @@ export function ProjetsOngScreen() {
 
   async function addProject() {
     if (!pForm.intitule || !pForm.bailleur || !pForm.budget_total) return;
+    const base = { intitule: pForm.intitule, bailleur: pForm.bailleur, date_debut: pForm.date_debut || null };
+    const payload = enDeviseP
+      ? { ...base, devise: pForm.devise, budget_total_devise: pForm.budget_total }
+      : { ...base, devise: pForm.devise || "XAF", budget_total: pForm.budget_total };
     try {
-      await createProject({
-        intitule: pForm.intitule,
-        bailleur: pForm.bailleur,
-        budget_total: pForm.budget_total,
-        devise: pForm.devise || "XAF",
-        date_debut: pForm.date_debut || null,
-      });
-      setPForm({ intitule: "", bailleur: "", budget_total: "", devise: "XAF", date_debut: TODAY });
+      await createProject(payload);
+      setPForm({ intitule: "", bailleur: "", budget_total: "", devise: pForm.devise, date_debut: TODAY });
+      setErr(null);
       await refresh();
-    } catch {
-      setErr("Création du projet impossible (backend/DB).");
+    } catch (e) {
+      setErr(fxError(e));
     }
   }
   async function removeProject(id: string) {
@@ -174,13 +200,34 @@ export function ProjetsOngScreen() {
         {/* Liste des projets + création */}
         <Card>
           <h2 className="mb-2 text-sm font-semibold">Projets</h2>
-          <div className="mb-2 grid grid-cols-2 gap-2">
+          <div className="mb-1 grid grid-cols-2 gap-2">
             <Inp value={pForm.intitule} onChange={(v) => setPForm({ ...pForm, intitule: v })} placeholder="Intitulé" />
             <Inp value={pForm.bailleur} onChange={(v) => setPForm({ ...pForm, bailleur: v })} placeholder="Bailleur" />
-            <Inp value={pForm.budget_total} type="number" onChange={(v) => setPForm({ ...pForm, budget_total: v })} placeholder="Budget total" />
-            <Inp value={pForm.devise} onChange={(v) => setPForm({ ...pForm, devise: v })} placeholder="Devise" />
+            <Inp
+              value={pForm.budget_total}
+              type="number"
+              onChange={(v) => setPForm({ ...pForm, budget_total: v })}
+              placeholder={enDeviseP ? `Budget total ${pForm.devise}` : "Budget total"}
+            />
+            <select
+              value={pForm.devise}
+              onChange={(e) => setPForm({ ...pForm, devise: e.target.value })}
+              className="rounded-lg border border-black/10 bg-white px-2 py-1 text-sm outline-none focus:ring-2 focus:ring-primary/40"
+            >
+              {(rates.length ? rates : [{ devise: "XAF" } as FxRate]).map((r) => (
+                <option key={r.devise} value={r.devise}>{r.devise}</option>
+              ))}
+            </select>
             <Inp value={pForm.date_debut} type="date" onChange={(v) => setPForm({ ...pForm, date_debut: v })} />
             <button onClick={addProject} className="flex items-center justify-center gap-1 rounded-lg bg-forest text-white"><Plus className="h-4 w-4" /> Ajouter</button>
+          </div>
+          <div className="mb-2 min-h-[1rem] text-xs">
+            {enDeviseP && apercuXafP !== null && (
+              <span className="text-muted">≈ {fmtXaf(String(Math.round(apercuXafP)))} au taux {fmt(selRateP?.taux_vers_xaf ?? "0")}</span>
+            )}
+            {enDeviseP && selRateP && !selRateP.validated && (
+              <span className="text-amber-700">Taux {pForm.devise} non validé — à saisir/valider dans « Devises / Change ».</span>
+            )}
           </div>
 
           {loading ? (
@@ -201,7 +248,13 @@ export function ProjetsOngScreen() {
                   {p.intitule} <span className="text-xs text-muted">({p.bailleur})</span>
                 </span>
                 <span className="flex items-center gap-2 text-muted">
-                  {montant(p.budget_total, p.devise)} · {STATUTS.find((s) => s.value === p.statut)?.label ?? p.statut}
+                  <span>
+                    {p.budget_total_devise && p.devise !== "XAF" && (
+                      <span className="mr-1 text-[11px]">{fmt(p.budget_total_devise)} {p.devise} →</span>
+                    )}
+                    {fmtXaf(p.budget_total)}
+                  </span>
+                  · {STATUTS.find((s) => s.value === p.statut)?.label ?? p.statut}
                   <button onClick={(e) => { e.stopPropagation(); removeProject(p.id); }} className="text-muted hover:text-red-600">
                     <Trash2 className="h-4 w-4" />
                   </button>

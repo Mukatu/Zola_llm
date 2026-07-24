@@ -5,7 +5,9 @@ import { Wallet, Plus, Trash2, Landmark, ArrowDownToLine, ArrowUpFromLine, Clock
 import { Card, Button } from "../ui";
 import { FlagshipHeader, Inp } from "./_shared";
 import { fmt } from "@/lib/data";
+import { fmtXaf } from "@/lib/erp";
 import { ApiError } from "@/lib/api";
+import { getFxRates, type FxRate } from "@/lib/fx";
 import {
   listBankAccounts,
   createBankAccount,
@@ -30,6 +32,21 @@ import {
 const TODAY = new Date().toISOString().slice(0, 10);
 const TYPE_LABEL: Record<string, string> = { banque: "Banque", caisse: "Caisse", mobile_money: "Mobile money" };
 
+// Traduit les codes d'erreur backend en messages FR sobres (même contrat que le Registre / factures).
+function fxError(e: unknown): string {
+  if (!(e instanceof ApiError)) return "Création impossible (backend/DB).";
+  let detail = e.detail;
+  try {
+    const p = JSON.parse(e.detail) as { detail?: string };
+    if (p?.detail) detail = p.detail;
+  } catch { /* detail brut */ }
+  if (detail.startsWith("taux_non_valide")) {
+    return `Taux ${detail.split(":")[1] ?? ""} non validé — saisissez-le dans « Devises / Change ».`;
+  }
+  if (detail.includes("montant_devise_requis")) return "Indiquez le montant dans la devise choisie.";
+  return "Création impossible (backend/DB).";
+}
+
 const DEMO_ACCOUNTS = [
   { code: "BGFI", libelle: "BGFI Bank — compte courant", banque: "BGFI", type: "banque", solde_initial_xaf: "5000000" },
   { code: "CAISSE", libelle: "Caisse centrale", banque: "—", type: "caisse", solde_initial_xaf: "300000" },
@@ -47,13 +64,28 @@ export function FinanceScreen() {
   const [flows, setFlows] = useState<CashFlowRec[]>([]);
   const [position, setPosition] = useState<PositionTresorerie | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const [rates, setRates] = useState<FxRate[]>([]);
 
-  const [accForm, setAccForm] = useState({ code: "", libelle: "", type: "banque", solde: "" });
-  const [flowForm, setFlowForm] = useState({ compte: "", sens: "encaissement", statut: "realise", montant: "", libelle: "" });
+  const [accForm, setAccForm] = useState({ code: "", libelle: "", type: "banque", solde: "", devise: "XAF" });
+  const [flowForm, setFlowForm] = useState({ compte: "", sens: "encaissement", statut: "realise", montant: "", libelle: "", devise: "XAF" });
   const [releve, setReleve] = useState<ReleveLigne[]>([{ date: TODAY, montant_xaf: "", sens: "encaissement" }]);
   const [recRes, setRecRes] = useState<ReconcileResult | null>(null);
   const [prev, setPrev] = useState<Previsionnel | null>(null);
   const [indic, setIndic] = useState<IndicateursTreso | null>(null);
+
+  const selRateAcc = rates.find((r) => r.devise === accForm.devise);
+  const enDeviseAcc = accForm.devise !== "XAF";
+  const apercuXafAcc =
+    enDeviseAcc && accForm.solde && selRateAcc?.taux_vers_xaf
+      ? Number(accForm.solde) * Number(selRateAcc.taux_vers_xaf)
+      : null;
+
+  const selRateFlow = rates.find((r) => r.devise === flowForm.devise);
+  const enDeviseFlow = flowForm.devise !== "XAF";
+  const apercuXafFlow =
+    enDeviseFlow && flowForm.montant && selRateFlow?.taux_vers_xaf
+      ? Number(flowForm.montant) * Number(selRateFlow.taux_vers_xaf)
+      : null;
 
   const refresh = useCallback(async () => {
     try {
@@ -76,39 +108,44 @@ export function FinanceScreen() {
 
   useEffect(() => {
     refresh();
+    getFxRates().then((v) => setRates(v.rates)).catch(() => setRates([]));
   }, [refresh]);
 
   async function addAccount() {
     if (!accForm.code || !accForm.libelle) return;
+    const base = { code: accForm.code, libelle: accForm.libelle, type: accForm.type };
+    const payload = enDeviseAcc
+      ? { ...base, devise: accForm.devise, solde_initial_devise: accForm.solde || "0" }
+      : { ...base, solde_initial_xaf: accForm.solde || "0" };
     try {
-      await createBankAccount({
-        code: accForm.code,
-        libelle: accForm.libelle,
-        type: accForm.type,
-        solde_initial_xaf: accForm.solde || "0",
-      });
-      setAccForm({ code: "", libelle: "", type: "banque", solde: "" });
+      await createBankAccount(payload);
+      setAccForm({ code: "", libelle: "", type: "banque", solde: "", devise: accForm.devise });
+      setErr(null);
       await refresh();
-    } catch {
-      setErr("Création du compte impossible (backend/DB).");
+    } catch (e) {
+      setErr(fxError(e));
     }
   }
   async function addFlow() {
     if (!flowForm.compte || !flowForm.montant) return;
+    const base = {
+      reference: `${flowForm.sens === "encaissement" ? "ENC" : "DEC"}-${Date.now()}`,
+      compte_code: flowForm.compte,
+      sens: flowForm.sens,
+      statut: flowForm.statut,
+      date_operation: TODAY,
+      libelle: flowForm.libelle,
+    };
+    const payload = enDeviseFlow
+      ? { ...base, devise: flowForm.devise, montant_devise: flowForm.montant }
+      : { ...base, montant_xaf: flowForm.montant };
     try {
-      await createCashFlow({
-        reference: `${flowForm.sens === "encaissement" ? "ENC" : "DEC"}-${Date.now()}`,
-        compte_code: flowForm.compte,
-        sens: flowForm.sens,
-        statut: flowForm.statut,
-        montant_xaf: flowForm.montant,
-        date_operation: TODAY,
-        libelle: flowForm.libelle,
-      });
+      await createCashFlow(payload);
       setFlowForm({ ...flowForm, montant: "", libelle: "" });
+      setErr(null);
       await refresh();
-    } catch {
-      setErr("Création du flux impossible (backend/DB).");
+    } catch (e) {
+      setErr(fxError(e));
     }
   }
   async function seedDemo() {
@@ -262,11 +299,38 @@ export function FinanceScreen() {
             </select>
             <button onClick={addAccount} className="grid place-items-center rounded-lg bg-forest text-white"><Plus className="h-4 w-4" /></button>
           </div>
-          <Inp value={accForm.solde} type="number" onChange={(v) => setAccForm({ ...accForm, solde: v })} placeholder="Solde initial XAF" className="mb-2 w-full" />
+          <div className="mb-1 grid grid-cols-[1fr_90px] gap-2">
+            <Inp
+              value={accForm.solde}
+              type="number"
+              onChange={(v) => setAccForm({ ...accForm, solde: v })}
+              placeholder={enDeviseAcc ? `Solde initial ${accForm.devise}` : "Solde initial XAF"}
+            />
+            <select
+              value={accForm.devise}
+              onChange={(e) => setAccForm({ ...accForm, devise: e.target.value })}
+              className="rounded-lg border border-black/10 bg-white px-1 text-sm outline-none focus:ring-2 focus:ring-primary/40"
+            >
+              {(rates.length ? rates : [{ devise: "XAF" } as FxRate]).map((r) => (
+                <option key={r.devise} value={r.devise}>{r.devise}</option>
+              ))}
+            </select>
+          </div>
+          <div className="mb-2 min-h-[1rem] text-xs">
+            {enDeviseAcc && apercuXafAcc !== null && (
+              <span className="text-muted">≈ {fmtXaf(String(Math.round(apercuXafAcc)))} au taux {fmt(selRateAcc?.taux_vers_xaf ?? "0")}</span>
+            )}
+            {enDeviseAcc && selRateAcc && !selRateAcc.validated && (
+              <span className="text-amber-700">Taux {accForm.devise} non validé — à saisir/valider dans « Devises / Change ».</span>
+            )}
+          </div>
           {accounts.map((a) => (
             <div key={a.id} className="flex items-center justify-between border-b border-black/5 py-1.5 text-sm last:border-0">
               <span><b>{a.code}</b> · {a.libelle}</span>
               <span className="flex items-center gap-2 text-muted">
+                {a.solde_initial_devise && a.devise !== "XAF" && (
+                  <span className="text-[11px]">{fmt(a.solde_initial_devise)} {a.devise} →</span>
+                )}
                 {fmt(a.solde_initial_xaf)} XAF
                 <button onClick={() => deleteBankAccount(a.id).then(refresh)} className="hover:text-red-600"><Trash2 className="h-4 w-4" /></button>
               </span>
@@ -277,7 +341,7 @@ export function FinanceScreen() {
         {/* Flux */}
         <Card>
           <h2 className="mb-2 text-sm font-semibold">Flux de trésorerie</h2>
-          <div className="mb-2 grid grid-cols-[80px_110px_100px_90px_36px] gap-2">
+          <div className="mb-1 grid grid-cols-[70px_95px_85px_1fr_64px_36px] gap-2">
             <Inp value={flowForm.compte} onChange={(v) => setFlowForm({ ...flowForm, compte: v })} placeholder="Compte" />
             <select value={flowForm.sens} onChange={(e) => setFlowForm({ ...flowForm, sens: e.target.value })} className="rounded-lg border border-black/10 bg-white px-2 py-1 text-sm">
               <option value="encaissement">encaissement</option>
@@ -287,8 +351,30 @@ export function FinanceScreen() {
               <option value="realise">réalisé</option>
               <option value="prevu">prévu</option>
             </select>
-            <Inp value={flowForm.montant} type="number" onChange={(v) => setFlowForm({ ...flowForm, montant: v })} placeholder="Montant" />
+            <Inp
+              value={flowForm.montant}
+              type="number"
+              onChange={(v) => setFlowForm({ ...flowForm, montant: v })}
+              placeholder={enDeviseFlow ? `Montant ${flowForm.devise}` : "Montant"}
+            />
+            <select
+              value={flowForm.devise}
+              onChange={(e) => setFlowForm({ ...flowForm, devise: e.target.value })}
+              className="rounded-lg border border-black/10 bg-white px-1 text-sm outline-none focus:ring-2 focus:ring-primary/40"
+            >
+              {(rates.length ? rates : [{ devise: "XAF" } as FxRate]).map((r) => (
+                <option key={r.devise} value={r.devise}>{r.devise}</option>
+              ))}
+            </select>
             <button onClick={addFlow} className="grid place-items-center rounded-lg bg-forest text-white"><Plus className="h-4 w-4" /></button>
+          </div>
+          <div className="mb-1 min-h-[1rem] text-xs">
+            {enDeviseFlow && apercuXafFlow !== null && (
+              <span className="text-muted">≈ {fmtXaf(String(Math.round(apercuXafFlow)))} au taux {fmt(selRateFlow?.taux_vers_xaf ?? "0")}</span>
+            )}
+            {enDeviseFlow && selRateFlow && !selRateFlow.validated && (
+              <span className="text-amber-700">Taux {flowForm.devise} non validé — à saisir/valider dans « Devises / Change ».</span>
+            )}
           </div>
           <Inp value={flowForm.libelle} onChange={(v) => setFlowForm({ ...flowForm, libelle: v })} placeholder="Libellé" className="mb-2 w-full" />
           {flows.length === 0 && <p className="text-sm text-muted">Aucun flux.</p>}
@@ -302,6 +388,9 @@ export function FinanceScreen() {
                   {f.statut === "prevu" && <Clock className="h-3.5 w-3.5 text-amber-500" />}
                 </span>
                 <span className="flex items-center gap-2 text-muted">
+                  {f.devise !== "XAF" && f.montant_devise && (
+                    <span className="text-[11px]">{fmt(f.montant_devise)} {f.devise} →</span>
+                  )}
                   {fmt(f.montant_xaf)}
                   {f.sens === "decaissement" && f.statut === "prevu" && f.niveau_validation === "" && (
                     <button onClick={() => approve(f.id)} title="Approuver" className="text-emerald-600 hover:text-emerald-800"><CheckCircle2 className="h-4 w-4" /></button>
