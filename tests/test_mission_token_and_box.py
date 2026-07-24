@@ -387,3 +387,50 @@ def test_box_routes_not_mounted_in_cortex_profile() -> None:
     finally:
         os.environ["ZOLAOS_PROFILE"] = "box"
         get_settings.cache_clear()
+
+
+@pytest.mark.asyncio
+async def test_box_rejects_country_only_scope() -> None:
+    """Garde de spécificité : un scope réduit au seul tag pays → 403.
+
+    Défense en profondeur — un scope `["country:cg"]` (quasi-universel) donnerait
+    accès à tout le corpus cg de tous les schémas, y compris `rag_tenant`.
+    """
+    from zolaos.api.main import create_app
+
+    settings = get_settings()
+    factory = get_session_factory()
+    async with factory() as s:
+        mission = await _setup_mission(s)
+        mission.scope_tags = ["country:cg"]  # trop large : pays seul
+        await s.flush()
+        await s.commit()
+        mid, cab, cli, cons = (
+            mission.id,
+            mission.cabinet_tenant_id,
+            mission.client_tenant_id,
+            mission.consultant_user_id,
+        )
+
+    async with factory() as s2:
+        m = await s2.scalar(select(Mission).where(Mission.id == mid))
+        token, _ = issue_mission_token(mission=m, settings=settings)
+
+    app = create_app()
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        r = await client.post(
+            "/v1/box/rag/search",
+            headers={"Authorization": f"Bearer {token}"},
+            json={"schema": "rag_legal", "query": "x", "required_tags": [], "k": 3},
+        )
+    assert r.status_code == 403, r.text
+    assert r.json()["detail"] == "mission_scope_too_broad"
+
+    async with factory() as s3:
+        await s3.execute(text("DELETE FROM core.missions WHERE id = :m"), {"m": str(mid)})
+        await s3.execute(text("DELETE FROM core.users WHERE id = :u"), {"u": str(cons)})
+        await s3.execute(
+            text("DELETE FROM core.tenants WHERE id IN (:c1, :c2)"),
+            {"c1": str(cab), "c2": str(cli)},
+        )
+        await s3.commit()
