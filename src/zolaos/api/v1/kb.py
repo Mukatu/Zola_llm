@@ -93,9 +93,7 @@ def _tenant_filter(schema: str, principal: Principal | None) -> str | None:
     if schema != "rag_tenant":
         return None
     if principal is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="missing_credentials"
-        )
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="missing_credentials")
     return principal.tenant_id or "local"
 
 
@@ -115,7 +113,9 @@ async def catalog(
         tag_q = tag_q.where(scope)
         total_q = total_q.where(scope)
     sub = tag_q.subquery()
-    rows = (await session.execute(select(sub.c.tag, func.count().label("n")).group_by(sub.c.tag))).all()
+    rows = (
+        await session.execute(select(sub.c.tag, func.count().label("n")).group_by(sub.c.tag))
+    ).all()
 
     facettes: dict[str, list[dict[str, Any]]] = {"module": [], "secteur": [], "acte": []}
     for tag, n in rows:

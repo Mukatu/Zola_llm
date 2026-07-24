@@ -180,13 +180,9 @@ def portfolio_stats(
             "dossiers du portefeuille en grade D/E."
         )
     if par_statut.get("evaluee", 0) >= 5:
-        signaux.append(
-            f"{par_statut['evaluee']} dossiers évalués en attente de décision."
-        )
+        signaux.append(f"{par_statut['evaluee']} dossiers évalués en attente de décision.")
     if par_statut.get("accordee", 0) > 0:
-        signaux.append(
-            f"{par_statut['accordee']} dossier(s) accordé(s) non encore décaissé(s)."
-        )
+        signaux.append(f"{par_statut['accordee']} dossier(s) accordé(s) non encore décaissé(s).")
     if kyc_statut.get("a_valider", 0) >= 3:
         signaux.append(f"{kyc_statut['a_valider']} dossiers KYC à valider (conformité).")
     if par.nb_prets_en_retard > 0:

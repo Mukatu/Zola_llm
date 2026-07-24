@@ -102,7 +102,9 @@ def evaluate_kyc(profile: KycProfile) -> KycResult:
     # Blocages : concordance sanctions ou dossier incomplet → pas d'entrée en relation.
     motifs: list[str] = []
     if profile.correspondance_liste:
-        motifs.append("Concordance liste de sanctions : entrée en relation à bloquer (revue conformité).")
+        motifs.append(
+            "Concordance liste de sanctions : entrée en relation à bloquer (revue conformité)."
+        )
     if not complet:
         motifs.append("Pièces obligatoires manquantes.")
     peut_entrer = not motifs
@@ -159,9 +161,7 @@ def _fmt(v: Decimal) -> str:
     return f"{v:,.0f}".replace(",", " ")
 
 
-def evaluate_aml(
-    transactions: list[Transaction], bareme: AmlBareme | None = None
-) -> AmlResult:
+def evaluate_aml(transactions: list[Transaction], bareme: AmlBareme | None = None) -> AmlResult:
     """Détecte des motifs de vigilance AML (déterministe) sur un lot d'opérations."""
     b = bareme or AmlBareme()
     alertes: list[AmlAlert] = []

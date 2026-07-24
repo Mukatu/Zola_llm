@@ -35,8 +35,13 @@ async def test_promote_validated(monkeypatch: pytest.MonkeyPatch) -> None:
     async with sm() as s:
         s.add(
             ContribCandidate(
-                type="qa", domaine="legal.ohada", payload={"question": "q", "reponse": "r"},
-                content_hash="h1", occurrences=3, status="validated", validated_by="cur@x.cg",
+                type="qa",
+                domaine="legal.ohada",
+                payload={"question": "q", "reponse": "r"},
+                content_hash="h1",
+                occurrences=3,
+                status="validated",
+                validated_by="cur@x.cg",
             )
         )
         s.add(

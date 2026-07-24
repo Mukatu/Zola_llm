@@ -30,8 +30,10 @@ async def dev_token(
     if settings.APP_ENV != "dev":
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="not_found")
     user = (
-        await session.execute(select(User).where(User.is_active.is_(True)).limit(1))
-    ).scalars().first()
+        (await session.execute(select(User).where(User.is_active.is_(True)).limit(1)))
+        .scalars()
+        .first()
+    )
     if user is None:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="no_active_user"

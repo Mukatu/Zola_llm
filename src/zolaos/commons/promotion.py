@@ -37,9 +37,7 @@ async def _promote_learned_rule(session: AsyncSession, cand: ContribCandidate) -
         return
     existing = (
         await session.execute(
-            select(LearnedRule).where(
-                LearnedRule.domaine == cand.domaine, LearnedRule.cle == cle
-            )
+            select(LearnedRule).where(LearnedRule.domaine == cand.domaine, LearnedRule.cle == cle)
         )
     ).scalar_one_or_none()
     if existing is None:
@@ -63,9 +61,7 @@ async def promote_validated(session: AsyncSession, *, limit: int = 500) -> dict[
     cands = (
         (
             await session.execute(
-                select(ContribCandidate)
-                .where(ContribCandidate.status == "validated")
-                .limit(limit)
+                select(ContribCandidate).where(ContribCandidate.status == "validated").limit(limit)
             )
         )
         .scalars()

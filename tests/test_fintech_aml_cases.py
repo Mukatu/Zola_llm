@@ -100,14 +100,20 @@ async def test_aml_case_workflow_declaration(tmp_path) -> None:  # type: ignore[
         assert r.json()["detail"] == "declaration_ref_requise"
 
         # Statut invalide → 422.
-        r = await ac.post(f"/v1/fintech/aml-cases/{cid}/decision", json={"statut": "n_importe_quoi"})
+        r = await ac.post(
+            f"/v1/fintech/aml-cases/{cid}/decision", json={"statut": "n_importe_quoi"}
+        )
         assert r.status_code == 422
 
         # Déclaration de soupçon avec référence → OK.
         done = (
             await ac.post(
                 f"/v1/fintech/aml-cases/{cid}/decision",
-                json={"statut": "declaree", "declaration_ref": "ANIF-2026-014", "commentaire": "SAR"},
+                json={
+                    "statut": "declaree",
+                    "declaration_ref": "ANIF-2026-014",
+                    "commentaire": "SAR",
+                },
             )
         ).json()
         assert done["statut"] == "declaree"

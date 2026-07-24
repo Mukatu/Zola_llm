@@ -34,9 +34,26 @@ def _payload(query: str) -> str:
 
 
 _GREETINGS = {
-    "bonjour", "bonsoir", "bonne journee", "bonne soiree", "salut", "coucou",
-    "cc", "hello", "hi", "hey", "yo", "allo", "hola", "re", "rebonjour",
-    "ca va", "comment ca va", "comment vas tu", "comment allez vous", "tu vas bien",
+    "bonjour",
+    "bonsoir",
+    "bonne journee",
+    "bonne soiree",
+    "salut",
+    "coucou",
+    "cc",
+    "hello",
+    "hi",
+    "hey",
+    "yo",
+    "allo",
+    "hola",
+    "re",
+    "rebonjour",
+    "ca va",
+    "comment ca va",
+    "comment vas tu",
+    "comment allez vous",
+    "tu vas bien",
 }
 _THANKS = {"merci", "merci beaucoup", "merci bien", "thanks", "thank you"}
 _BYE = {"au revoir", "aurevoir", "a bientot", "bonne continuation", "bye", "bonne fin de journee"}

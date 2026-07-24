@@ -43,7 +43,9 @@ async def test_lookup_exact_et_sous_chaine() -> None:
         await s.commit()
         assert [r.valeur for r in await learned.lookup(s, "erp.compta", "Loyer bureau")] == ["622"]
         # sous-chaîne : la clé apprise est contenue dans un libellé plus long
-        assert [r.valeur for r in await learned.lookup(s, "erp.compta", "Loyer bureau mensuel")] == ["622"]
+        assert [
+            r.valeur for r in await learned.lookup(s, "erp.compta", "Loyer bureau mensuel")
+        ] == ["622"]
         assert await learned.lookup(s, "erp.compta", "Achat carburant") == []
     await engine.dispose()
 
@@ -74,9 +76,13 @@ async def test_promotion_route_vers_learned_rules(monkeypatch: pytest.MonkeyPatc
     async with sm() as s:
         s.add(
             ContribCandidate(
-                type="categorisation", domaine="erp.compta",
+                type="categorisation",
+                domaine="erp.compta",
                 payload={"domaine": "erp.compta", "cle": "loyer bureau", "valeur": "622"},
-                content_hash="cat1", occurrences=3, status="validated", validated_by="cur@x.cg",
+                content_hash="cat1",
+                occurrences=3,
+                status="validated",
+                validated_by="cur@x.cg",
             )
         )
         await s.commit()

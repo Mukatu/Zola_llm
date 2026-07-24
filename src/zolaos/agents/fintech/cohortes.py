@@ -44,9 +44,7 @@ def _pct(part: Decimal, total: Decimal) -> Decimal:
     return (part / total * _CENT).quantize(_Q, rounding=ROUND_HALF_UP)
 
 
-def cohortes(
-    apps: Sequence[Any], installments: Sequence[Any], as_of: Any
-) -> list[CohortStat]:
+def cohortes(apps: Sequence[Any], installments: Sequence[Any], as_of: Any) -> list[CohortStat]:
     """Construit les cohortes par mois de décaissement (déterministe)."""
     inst_by_app: dict[str, list[Any]] = {}
     for e in installments:

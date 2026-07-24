@@ -50,16 +50,25 @@ async def test_cockpit_enrichi(tmp_path) -> None:  # type: ignore[no-untyped-def
             s.add_all(
                 [
                     PayslipRecord(
-                        tenant_id="local", employee_matricule="M1", periode="2026-05",
-                        brut_xaf=Decimal("100000"), cout_employeur_xaf=Decimal("130000"),
+                        tenant_id="local",
+                        employee_matricule="M1",
+                        periode="2026-05",
+                        brut_xaf=Decimal("100000"),
+                        cout_employeur_xaf=Decimal("130000"),
                     ),
                     PayslipRecord(
-                        tenant_id="local", employee_matricule="M1", periode="2026-06",
-                        brut_xaf=Decimal("120000"), cout_employeur_xaf=Decimal("156000"),
+                        tenant_id="local",
+                        employee_matricule="M1",
+                        periode="2026-06",
+                        brut_xaf=Decimal("120000"),
+                        cout_employeur_xaf=Decimal("156000"),
                     ),
                     PayslipRecord(
-                        tenant_id="local", employee_matricule="M2", periode="2026-06",
-                        brut_xaf=Decimal("80000"), cout_employeur_xaf=Decimal("104000"),
+                        tenant_id="local",
+                        employee_matricule="M2",
+                        periode="2026-06",
+                        brut_xaf=Decimal("80000"),
+                        cout_employeur_xaf=Decimal("104000"),
                     ),
                 ]
             )

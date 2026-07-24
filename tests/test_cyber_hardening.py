@@ -98,7 +98,10 @@ async def test_audit_persiste_et_registre(tmp_path) -> None:  # type: ignore[no-
         rec = (
             await ac.post(
                 "/v1/cyber/audits",
-                json={"cible": "Serveur ERP", "config": {"mfa_admin": True, "sauvegardes_testees": False}},
+                json={
+                    "cible": "Serveur ERP",
+                    "config": {"mfa_admin": True, "sauvegardes_testees": False},
+                },
             )
         ).json()
         assert rec["cible"] == "Serveur ERP"

@@ -104,9 +104,7 @@ class FindingPatch(BaseModel):
 # ------------------------------------------------------------------ obligations
 
 
-@router.post(
-    "/obligations", status_code=status.HTTP_201_CREATED, summary="Créer une obligation"
-)
+@router.post("/obligations", status_code=status.HTTP_201_CREATED, summary="Créer une obligation")
 async def create_obligation(
     body: ObligationIn, tenant_id: str = "local", session: AsyncSession = Depends(get_session)
 ) -> dict[str, Any]:

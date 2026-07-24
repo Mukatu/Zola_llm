@@ -144,6 +144,8 @@ async def test_grc_patch_delete_404(tmp_path) -> None:  # type: ignore[no-untype
         ).json()
         assert patched["statut"] == "suspendue"
         assert (await ac.delete(f"/v1/grc/obligations/{obl['id']}")).status_code == 200
-        assert (await ac.patch(f"/v1/grc/obligations/{obl['id']}", json={"statut": "active"})).status_code == 404
+        assert (
+            await ac.patch(f"/v1/grc/obligations/{obl['id']}", json={"statut": "active"})
+        ).status_code == 404
         assert (await ac.delete("/v1/grc/controls/inconnu")).status_code == 404
         assert (await ac.delete("/v1/grc/findings/inconnu")).status_code == 404

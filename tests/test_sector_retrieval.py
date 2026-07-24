@@ -90,9 +90,7 @@ async def test_sector_boost_keeps_right_convention_drops_others(
     assert "convention_mines" not in ids
 
 
-async def test_no_sector_falls_back_to_plain_retrieve(
-    settings: Settings, monkeypatch
-) -> None:
+async def test_no_sector_falls_back_to_plain_retrieve(settings: Settings, monkeypatch) -> None:
     """Sans secteur nommé : un seul retrieve, aucune double détente."""
     calls: list[list[str]] = []
 
@@ -115,9 +113,7 @@ async def test_no_sector_falls_back_to_plain_retrieve(
     assert not any(t.startswith("secteur:") for t in calls[0])
 
 
-async def test_non_sector_aware_agent_ignores_sectors(
-    settings: Settings, monkeypatch
-) -> None:
+async def test_non_sector_aware_agent_ignores_sectors(settings: Settings, monkeypatch) -> None:
     """Un agent non `sector_aware` ne déclenche jamais le boost, même si un
     secteur est nommé (ex. « bancaire » dans une question fintech)."""
     calls: list[list[str]] = []
@@ -137,8 +133,6 @@ async def test_non_sector_aware_agent_ignores_sectors(
     monkeypatch.setattr(rag_agent_mod, "retrieve", fake_retrieve)
     agent = _Plain(client=_DummyClient(), settings=settings)
 
-    await agent._primary_retrieve(
-        query="supervision bancaire des EMF", tags=["country:cg"], k=6
-    )
+    await agent._primary_retrieve(query="supervision bancaire des EMF", tags=["country:cg"], k=6)
 
     assert len(calls) == 1  # pas de double détente

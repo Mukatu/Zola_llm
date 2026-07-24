@@ -170,7 +170,9 @@ def score_credit(req: CreditRequest, bareme: ScoringBareme | None = None) -> Cre
     )
 
     # 2) Ancienneté de l'activité.
-    f_anc = min(Decimal(1), Decimal(req.anciennete_activite_mois) / Decimal(b.anciennete_cible_mois))
+    f_anc = min(
+        Decimal(1), Decimal(req.anciennete_activite_mois) / Decimal(b.anciennete_cible_mois)
+    )
     facteurs.append(
         Facteur(
             code="anciennete",
@@ -198,12 +200,16 @@ def score_credit(req: CreditRequest, bareme: ScoringBareme | None = None) -> Cre
             sens="positif" if req.incidents_paiement == 0 else "negatif",
             valeur=f"{req.incidents_paiement} incident(s)",
             contribution=int(_q0(f_inc * b.poids_incidents)),
-            commentaire="Aucun incident connu." if req.incidents_paiement == 0 else "Incidents passés.",
+            commentaire=(
+                "Aucun incident connu." if req.incidents_paiement == 0 else "Incidents passés."
+            ),
         )
     )
 
     # 4) Apport / épargne.
-    ratio_apport = (req.epargne_xaf / req.montant_demande_xaf) if req.montant_demande_xaf > 0 else _ZERO
+    ratio_apport = (
+        (req.epargne_xaf / req.montant_demande_xaf) if req.montant_demande_xaf > 0 else _ZERO
+    )
     f_app = min(Decimal(1), ratio_apport / b.apport_cible) if b.apport_cible > 0 else _ZERO
     facteurs.append(
         Facteur(
@@ -241,9 +247,11 @@ def score_credit(req: CreditRequest, bareme: ScoringBareme | None = None) -> Cre
             sens="positif" if f_stab >= Decimal("0.6") else "negatif",
             valeur=req.type_emploi,
             contribution=int(_q0(f_stab * b.poids_stabilite)),
-            commentaire="Bonus régularité Mobile Money."
-            if req.flux_mobile_money_mensuel_xaf
-            else "Source de revenu.",
+            commentaire=(
+                "Bonus régularité Mobile Money."
+                if req.flux_mobile_money_mensuel_xaf
+                else "Source de revenu."
+            ),
         )
     )
 

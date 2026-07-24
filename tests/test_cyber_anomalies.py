@@ -97,7 +97,12 @@ async def _client(tmp_path):  # type: ignore[no-untyped-def]
 
 
 _LOGS = [
-    {"horodatage": "2026-07-24T10:0%d:00" % m, "type": "auth_failure", "utilisateur": "alice", "source_ip": "10.0.0.1"}
+    {
+        "horodatage": "2026-07-24T10:0%d:00" % m,
+        "type": "auth_failure",
+        "utilisateur": "alice",
+        "source_ip": "10.0.0.1",
+    }
     for m in range(6)
 ]
 
@@ -112,9 +117,7 @@ async def test_anomalies_stateless(tmp_path) -> None:  # type: ignore[no-untyped
 async def test_detection_persistee_et_workflow(tmp_path) -> None:  # type: ignore[no-untyped-def]
     async with _client(tmp_path) as ac:
         rec = (
-            await ac.post(
-                "/v1/cyber/detections", json={"cible": "SSH prod", "events": _LOGS}
-            )
+            await ac.post("/v1/cyber/detections", json={"cible": "SSH prod", "events": _LOGS})
         ).json()
         assert rec["statut"] == "a_examiner"
         assert rec["niveau"] == "alerte"

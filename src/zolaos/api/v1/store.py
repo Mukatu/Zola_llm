@@ -3881,9 +3881,7 @@ async def _fx_overrides(
     return overrides, meta
 
 
-async def _fx_rates_view(
-    session: AsyncSession, *, tenant_id: str, country: str
-) -> dict[str, Any]:
+async def _fx_rates_view(session: AsyncSession, *, tenant_id: str, country: str) -> dict[str, Any]:
     seed = load_fx_seed(country)
     overrides, meta = await _fx_overrides(session, tenant_id, country)
     eff = effective_rates(seed, overrides)
@@ -3919,7 +3917,9 @@ async def get_fx_rates(
     return await _fx_rates_view(session, tenant_id=tenant_id, country=country)
 
 
-@router.put("/fx/rates/{devise}", summary="Saisir/éditer un taux (override) — re-validation requise")
+@router.put(
+    "/fx/rates/{devise}", summary="Saisir/éditer un taux (override) — re-validation requise"
+)
 async def edit_fx_rate(
     devise: str,
     body: FxRateEditIn,

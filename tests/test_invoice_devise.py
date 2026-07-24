@@ -109,7 +109,9 @@ async def test_facture_usd_apres_gouvernance(tmp_path) -> None:  # type: ignore[
     """Une fois le taux USD saisi et validé, la facture USD se normalise."""
     async with _client(tmp_path) as ac:
         await ac.put("/v1/erp/fx/rates/USD", json={"taux_vers_xaf": "600", "source": "test"})
-        await ac.post("/v1/erp/fx/rates/USD/validate", json={"validated": True, "validated_by": "DAF"})
+        await ac.post(
+            "/v1/erp/fx/rates/USD/validate", json={"validated": True, "validated_by": "DAF"}
+        )
         rec = (
             await ac.post(
                 "/v1/erp/invoices",

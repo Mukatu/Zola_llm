@@ -112,15 +112,17 @@ async def _upsert_candidate(
     """Insère (ou corrobore) un candidat en quarantaine. Retourne l'état."""
     ch = content_hash(payload)
     existing = (
-        await session.execute(
-            select(ContribCandidate).where(ContribCandidate.content_hash == ch)
-        )
+        await session.execute(select(ContribCandidate).where(ContribCandidate.content_hash == ch))
     ).scalar_one_or_none()
     if existing is None:
         session.add(
             ContribCandidate(
-                type=ctype, domaine=domaine, payload=payload, content_hash=ch,
-                origins=[oh], occurrences=1,
+                type=ctype,
+                domaine=domaine,
+                payload=payload,
+                content_hash=ch,
+                origins=[oh],
+                occurrences=1,
             )
         )
         return "nouveau"

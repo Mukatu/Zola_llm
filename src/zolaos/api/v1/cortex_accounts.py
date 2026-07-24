@@ -72,8 +72,10 @@ async def list_accounts(
     session: AsyncSession = Depends(get_session),
 ) -> list[AccountOut]:
     rows = (
-        await session.execute(select(User).order_by(User.created_at.desc()).limit(500))
-    ).scalars().all()
+        (await session.execute(select(User).order_by(User.created_at.desc()).limit(500)))
+        .scalars()
+        .all()
+    )
     return [_to_out(u) for u in rows]
 
 

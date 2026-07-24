@@ -55,7 +55,9 @@ async def run_box_tunnel_agent(settings: Settings) -> None:
                     json.dumps({"type": "hello", "tenant_id": tenant_id, "credential": credential})
                 )
                 _log.info("tunnel.agent.connected", cortex=url, tenant_id=tenant_id)
-                async with httpx.AsyncClient(base_url=local_base, timeout=httpx.Timeout(30.0)) as http:
+                async with httpx.AsyncClient(
+                    base_url=local_base, timeout=httpx.Timeout(30.0)
+                ) as http:
                     async for raw in ws:
                         await _handle_frame(ws, http, raw)
         except asyncio.CancelledError:
@@ -87,9 +89,21 @@ async def _handle_frame(ws: Any, http: httpx.AsyncClient, raw: str | bytes) -> N
             },
         )
         if r.status_code >= 400:
-            await ws.send(json.dumps({"type": "error", "req_id": rid, "detail": f"box_{r.status_code}: {r.text[:200]}"}))
+            await ws.send(
+                json.dumps(
+                    {
+                        "type": "error",
+                        "req_id": rid,
+                        "detail": f"box_{r.status_code}: {r.text[:200]}",
+                    }
+                )
+            )
             return
         data = r.json()
-        await ws.send(json.dumps({"type": "rag_result", "req_id": rid, "matches": data.get("matches", [])}))
+        await ws.send(
+            json.dumps({"type": "rag_result", "req_id": rid, "matches": data.get("matches", [])})
+        )
     except Exception as exc:
-        await ws.send(json.dumps({"type": "error", "req_id": rid, "detail": f"box_local_error: {exc}"}))
+        await ws.send(
+            json.dumps({"type": "error", "req_id": rid, "detail": f"box_local_error: {exc}"})
+        )

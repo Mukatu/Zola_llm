@@ -236,15 +236,11 @@ def auditer(config: ConfigAudit | Mapping[str, bool | None]) -> AuditResult:
         if evalues > 0
         else Decimal("0")
     )
-    niveau = (
-        next(k for k, v in _RANG_SEVERITE.items() if v == pire) if pire >= 0 else "aucun"
-    )
+    niveau = next(k for k, v in _RANG_SEVERITE.items() if v == pire) if pire >= 0 else "aucun"
 
     # Priorité : non-conformes d'abord (par sévérité décroissante), puis à vérifier.
     ordre_statut = {"non_conforme": 0, "a_verifier": 1, "conforme": 2}
-    findings.sort(
-        key=lambda f: (ordre_statut[f.statut], -_RANG_SEVERITE[f.severite])
-    )
+    findings.sort(key=lambda f: (ordre_statut[f.statut], -_RANG_SEVERITE[f.severite]))
 
     return AuditResult(
         score_conformite=score,

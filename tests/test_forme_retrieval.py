@@ -54,9 +54,7 @@ def test_detect_forme_hits_and_misses() -> None:
     assert detect_forme_juridique("quel est le capital social minimum ?") is None
 
 
-async def test_forme_boost_keeps_sarl_drops_cooperative(
-    settings: Settings, monkeypatch
-) -> None:
+async def test_forme_boost_keeps_sarl_drops_cooperative(settings: Settings, monkeypatch) -> None:
     """Boost SARL : articles AUSCGIE SARL + droit commun, PAS les coopératives."""
 
     async def fake_retrieve(*, query, schema, required_tags, k):  # type: ignore[no-untyped-def]
@@ -87,9 +85,7 @@ async def test_forme_boost_keeps_sarl_drops_cooperative(
     assert "AUSCOOP-art-42" not in ids
 
 
-async def test_no_forme_falls_back_to_plain_retrieve(
-    settings: Settings, monkeypatch
-) -> None:
+async def test_no_forme_falls_back_to_plain_retrieve(settings: Settings, monkeypatch) -> None:
     """Sans forme nommée : un seul retrieve, aucune double détente."""
     calls: list[list[str]] = []
 

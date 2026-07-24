@@ -54,9 +54,7 @@ def load_fx_seed(country: str = "cg") -> dict[str, Any]:
     return data
 
 
-def effective_rates(
-    seed: Mapping[str, Any], overrides: Mapping[str, FxRate]
-) -> dict[str, FxRate]:
+def effective_rates(seed: Mapping[str, Any], overrides: Mapping[str, FxRate]) -> dict[str, FxRate]:
     """Fusionne graine + overrides tenant. XAF est toujours l'identité validée.
 
     Un override tenant (saisi et gouverné par le cabinet) prévaut sur la graine

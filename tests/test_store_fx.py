@@ -108,13 +108,17 @@ async def test_fx_rates_seed_defaults(tmp_path) -> None:  # type: ignore[no-unty
 async def test_fx_governance_cycle(tmp_path) -> None:  # type: ignore[no-untyped-def]
     async with _client(tmp_path) as ac:
         # Convertir USD non validé → 409 (abstention).
-        r = await ac.get("/v1/erp/fx/convert", params={"montant": "100", "de": "USD", "vers": "XAF"})
+        r = await ac.get(
+            "/v1/erp/fx/convert", params={"montant": "100", "de": "USD", "vers": "XAF"}
+        )
         assert r.status_code == 409
         assert r.json()["detail"] == "taux_non_valide:USD"
 
         # Saisir un taux USD → override non validé.
         edited = (
-            await ac.put("/v1/erp/fx/rates/USD", json={"taux_vers_xaf": "600", "source": "BEAC test"})
+            await ac.put(
+                "/v1/erp/fx/rates/USD", json={"taux_vers_xaf": "600", "source": "BEAC test"}
+            )
         ).json()
         usd = next(x for x in edited["rates"] if x["devise"] == "USD")
         assert usd["source_donnees"] == "tenant"
@@ -122,19 +126,27 @@ async def test_fx_governance_cycle(tmp_path) -> None:  # type: ignore[no-untyped
         assert usd["taux_vers_xaf"] == "600.000000"
 
         # Toujours refusé tant que non validé.
-        r = await ac.get("/v1/erp/fx/convert", params={"montant": "100", "de": "USD", "vers": "XAF"})
+        r = await ac.get(
+            "/v1/erp/fx/convert", params={"montant": "100", "de": "USD", "vers": "XAF"}
+        )
         assert r.status_code == 409
 
         # Valider → conversion autorisée.
-        await ac.post("/v1/erp/fx/rates/USD/validate", json={"validated": True, "validated_by": "DAF"})
+        await ac.post(
+            "/v1/erp/fx/rates/USD/validate", json={"validated": True, "validated_by": "DAF"}
+        )
         conv = (
-            await ac.get("/v1/erp/fx/convert", params={"montant": "100", "de": "USD", "vers": "XAF"})
+            await ac.get(
+                "/v1/erp/fx/convert", params={"montant": "100", "de": "USD", "vers": "XAF"}
+            )
         ).json()
         assert conv["resultat"] == "60000.00"
 
         # Éditer à nouveau → le verrou retombe (re-validation requise).
         await ac.put("/v1/erp/fx/rates/USD", json={"taux_vers_xaf": "610", "source": "maj"})
-        r = await ac.get("/v1/erp/fx/convert", params={"montant": "100", "de": "USD", "vers": "XAF"})
+        r = await ac.get(
+            "/v1/erp/fx/convert", params={"montant": "100", "de": "USD", "vers": "XAF"}
+        )
         assert r.status_code == 409
 
 

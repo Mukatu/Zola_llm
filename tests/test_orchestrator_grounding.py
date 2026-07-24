@@ -101,9 +101,7 @@ async def test_regulated_pole_without_corpus_refuses_instead_of_inventing(
     assert result.responses[0].grounding == "abstained"
 
 
-async def test_general_pole_still_answers_without_corpus(
-    settings: Settings, monkeypatch
-) -> None:
+async def test_general_pole_still_answers_without_corpus(settings: Settings, monkeypatch) -> None:
     """Pas d'agent RAG pour `general` → réponse libre légitime, pas d'abstention."""
     _empty_corpus(monkeypatch)
     decision = RouteDecision(pole=Pole.GENERAL, module=None, confidence=0.9, complexity="simple")
@@ -117,16 +115,18 @@ async def test_general_pole_still_answers_without_corpus(
     assert result.responses[0].grounding == "unsourced"
 
 
-async def test_stream_path_applies_the_same_guardrail(
-    settings: Settings, monkeypatch
-) -> None:
+async def test_stream_path_applies_the_same_guardrail(settings: Settings, monkeypatch) -> None:
     """Le streaming ne doit pas être une porte dérobée contournant l'abstention."""
     _empty_corpus(monkeypatch)
     decision = RouteDecision(pole=Pole.FINTECH, module=None, confidence=0.9, complexity="simple")
     orch = _orchestrator(settings, decision, monkeypatch)
 
     text = "".join(
-        [ev["text"] async for ev in orch.stream("Quel est le seuil de déclaration ?") if ev["type"] == "token"]
+        [
+            ev["text"]
+            async for ev in orch.stream("Quel est le seuil de déclaration ?")
+            if ev["type"] == "token"
+        ]
     )
 
     assert "Je n'ai aucune source" in text
@@ -141,6 +141,7 @@ async def test_safety_net_rescues_question_routed_to_pole_without_corpus(
     Sans filet, elle tombait sur la brigade sans source alors que le règlement est
     dans rag_fintech. Le filet balaie les corpus publics et ancre la réponse.
     """
+
     # L'agent direct ne trouve rien (grc n'a de toute façon pas d'agent), mais le
     # balayage multi-schéma remonte un extrait solide dans rag_fintech.
     async def multi(*, query, schemas, required_tags, k):  # type: ignore[no-untyped-def]
@@ -188,6 +189,7 @@ async def test_safety_net_gives_up_below_confidence(settings: Settings, monkeypa
     Le seuil `min_confidence` de l'agent générique (0.5) tranche : un match à 0.3
     ne doit pas produire une réponse d'apparence sourcée.
     """
+
     async def multi(*, query, schemas, required_tags, k):  # type: ignore[no-untyped-def]
         _ = query, schemas, required_tags, k
         return {"rag_fintech": [_match("cemac_microfinance_2017", sim=0.3)]}

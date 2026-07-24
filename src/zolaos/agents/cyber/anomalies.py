@@ -151,7 +151,9 @@ def detecter_anomalies(
 
     # 3) Accès hors horaires ouvrés.
     hors = [
-        e for e in evs if e.horodatage.hour < p.heure_ouverture or e.horodatage.hour >= p.heure_fermeture
+        e
+        for e in evs
+        if e.horodatage.hour < p.heure_ouverture or e.horodatage.hour >= p.heure_fermeture
     ]
     if hors:
         anomalies.append(
@@ -206,7 +208,9 @@ def detecter_anomalies(
             )
 
     pire = max((_RANG_NIVEAU[a.niveau] for a in anomalies), default=-1)
-    niveau = next((k for k, v in _RANG_NIVEAU.items() if v == pire), "aucun") if pire >= 0 else "aucun"
+    niveau = (
+        next((k for k, v in _RANG_NIVEAU.items() if v == pire), "aucun") if pire >= 0 else "aucun"
+    )
     anomalies.sort(key=lambda a: -_RANG_NIVEAU[a.niveau])
 
     horodatages = [e.horodatage for e in evs]

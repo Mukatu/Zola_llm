@@ -235,7 +235,9 @@ def test_aml_bareme_personnalise() -> None:
 
 async def test_application_crud_et_decision(tmp_path) -> None:  # type: ignore[no-untyped-def]
     async with _client(tmp_path) as ac:
-        r = await ac.post("/v1/fintech/applications", json={"client": "Jean M.", "dossier": _DOSSIER})
+        r = await ac.post(
+            "/v1/fintech/applications", json={"client": "Jean M.", "dossier": _DOSSIER}
+        )
         assert r.status_code == 201, r.text
         app_id = r.json()["id"]
         assert r.json()["decision"] == "accorde"
@@ -252,12 +254,17 @@ async def test_application_crud_et_decision(tmp_path) -> None:  # type: ignore[n
         got = await ac.get(f"/v1/fintech/applications/{app_id}")
         assert got.status_code == 200
 
-        dec = await ac.post(f"/v1/fintech/applications/{app_id}/decision", json={"statut": "accordee", "commentaire": "OK CA"})
+        dec = await ac.post(
+            f"/v1/fintech/applications/{app_id}/decision",
+            json={"statut": "accordee", "commentaire": "OK CA"},
+        )
         assert dec.status_code == 200
         assert dec.json()["statut"] == "accordee"
         assert dec.json()["commentaire"] == "OK CA"
 
-        bad = await ac.post(f"/v1/fintech/applications/{app_id}/decision", json={"statut": "n_importe_quoi"})
+        bad = await ac.post(
+            f"/v1/fintech/applications/{app_id}/decision", json={"statut": "n_importe_quoi"}
+        )
         assert bad.status_code == 422
 
         d = await ac.delete(f"/v1/fintech/applications/{app_id}")
@@ -267,9 +274,22 @@ async def test_application_crud_et_decision(tmp_path) -> None:  # type: ignore[n
 
 async def test_application_isolation_tenant(tmp_path) -> None:  # type: ignore[no-untyped-def]
     async with _client(tmp_path) as ac:
-        await ac.post("/v1/fintech/applications", params={"tenant_id": "A"}, json={"client": "A", "dossier": _DOSSIER})
-        assert len((await ac.get("/v1/fintech/applications", params={"tenant_id": "A"})).json()["applications"]) == 1
-        assert (await ac.get("/v1/fintech/applications", params={"tenant_id": "B"})).json()["applications"] == []
+        await ac.post(
+            "/v1/fintech/applications",
+            params={"tenant_id": "A"},
+            json={"client": "A", "dossier": _DOSSIER},
+        )
+        assert (
+            len(
+                (await ac.get("/v1/fintech/applications", params={"tenant_id": "A"})).json()[
+                    "applications"
+                ]
+            )
+            == 1
+        )
+        assert (await ac.get("/v1/fintech/applications", params={"tenant_id": "B"})).json()[
+            "applications"
+        ] == []
 
 
 async def test_kyc_record_persistance_et_decision(tmp_path) -> None:  # type: ignore[no-untyped-def]
@@ -282,7 +302,11 @@ async def test_kyc_record_persistance_et_decision(tmp_path) -> None:  # type: ig
         rec_id = r.json()["id"]
         assert r.json()["complet"] is False
         assert r.json()["statut"] == "a_valider"
-        assert set(r.json()["resultat"]["pieces_manquantes"]) == {"niu", "statuts", "piece_dirigeant"}
+        assert set(r.json()["resultat"]["pieces_manquantes"]) == {
+            "niu",
+            "statuts",
+            "piece_dirigeant",
+        }
 
         dec = await ac.post(f"/v1/fintech/kyc-records/{rec_id}/decision", json={"statut": "refuse"})
         assert dec.status_code == 200
@@ -338,11 +362,20 @@ def test_portfolio_stats_agregation() -> None:
 async def test_portfolio_endpoint(tmp_path) -> None:  # type: ignore[no-untyped-def]
     async with _client(tmp_path) as ac:
         # 2 dossiers évalués (accorde), on en décaisse un.
-        a1 = (await ac.post("/v1/fintech/applications", json={"client": "A", "dossier": _DOSSIER})).json()
+        a1 = (
+            await ac.post("/v1/fintech/applications", json={"client": "A", "dossier": _DOSSIER})
+        ).json()
         await ac.post("/v1/fintech/applications", json={"client": "B", "dossier": _DOSSIER})
         await ac.post(f"/v1/fintech/applications/{a1['id']}/decision", json={"statut": "accordee"})
         await ac.post(f"/v1/fintech/applications/{a1['id']}/decision", json={"statut": "decaissee"})
-        await ac.post("/v1/fintech/kyc-records", json={"nom": "K", "type_client": "particulier", "pieces_fournies": ["piece_identite", "justificatif_domicile"]})
+        await ac.post(
+            "/v1/fintech/kyc-records",
+            json={
+                "nom": "K",
+                "type_client": "particulier",
+                "pieces_fournies": ["piece_identite", "justificatif_domicile"],
+            },
+        )
 
         p = (await ac.get("/v1/fintech/portfolio")).json()
         assert p["nb_dossiers"] == 2
@@ -396,11 +429,17 @@ def test_portfolio_par() -> None:
 
 async def test_disburse_schedule_pay(tmp_path) -> None:  # type: ignore[no-untyped-def]
     async with _client(tmp_path) as ac:
-        aid = (await ac.post("/v1/fintech/applications", json={"client": "X", "dossier": _DOSSIER})).json()["id"]
+        aid = (
+            await ac.post("/v1/fintech/applications", json={"client": "X", "dossier": _DOSSIER})
+        ).json()["id"]
         # décaissement réservé aux dossiers accordés
-        assert (await ac.post(f"/v1/fintech/applications/{aid}/disburse", json={})).status_code == 409
+        assert (
+            await ac.post(f"/v1/fintech/applications/{aid}/disburse", json={})
+        ).status_code == 409
         await ac.post(f"/v1/fintech/applications/{aid}/decision", json={"statut": "accordee"})
-        d = await ac.post(f"/v1/fintech/applications/{aid}/disburse", json={"date_decaissement": "2026-01-15"})
+        d = await ac.post(
+            f"/v1/fintech/applications/{aid}/disburse", json={"date_decaissement": "2026-01-15"}
+        )
         assert d.status_code == 200
         assert len(d.json()["echeances"]) == 24
         # dossier passé à décaissé
@@ -475,9 +514,13 @@ def test_cohortes() -> None:
 
 async def test_cohortes_endpoint(tmp_path) -> None:  # type: ignore[no-untyped-def]
     async with _client(tmp_path) as ac:
-        aid = (await ac.post("/v1/fintech/applications", json={"client": "C", "dossier": _DOSSIER})).json()["id"]
+        aid = (
+            await ac.post("/v1/fintech/applications", json={"client": "C", "dossier": _DOSSIER})
+        ).json()["id"]
         await ac.post(f"/v1/fintech/applications/{aid}/decision", json={"statut": "accordee"})
-        await ac.post(f"/v1/fintech/applications/{aid}/disburse", json={"date_decaissement": "2026-01-15"})
+        await ac.post(
+            f"/v1/fintech/applications/{aid}/disburse", json={"date_decaissement": "2026-01-15"}
+        )
         cos = (await ac.get("/v1/fintech/cohortes")).json()["cohortes"]
         assert len(cos) == 1
         assert cos[0]["periode"] == "2026-01"
@@ -524,10 +567,32 @@ async def test_import_applications(tmp_path) -> None:  # type: ignore[no-untyped
 
         data = _xlsx(
             [
-                ["Alpha", "800000", "100000", "1500000", "24", "36", "0", "400000", "1500000", "salarie_public"],
+                [
+                    "Alpha",
+                    "800000",
+                    "100000",
+                    "1500000",
+                    "24",
+                    "36",
+                    "0",
+                    "400000",
+                    "1500000",
+                    "salarie_public",
+                ],
                 ["Beta", "200000", "150000", "2000000", "12", "6", "2", "0", "0", "informel"],
                 ["", "", "", "", "", "", "", "", "", ""],  # ligne vide → ignorée
-                ["Delta", "500000", "50000", "0", "12", "10", "0", "0", "0", "informel"],  # montant 0 → rejet
+                [
+                    "Delta",
+                    "500000",
+                    "50000",
+                    "0",
+                    "12",
+                    "10",
+                    "0",
+                    "0",
+                    "0",
+                    "informel",
+                ],  # montant 0 → rejet
             ]
         )
         dr = (await ac.post("/v1/fintech/import/applications?dry_run=true", content=data)).json()

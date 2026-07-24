@@ -1726,9 +1726,7 @@ class FxRateRecord(StoreBase):
             "tenant_id": self.tenant_id,
             "country": self.country,
             "devise": self.devise,
-            "taux_vers_xaf": (
-                str(self.taux_vers_xaf) if self.taux_vers_xaf is not None else None
-            ),
+            "taux_vers_xaf": (str(self.taux_vers_xaf) if self.taux_vers_xaf is not None else None),
             "validated": self.validated,
             "validated_by": self.validated_by,
             "source": self.source,
@@ -2220,7 +2218,9 @@ class ControlRecord(StoreBase):
     tenant_id: Mapped[str] = mapped_column(String(64), index=True)
     obligation_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
     intitule: Mapped[str] = mapped_column(String(300))
-    type_controle: Mapped[str] = mapped_column(String(12), default="preventif")  # preventif|detectif
+    type_controle: Mapped[str] = mapped_column(
+        String(12), default="preventif"
+    )  # preventif|detectif
     frequence: Mapped[str] = mapped_column(String(16), default="ponctuel")
     responsable: Mapped[str] = mapped_column(String(120), default="")
     derniere_execution: Mapped[date | None] = mapped_column(Date, nullable=True)

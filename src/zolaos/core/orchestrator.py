@@ -105,9 +105,7 @@ class Orchestrator:
         if self._core_client is None:
             return {}
         levels = {
-            lvl.strip()
-            for lvl in self._settings.LLM_CORE_ON_COMPLEXITY.split(",")
-            if lvl.strip()
+            lvl.strip() for lvl in self._settings.LLM_CORE_ON_COMPLEXITY.split(",") if lvl.strip()
         }
         if deep or decision.complexity in levels:
             return {"client": self._core_client, "model": self._settings.LLM_MODEL_CORE}
@@ -200,7 +198,12 @@ class Orchestrator:
 
         # Étape 0 : salutation / bavardage → réponse conversationnelle immédiate.
         if (reply := smalltalk_reply(user_query)) is not None:
-            yield {"type": "routing", "pole": Pole.GENERAL.value, "module": None, "complexity": "simple"}
+            yield {
+                "type": "routing",
+                "pole": Pole.GENERAL.value,
+                "module": None,
+                "complexity": "simple",
+            }
             yield {"type": "token", "text": reply}
             yield {
                 "type": "done",
@@ -232,9 +235,7 @@ class Orchestrator:
         # Étape 3 : agent du pôle routé, sinon filet de rattrapage multi-schéma.
         agent, prepared, regulated = await self._resolve_agent(decision, user_query, tenant_id)
         grounding = (
-            "sourced"
-            if prepared is not None
-            else ("abstained" if regulated else "unsourced")
+            "sourced" if prepared is not None else ("abstained" if regulated else "unsourced")
         )
 
         if agent is not None and prepared is not None:
@@ -252,7 +253,9 @@ class Orchestrator:
                     for c in prepared.citations
                 ],
             }
-            async for chunk in agent.stream_prepared(prepared, **self._gen_overrides(decision, deep)):
+            async for chunk in agent.stream_prepared(
+                prepared, **self._gen_overrides(decision, deep)
+            ):
                 yield {"type": "token", "text": chunk}
         elif regulated:
             # Pôle à corpus, rien à citer même après le filet → abstention plutôt

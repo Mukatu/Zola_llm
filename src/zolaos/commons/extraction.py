@@ -67,6 +67,4 @@ def feedback_to_candidate(
         return None
 
     payload = {"domaine": agent, "question": question, "reponse": reponse}
-    return Candidate(
-        type=ctype, domaine=agent, payload=payload, content_hash=content_hash(payload)
-    )
+    return Candidate(type=ctype, domaine=agent, payload=payload, content_hash=content_hash(payload))

@@ -320,9 +320,7 @@ class RAGAgent:
                 agent=self.name,
                 model=gen_model,
                 matches=len(prepared.matches),
-                top_similarity=(
-                    prepared.matches[0].similarity if prepared.matches else None
-                ),
+                top_similarity=(prepared.matches[0].similarity if prepared.matches else None),
                 duration_seconds=duration,
             )
             return RAGAgentResponse(
@@ -396,7 +394,12 @@ class RAGAgent:
             try:
                 extra = await retrieve(query=query, schema=schema, required_tags=req, k=k)
             except Exception as exc:  # source indispo → on garde ce qu'on a
-                _log.warning("rag_agent.union_retrieve_failed", agent=self.name, schema=schema, error=str(exc))
+                _log.warning(
+                    "rag_agent.union_retrieve_failed",
+                    agent=self.name,
+                    schema=schema,
+                    error=str(exc),
+                )
                 extra = []
             if extra:
                 # Union re-classée par score hybride (dense + lexical) : le chunk
@@ -443,18 +446,14 @@ class RAGAgent:
         """
         facet = self._detect_facet(query)
         if facet is None:
-            return await retrieve(
-                query=query, schema=self.rag_schema, required_tags=tags, k=k
-            )
+            return await retrieve(query=query, schema=self.rag_schema, required_tags=tags, k=k)
 
         prefix, value = facet
         facet_tag = f"{prefix}:{value}"
         specific = await retrieve(
             query=query, schema=self.rag_schema, required_tags=[*tags, facet_tag], k=k
         )
-        general = await retrieve(
-            query=query, schema=self.rag_schema, required_tags=tags, k=k
-        )
+        general = await retrieve(query=query, schema=self.rag_schema, required_tags=tags, k=k)
 
         prefix_ = f"{prefix}:"
 

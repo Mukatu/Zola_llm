@@ -177,9 +177,7 @@ CURATOR_SCOPE = "commons:curate"
 async def require_curator(principal: Principal = Depends(authenticate)) -> Principal:
     """Réserve la curation du communs aux porteurs du scope ``commons:curate`` (403 sinon)."""
     if CURATOR_SCOPE not in principal.scopes:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, detail="curator_scope_required"
-        )
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="curator_scope_required")
     return principal
 
 
@@ -190,7 +188,5 @@ async def require_admin(principal: Principal = Depends(authenticate)) -> Princip
     garde au cockpit cabinet (gestion des comptes, des clients/tenants).
     """
     if SCOPE_ADMIN_USERS not in principal.scopes:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, detail="admin_scope_required"
-        )
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="admin_scope_required")
     return principal

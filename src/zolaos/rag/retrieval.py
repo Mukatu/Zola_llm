@@ -63,18 +63,111 @@ class Match:
 # côté requête ET côté chunk pour que seuls les termes de CONTENU pèsent.
 _FRENCH_STOPWORDS: frozenset[str] = frozenset(
     {
-        "au", "aux", "avec", "ce", "ces", "cet", "cette", "dans", "de", "des",
-        "du", "elle", "en", "et", "eux", "il", "ils", "je", "la", "le", "les",
-        "leur", "leurs", "lui", "ma", "mais", "me", "meme", "mes", "moi", "mon",
-        "ne", "nos", "notre", "nous", "on", "ou", "par", "pas", "plus", "pour",
-        "qu", "que", "quel", "quelle", "quelles", "quels", "qui", "sa", "se",
-        "ses", "si", "son", "sont", "sur", "ta", "te", "tes", "toi", "ton", "tu",
-        "un", "une", "vos", "votre", "vous", "y", "est", "etre", "ete", "avoir",
-        "ont", "a", "as", "ai", "cela", "ceci", "comme", "donc", "car",
-        "ni", "or", "dont", "aussi", "tout", "tous", "toute", "toutes",
-        "entre", "sous", "sans", "chez", "vers", "afin", "lors", "selon",
+        "au",
+        "aux",
+        "avec",
+        "ce",
+        "ces",
+        "cet",
+        "cette",
+        "dans",
+        "de",
+        "des",
+        "du",
+        "elle",
+        "en",
+        "et",
+        "eux",
+        "il",
+        "ils",
+        "je",
+        "la",
+        "le",
+        "les",
+        "leur",
+        "leurs",
+        "lui",
+        "ma",
+        "mais",
+        "me",
+        "meme",
+        "mes",
+        "moi",
+        "mon",
+        "ne",
+        "nos",
+        "notre",
+        "nous",
+        "on",
+        "ou",
+        "par",
+        "pas",
+        "plus",
+        "pour",
+        "qu",
+        "que",
+        "quel",
+        "quelle",
+        "quelles",
+        "quels",
+        "qui",
+        "sa",
+        "se",
+        "ses",
+        "si",
+        "son",
+        "sont",
+        "sur",
+        "ta",
+        "te",
+        "tes",
+        "toi",
+        "ton",
+        "tu",
+        "un",
+        "une",
+        "vos",
+        "votre",
+        "vous",
+        "y",
+        "est",
+        "etre",
+        "ete",
+        "avoir",
+        "ont",
+        "a",
+        "as",
+        "ai",
+        "cela",
+        "ceci",
+        "comme",
+        "donc",
+        "car",
+        "ni",
+        "or",
+        "dont",
+        "aussi",
+        "tout",
+        "tous",
+        "toute",
+        "toutes",
+        "entre",
+        "sous",
+        "sans",
+        "chez",
+        "vers",
+        "afin",
+        "lors",
+        "selon",
         # fragments d'élision fréquents une fois l'apostrophe tokenisée
-        "d", "l", "j", "m", "n", "s", "t", "c",
+        "d",
+        "l",
+        "j",
+        "m",
+        "n",
+        "s",
+        "t",
+        "c",
     }
 )
 
@@ -83,18 +176,14 @@ _TOKEN_RE = re.compile(r"[a-z0-9]+")
 
 def _strip_accents(text: str) -> str:
     """« Préavis » → « preavis » : normalise pour un appariement robuste."""
-    return "".join(
-        c for c in unicodedata.normalize("NFKD", text) if not unicodedata.combining(c)
-    )
+    return "".join(c for c in unicodedata.normalize("NFKD", text) if not unicodedata.combining(c))
 
 
 def _content_terms(text: str) -> list[str]:
     """Termes de contenu significatifs : minuscule, sans accent, sans mots vides."""
     norm = _strip_accents(text.lower())
     return [
-        tok
-        for tok in _TOKEN_RE.findall(norm)
-        if len(tok) >= 2 and tok not in _FRENCH_STOPWORDS
+        tok for tok in _TOKEN_RE.findall(norm) if len(tok) >= 2 and tok not in _FRENCH_STOPWORDS
     ]
 
 
@@ -146,9 +235,7 @@ def hybrid_rerank(
         for t in qterms:
             if t in present:
                 df[t] += 1
-    idf = {
-        t: math.log(1.0 + (n - df[t] + 0.5) / (df[t] + 0.5)) for t in qterms
-    }
+    idf = {t: math.log(1.0 + (n - df[t] + 0.5) / (df[t] + 0.5)) for t in qterms}
 
     avgdl = (sum(len(d) for d in docs) / n) or 1.0
     k1, b = 1.5, 0.75

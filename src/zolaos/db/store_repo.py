@@ -781,9 +781,7 @@ class FxRateRepository:
         )
         return list((await self._s.scalars(stmt)).all())
 
-    async def get(
-        self, *, tenant_id: str, country: str, devise: str
-    ) -> FxRateRecord | None:
+    async def get(self, *, tenant_id: str, country: str, devise: str) -> FxRateRecord | None:
         stmt = select(FxRateRecord).where(
             FxRateRecord.tenant_id == tenant_id,
             FxRateRecord.country == country,
@@ -808,7 +806,14 @@ class FxRateRepository:
         return rec
 
     async def set_validation(
-        self, *, tenant_id: str, country: str, devise: str, validated: bool, validated_by: str, note: str
+        self,
+        *,
+        tenant_id: str,
+        country: str,
+        devise: str,
+        validated: bool,
+        validated_by: str,
+        note: str,
     ) -> FxRateRecord | None:
         rec = await self.get(tenant_id=tenant_id, country=country, devise=devise)
         if rec is None:

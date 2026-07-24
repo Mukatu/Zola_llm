@@ -182,7 +182,9 @@ async def get_cyber_detection(
     return rec.to_dict()
 
 
-@router.post("/detections/{detection_id}/decision", summary="Traiter une détection (classer / traiter)")
+@router.post(
+    "/detections/{detection_id}/decision", summary="Traiter une détection (classer / traiter)"
+)
 async def decide_cyber_detection(
     detection_id: str,
     body: DetectionDecisionIn,

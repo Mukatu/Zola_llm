@@ -69,8 +69,11 @@ async def test_meme_tenant_une_seule_origine() -> None:
         for _ in range(2):
             s.add(
                 AgentFeedbackRecord(
-                    tenant_id="A", agent="legal.ohada", query="Meme question ?",
-                    response="Meme reponse.", verdict="up",
+                    tenant_id="A",
+                    agent="legal.ohada",
+                    query="Meme question ?",
+                    response="Meme reponse.",
+                    verdict="up",
                 )
             )
         await s.commit()
@@ -85,8 +88,12 @@ async def test_validate_requiert_eligibilite() -> None:
     engine, sm = await _make()
     async with sm() as s:
         c = ContribCandidate(
-            type="qa", domaine="legal", payload={"x": "y"}, content_hash="h1",
-            origins=["o1"], occurrences=1,
+            type="qa",
+            domaine="legal",
+            payload={"x": "y"},
+            content_hash="h1",
+            origins=["o1"],
+            occurrences=1,
         )
         s.add(c)
         await s.commit()

@@ -74,7 +74,9 @@ _INTAKE = EntitySpec(
             help="Montant du crédit demandé (XAF)",
             aliases=("montant", "montant demande", "credit demande"),
         ),
-        Column("duree_mois", "int", required=True, help="Durée (mois)", aliases=("duree", "nb mois")),
+        Column(
+            "duree_mois", "int", required=True, help="Durée (mois)", aliases=("duree", "nb mois")
+        ),
         Column(
             "anciennete_activite_mois",
             "int",
@@ -87,8 +89,15 @@ _INTAKE = EntitySpec(
             help="Nb d'incidents passés connus",
             aliases=("incidents", "impayes anterieurs"),
         ),
-        Column("epargne_xaf", "decimal", help="Épargne / apport (XAF)", aliases=("epargne", "apport")),
-        Column("garanties_xaf", "decimal", help="Valeur des garanties (XAF)", aliases=("garanties", "caution")),
+        Column(
+            "epargne_xaf", "decimal", help="Épargne / apport (XAF)", aliases=("epargne", "apport")
+        ),
+        Column(
+            "garanties_xaf",
+            "decimal",
+            help="Valeur des garanties (XAF)",
+            aliases=("garanties", "caution"),
+        ),
         Column(
             "type_emploi",
             "str",
@@ -120,6 +129,7 @@ def _application_record(
         "dossier": dossier.model_dump(mode="json"),
         "resultat": res.model_dump(mode="json"),
     }
+
 
 _STATUTS_CREDIT = {"evaluee", "accordee", "refusee", "decaissee", "cloturee"}
 _STATUTS_KYC = {"a_valider", "valide", "refuse"}

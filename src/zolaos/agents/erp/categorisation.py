@@ -103,7 +103,11 @@ def suggest_accounts(
             best[compte] = (score, raison, account.libelle)
 
     deja = {s.compte for s in prioritaires}
-    ranked = [kv for kv in sorted(best.items(), key=lambda kv: kv[1][0], reverse=True) if kv[0] not in deja]
+    ranked = [
+        kv
+        for kv in sorted(best.items(), key=lambda kv: kv[1][0], reverse=True)
+        if kv[0] not in deja
+    ]
     mots_cles: list[AccountSuggestion] = []
     if ranked:
         top = ranked[0][1][0]

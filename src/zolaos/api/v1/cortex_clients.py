@@ -121,7 +121,9 @@ async def create_client(
     session.add(tenant)
     await session.commit()
     await session.refresh(tenant)
-    _log.info("cortex.client.created", extra={"tenant_id": str(tenant.id), "type": tenant.tenant_type})
+    _log.info(
+        "cortex.client.created", extra={"tenant_id": str(tenant.id), "type": tenant.tenant_type}
+    )
     return _to_out(tenant)
 
 
@@ -149,13 +151,22 @@ async def get_client(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="tenant_not_found")
 
     rows = (
-        await session.execute(
-            select(Mission)
-            .where(or_(Mission.client_tenant_id == tenant_id, Mission.cabinet_tenant_id == tenant_id))
-            .order_by(Mission.started_at.desc())
-            .limit(200)
+        (
+            await session.execute(
+                select(Mission)
+                .where(
+                    or_(
+                        Mission.client_tenant_id == tenant_id,
+                        Mission.cabinet_tenant_id == tenant_id,
+                    )
+                )
+                .order_by(Mission.started_at.desc())
+                .limit(200)
+            )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     missions = [
         MissionBrief(
             id=m.id,

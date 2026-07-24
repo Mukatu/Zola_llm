@@ -14,16 +14,39 @@ from datetime import date
 
 from pydantic import BaseModel
 
-_NOTE = "Rappel indicatif — confirmez la date exacte auprès de l'administration ou de votre conseil."
+_NOTE = (
+    "Rappel indicatif — confirmez la date exacte auprès de l'administration ou de votre conseil."
+)
 
 # Obligations courantes (cadence indicative). periodicite : mensuelle | trimestrielle | annuelle.
 # jour = jour limite dans le mois ; mois (annuelle) = mois de l'échéance.
 OBLIGATIONS: list[dict[str, object]] = [
-    {"code": "tva", "libelle": "TVA — déclaration & paiement", "periodicite": "mensuelle", "jour": 20},
-    {"code": "cnss", "libelle": "CNSS — cotisations sociales", "periodicite": "mensuelle", "jour": 15},
-    {"code": "its", "libelle": "IRPP/ITS — retenues sur salaires", "periodicite": "mensuelle", "jour": 15},
+    {
+        "code": "tva",
+        "libelle": "TVA — déclaration & paiement",
+        "periodicite": "mensuelle",
+        "jour": 20,
+    },
+    {
+        "code": "cnss",
+        "libelle": "CNSS — cotisations sociales",
+        "periodicite": "mensuelle",
+        "jour": 15,
+    },
+    {
+        "code": "its",
+        "libelle": "IRPP/ITS — retenues sur salaires",
+        "periodicite": "mensuelle",
+        "jour": 15,
+    },
     {"code": "is_acompte", "libelle": "IS — acompte", "periodicite": "trimestrielle", "jour": 20},
-    {"code": "das1", "libelle": "DAS1 — déclaration annuelle des salaires", "periodicite": "annuelle", "jour": 31, "mois": 3},
+    {
+        "code": "das1",
+        "libelle": "DAS1 — déclaration annuelle des salaires",
+        "periodicite": "annuelle",
+        "jour": 31,
+        "mois": 3,
+    },
 ]
 
 
