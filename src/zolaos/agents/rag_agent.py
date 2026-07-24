@@ -163,6 +163,7 @@ class RAGAgent:
         *,
         extra_tags: list[str] | None = None,
         k: int | None = None,
+        evidence: str | None = None,
     ) -> RAGPrepared:
         """Étapes 1-2 : retrieve + garde-fous + construction du contexte.
 
@@ -175,15 +176,22 @@ class RAGAgent:
 
         # --- 1. Retrieve : local (DB directe) OU remote (via MissionClient) ---
         matches = await self._do_retrieve(query=query, tags=tags, k=kk)
-        return self.assemble(query, matches)
+        return self.assemble(query, matches, evidence=evidence)
 
-    def assemble(self, query: str, matches: list[Match]) -> RAGPrepared:
+    def assemble(
+        self, query: str, matches: list[Match], *, evidence: str | None = None
+    ) -> RAGPrepared:
         """Applique garde-fous + contexte à des matches DÉJÀ récupérés.
 
         Séparé de `prepare()` pour que le filet de rattrapage de l'orchestrateur
         puisse réutiliser des matches obtenus par un balayage multi-schéma, sans
         re-chercher. Les garde-fous (`requires_citation`, `min_confidence`) de
         l'agent restent appliqués — un match trop faible lève quand même.
+
+        `evidence` (optionnel) : faits **déjà calculés par un moteur déterministe**
+        (ex. audit de durcissement, détection d'anomalies) à restituer tels quels.
+        Le LLM les narre/priorise sans les recalculer ni en inventer — doctrine
+        « le moteur calcule, le LLM narre ».
         """
         if self.requires_citation and not matches:
             raise InsufficientContextError(
@@ -206,8 +214,16 @@ class RAGAgent:
 
         # --- 2. Build context ---
         context = self._format_context(matches)
+        evidence_block = ""
+        if evidence:
+            evidence_block = (
+                "--- Résultats de l'audit déterministe (établis par le moteur ; "
+                "à restituer et prioriser, NE PAS recalculer ni compléter) ---\n"
+                f"{evidence}\n\n"
+            )
         user_msg = (
             f"{context}\n\n"
+            f"{evidence_block}"
             f"--- Question utilisateur ---\n{query}\n\n"
             "Réponds en t'appuyant **strictement** sur les textes ci-dessus. "
             "Cite tes sources avec leur numéro entre crochets, ex: [1], [2]. "
@@ -261,11 +277,12 @@ class RAGAgent:
         *,
         extra_tags: list[str] | None = None,
         k: int | None = None,
+        evidence: str | None = None,
     ) -> RAGAgentResponse:
         """Question/réponse RAG. Lève `InsufficientContextError` si garde-fou actif et pas assez de contexte."""
         import time
 
-        prepared = await self.prepare(query, extra_tags=extra_tags, k=k)
+        prepared = await self.prepare(query, extra_tags=extra_tags, k=k, evidence=evidence)
         return await self.answer_prepared(prepared)
 
     async def answer_prepared(

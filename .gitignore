@@ -111,6 +111,7 @@ ZolaOS_Agent_Fiscalite_Ohada.extracted.txt
 /tests/test_cortex_missions.py
 /tests/test_ip_protection_guards.py
 /tests/test_polaris_all_overlays.py
+/tests/test_polaris_cyber_evidence.py
 /tests/test_polaris_overlay_and_reports.py
 /tests/test_polaris_remote_overlay.py
 /tests/test_zero_trust_flow.py
