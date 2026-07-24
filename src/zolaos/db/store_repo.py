@@ -29,6 +29,7 @@ from zolaos.db.store_models import (
     CreditApplicationRecord,
     CustomerRecord,
     CyberAuditRecord,
+    CyberDetectionRecord,
     DocumentRecord,
     EcheanceRecord,
     EmployeeRecord,
@@ -459,6 +460,10 @@ class AmlCaseRepository(_CrudRepo):
 
 class CyberAuditRepository(_CrudRepo):
     model = CyberAuditRecord
+
+
+class CyberDetectionRepository(_CrudRepo):
+    model = CyberDetectionRecord
 
 
 class ObligationRepository(_CrudRepo):

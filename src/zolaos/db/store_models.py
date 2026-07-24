@@ -2293,3 +2293,46 @@ class FindingRecord(StoreBase):
             "country": self.country,
             "created_at": self.created_at.isoformat() if self.created_at else None,
         }
+
+
+class CyberDetectionRecord(StoreBase):
+    """Analyse d'anomalies sur journaux persistée (résultat figé + workflow) — CYBER-2.
+
+    Registre auditable des détections défensives : anomalies figées à l'analyse,
+    statut de traitement (à examiner → classé sans suite | traité).
+    """
+
+    __tablename__ = "store_cyber_detections"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    tenant_id: Mapped[str] = mapped_column(String(64), index=True)
+    cible: Mapped[str] = mapped_column(String(200), default="")  # système/journal analysé
+    nb_events: Mapped[int] = mapped_column(Integer, default=0)
+    nb_anomalies: Mapped[int] = mapped_column(Integer, default=0)
+    niveau: Mapped[str] = mapped_column(String(10), default="aucun")  # sévérité max
+    # a_examiner | classee (sans suite) | traitee
+    statut: Mapped[str] = mapped_column(String(12), default="a_examiner")
+    params: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    resultat: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    commentaire: Mapped[str | None] = mapped_column(Text, nullable=True)
+    country: Mapped[str] = mapped_column(String(2), default="cg")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_now, onupdate=_now
+    )
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "tenant_id": self.tenant_id,
+            "cible": self.cible,
+            "nb_events": self.nb_events,
+            "nb_anomalies": self.nb_anomalies,
+            "niveau": self.niveau,
+            "statut": self.statut,
+            "params": self.params,
+            "resultat": self.resultat,
+            "commentaire": self.commentaire,
+            "country": self.country,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
