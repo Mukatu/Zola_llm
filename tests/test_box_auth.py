@@ -11,7 +11,7 @@ from contextlib import asynccontextmanager
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
-from zolaos.api.auth import require_box_auth
+from zolaos.api.auth import require_box_auth, require_box_csrf
 from zolaos.api.main import create_app
 from zolaos.core.settings import Settings
 from zolaos.db.session import get_session
@@ -76,4 +76,37 @@ async def test_avec_bypass_de_test_ca_passe(tmp_path) -> None:  # type: ignore[n
     app.dependency_overrides[get_session] = _override
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
         assert (await ac.get("/v1/bi/cockpit")).status_code == 200
+    await engine.dispose()
+
+
+async def test_mutation_cookie_exige_csrf(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    """Une mutation par cookie sans jeton CSRF → 403 ; avec double-submit → OK."""
+    engine = create_async_engine(f"sqlite+aiosqlite:///{tmp_path}/boxcsrf.db")
+    async with engine.begin() as conn:
+        await conn.run_sync(StoreBase.metadata.create_all)
+    factory = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+
+    async def _override():
+        async with factory() as s:
+            yield s
+
+    app = create_app(settings=_settings())
+    # On garde le bypass d'auth (identité OK) mais on retire le bypass CSRF →
+    # comportement réel de la garde CSRF sur les mutations non-Bearer.
+    app.dependency_overrides.pop(require_box_csrf, None)
+    app.dependency_overrides[get_session] = _override
+    body = {"code": "BQ1", "libelle": "Banque", "solde_initial_xaf": "0"}
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        # Sans CSRF (ni Bearer) → 403.
+        r = await ac.post("/v1/erp/bank-accounts", json=body)
+        assert r.status_code == 403
+        assert r.json()["detail"] == "csrf_failed"
+        # Double-submit cohérent (header == cookie) → passe la garde CSRF.
+        ok = await ac.post(
+            "/v1/erp/bank-accounts",
+            json=body,
+            headers={"X-CSRF-Token": "tok"},
+            cookies={"zo_csrf": "tok"},
+        )
+        assert ok.status_code == 201
     await engine.dispose()

@@ -9,14 +9,16 @@ from __future__ import annotations
 import uuid
 from dataclasses import dataclass
 
-from fastapi import Cookie, Depends, Header, HTTPException, status
+from fastapi import Cookie, Depends, Header, HTTPException, Request, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from zolaos.api.cookies import CSRF_COOKIE, CSRF_HEADER
 from zolaos.core.logging import get_logger
 from zolaos.core.rbac import SCOPE_ADMIN_USERS
 from zolaos.core.security import (
     InvalidTokenError,
+    constant_time_equals,
     decode_access_token,
     hash_api_key,
 )
@@ -204,3 +206,26 @@ async def require_box_auth(principal: Principal = Depends(authenticate)) -> Prin
     rejet d'authentification ni les gardes `require_admin`/`require_curator`.
     """
     return principal
+
+
+async def require_box_csrf(
+    request: Request,
+    x_api_key: str | None = Header(default=None, alias="X-API-Key"),
+    authorization: str | None = Header(default=None),
+    x_csrf_token: str | None = Header(default=None, alias=CSRF_HEADER),
+    csrf_cookie: str | None = Cookie(default=None, alias=CSRF_COOKIE),
+) -> None:
+    """CSRF double-submit pour les **mutations par cookie** du plan de données.
+
+    Ne s'applique qu'aux méthodes mutantes ET à l'auth par cookie : les méthodes
+    sûres (GET/HEAD/OPTIONS) et les porteurs immunisés (Bearer, X-API-Key — pas de
+    cookie ambiant rejoué par le navigateur) sont exemptés. Pour une mutation
+    cookie, l'en-tête ``X-CSRF-Token`` doit égaler le cookie CSRF (comparaison à
+    temps constant), sinon 403.
+    """
+    if request.method in {"GET", "HEAD", "OPTIONS"}:
+        return
+    if x_api_key or (authorization and authorization.lower().startswith("bearer ")):
+        return
+    if not x_csrf_token or not csrf_cookie or not constant_time_equals(x_csrf_token, csrf_cookie):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="csrf_failed")

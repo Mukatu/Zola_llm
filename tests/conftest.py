@@ -33,9 +33,10 @@ _orig_create_app = _main.create_app
 
 def _create_app_test_authed(*args, **kwargs):  # type: ignore[no-untyped-def]
     app = _orig_create_app(*args, **kwargs)
-    # setdefault : un test qui veut le vrai comportement (401) peut poser son
-    # propre override AVANT, ou utiliser `create_app_no_auth`.
+    # setdefault : un test qui veut le vrai comportement (401/403) peut poser son
+    # propre override AVANT, ou retirer celui-ci (cf. `tests/test_box_auth.py`).
     app.dependency_overrides.setdefault(_auth.require_box_auth, lambda: _TEST_PRINCIPAL)
+    app.dependency_overrides.setdefault(_auth.require_box_csrf, lambda: None)
     return app
 
 

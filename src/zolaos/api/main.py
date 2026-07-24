@@ -195,7 +195,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     if settings.ZOLAOS_PROFILE == "box":
         # Le plan de données de la box exige une identité authentifiée (401 sinon).
         # Appliqué au montage → protège d'un coup tous les endpoints métier.
-        from zolaos.api.auth import require_box_auth
+        from zolaos.api.auth import require_box_auth, require_box_csrf
         from zolaos.api.v1.bi import router as bi_router
         from zolaos.api.v1.box import router as box_router
         from zolaos.api.v1.categorisation import router as categorisation_router
@@ -214,7 +214,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         from zolaos.api.v1.recrutement import router as recrutement_router
         from zolaos.api.v1.store import router as store_router
 
-        _box_auth = [Depends(require_box_auth)]
+        _box_auth = [Depends(require_box_auth), Depends(require_box_csrf)]
 
         app.include_router(box_router)
         # Moteurs déterministes (ERP/ops, CRM, BI, Marketing) exposés au frontend client.
