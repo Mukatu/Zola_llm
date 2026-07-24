@@ -25,6 +25,7 @@ from zolaos.db.store_models import (
     CandidateRecord,
     CashFlowRecord,
     ContractRecord,
+    ControlRecord,
     CreditApplicationRecord,
     CustomerRecord,
     CyberAuditRecord,
@@ -35,6 +36,7 @@ from zolaos.db.store_models import (
     EmployeeSkillRecord,
     EngagementRecord,
     EvaluationRecord,
+    FindingRecord,
     FxRateRecord,
     IncidentRecord,
     InteractionRecord,
@@ -46,6 +48,7 @@ from zolaos.db.store_models import (
     LoanInstallmentRecord,
     MandateRecord,
     MarketingContactRecord,
+    ObligationRecord,
     OpportunityRecord,
     PayrollScaleRecord,
     PayrollScaleValidationRecord,
@@ -456,6 +459,34 @@ class AmlCaseRepository(_CrudRepo):
 
 class CyberAuditRepository(_CrudRepo):
     model = CyberAuditRecord
+
+
+class ObligationRepository(_CrudRepo):
+    model = ObligationRecord
+
+
+class ControlRepository(_CrudRepo):
+    model = ControlRecord
+
+    async def list(  # type: ignore[override]
+        self, *, tenant_id: str, obligation_id: str | None = None
+    ) -> list[ControlRecord]:
+        stmt = select(ControlRecord).where(ControlRecord.tenant_id == tenant_id)
+        if obligation_id is not None:
+            stmt = stmt.where(ControlRecord.obligation_id == obligation_id)
+        return list(await self._s.scalars(stmt))
+
+
+class FindingRepository(_CrudRepo):
+    model = FindingRecord
+
+    async def list(  # type: ignore[override]
+        self, *, tenant_id: str, obligation_id: str | None = None
+    ) -> list[FindingRecord]:
+        stmt = select(FindingRecord).where(FindingRecord.tenant_id == tenant_id)
+        if obligation_id is not None:
+            stmt = stmt.where(FindingRecord.obligation_id == obligation_id)
+        return list(await self._s.scalars(stmt))
 
 
 class KycRecordRepository(_CrudRepo):

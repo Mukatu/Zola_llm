@@ -2169,3 +2169,127 @@ class CyberAuditRecord(StoreBase):
             "country": self.country,
             "created_at": self.created_at.isoformat() if self.created_at else None,
         }
+
+
+class ObligationRecord(StoreBase):
+    """Obligation réglementaire/contractuelle (registre de conformité) — GRC-1."""
+
+    __tablename__ = "store_obligations"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    tenant_id: Mapped[str] = mapped_column(String(64), index=True)
+    reference: Mapped[str] = mapped_column(String(64), default="")
+    intitule: Mapped[str] = mapped_column(String(300))
+    # fiscal | social | ohada | donnees | bailleur | sectoriel | autre
+    domaine: Mapped[str] = mapped_column(String(20), default="autre")
+    autorite: Mapped[str] = mapped_column(String(120), default="")  # DGID, CNSS, ANIF, bailleur…
+    # mensuelle | trimestrielle | annuelle | ponctuelle
+    periodicite: Mapped[str] = mapped_column(String(16), default="ponctuelle")
+    echeance: Mapped[date | None] = mapped_column(Date, nullable=True)
+    base_legale: Mapped[str] = mapped_column(Text, default="")
+    statut: Mapped[str] = mapped_column(String(12), default="active")  # active | suspendue
+    country: Mapped[str] = mapped_column(String(2), default="cg")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_now, onupdate=_now
+    )
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "tenant_id": self.tenant_id,
+            "reference": self.reference,
+            "intitule": self.intitule,
+            "domaine": self.domaine,
+            "autorite": self.autorite,
+            "periodicite": self.periodicite,
+            "echeance": self.echeance.isoformat() if self.echeance else None,
+            "base_legale": self.base_legale,
+            "statut": self.statut,
+            "country": self.country,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
+
+
+class ControlRecord(StoreBase):
+    """Contrôle interne rattaché (ou non) à une obligation — GRC-1."""
+
+    __tablename__ = "store_controls"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    tenant_id: Mapped[str] = mapped_column(String(64), index=True)
+    obligation_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
+    intitule: Mapped[str] = mapped_column(String(300))
+    type_controle: Mapped[str] = mapped_column(String(12), default="preventif")  # preventif|detectif
+    frequence: Mapped[str] = mapped_column(String(16), default="ponctuel")
+    responsable: Mapped[str] = mapped_column(String(120), default="")
+    derniere_execution: Mapped[date | None] = mapped_column(Date, nullable=True)
+    prochaine_execution: Mapped[date | None] = mapped_column(Date, nullable=True)
+    statut: Mapped[str] = mapped_column(String(12), default="planifie")  # planifie|realise|suspendu
+    country: Mapped[str] = mapped_column(String(2), default="cg")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_now, onupdate=_now
+    )
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "tenant_id": self.tenant_id,
+            "obligation_id": self.obligation_id,
+            "intitule": self.intitule,
+            "type_controle": self.type_controle,
+            "frequence": self.frequence,
+            "responsable": self.responsable,
+            "derniere_execution": (
+                self.derniere_execution.isoformat() if self.derniere_execution else None
+            ),
+            "prochaine_execution": (
+                self.prochaine_execution.isoformat() if self.prochaine_execution else None
+            ),
+            "statut": self.statut,
+            "country": self.country,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
+
+
+class FindingRecord(StoreBase):
+    """Constat / non-conformité (registre de conformité) — GRC-1."""
+
+    __tablename__ = "store_findings"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    tenant_id: Mapped[str] = mapped_column(String(64), index=True)
+    obligation_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
+    control_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    intitule: Mapped[str] = mapped_column(String(300))
+    gravite: Mapped[str] = mapped_column(String(10), default="mineur")  # critique|majeur|mineur
+    statut: Mapped[str] = mapped_column(String(10), default="ouvert")  # ouvert|en_cours|resolu
+    date_constat: Mapped[date] = mapped_column(Date)
+    echeance_correction: Mapped[date | None] = mapped_column(Date, nullable=True)
+    plan_action: Mapped[str] = mapped_column(Text, default="")
+    responsable: Mapped[str] = mapped_column(String(120), default="")
+    country: Mapped[str] = mapped_column(String(2), default="cg")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_now, onupdate=_now
+    )
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "tenant_id": self.tenant_id,
+            "obligation_id": self.obligation_id,
+            "control_id": self.control_id,
+            "intitule": self.intitule,
+            "gravite": self.gravite,
+            "statut": self.statut,
+            "date_constat": self.date_constat.isoformat() if self.date_constat else None,
+            "echeance_correction": (
+                self.echeance_correction.isoformat() if self.echeance_correction else None
+            ),
+            "plan_action": self.plan_action,
+            "responsable": self.responsable,
+            "country": self.country,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }

@@ -204,6 +204,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         from zolaos.api.v1.fintech import router as fintech_router
         from zolaos.api.v1.formation import router as formation_router
         from zolaos.api.v1.gpec import router as gpec_router
+        from zolaos.api.v1.grc import router as grc_router
         from zolaos.api.v1.hr import router as hr_router
         from zolaos.api.v1.imports import router as imports_router
         from zolaos.api.v1.mkt import router as mkt_router
@@ -237,6 +238,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         app.include_router(fintech_router)
         # Cyber — audit de durcissement défensif (déterministe, indicatif).
         app.include_router(cyber_router)
+        # GRC — registre de conformité (obligations/contrôles/constats) + plan de contrôle.
+        app.include_router(grc_router)
 
     # Routes Zolacortex (gestion missions) : exposées uniquement en profil `cortex`.
     # Inversement, en profil `box`, 404 sur /v1/cortex/*.
