@@ -161,7 +161,8 @@ Pas de registre métier ; on persiste les **artefacts générés** (contrats, fi
 
 **19. Cyber-défense — 🔄 CYBER-1 + CYBER-2 livrés (PX)** · **Pôle K (langues) — ⏳**
 **Livré (CYBER-1, audit config 7.1/7.3)** : moteur `agents/cyber/hardening.py::auditer` — checklist de durcissement **déterministe et strictement défensive** (15 contrôles, base indicative CIS/ANSSI/NIST CSF) sur faits déclarés (conforme|non_conforme|à vérifier) ; `store_cyber_audits` (0053) + `/v1/cyber/{baseline,audit,audits}`.
-**Livré (CYBER-2, détection d'anomalies 7.2)** : moteur `agents/cyber/anomalies.py::detecter_anomalies` — règles déterministes sur **journaux déclarés** (force brute par IP/utilisateur en fenêtre glissante, succès après échecs, hors horaires, IP multiples, changements privilèges/config) ; `store_cyber_detections` (0055, workflow à examiner→classé|traité) + `/v1/cyber/{anomalies,detections}`. Écran `CyberScreen` (onglets Durcissement + Détection). **Reste** : overlay Polaris cyber_defense à brancher sur les moteurs. Pôle K : dictionnaires Lingala/Kituba (i18n front déjà prêt).
+**Livré (CYBER-2, détection d'anomalies 7.2)** : moteur `agents/cyber/anomalies.py::detecter_anomalies` — règles déterministes sur **journaux déclarés** (force brute par IP/utilisateur en fenêtre glissante, succès après échecs, hors horaires, IP multiples, changements privilèges/config) ; `store_cyber_detections` (0055, workflow à examiner→classé|traité) + `/v1/cyber/{anomalies,detections}`. Écran `CyberScreen` (onglets Durcissement + Détection).
+**Overlay Polaris branché (privé)** : `CyberDefenseOverlay.build_evidence()` exécute les moteurs sur les données de mission et injecte les résultats calculés dans le prompt via le hook générique `RAGAgent(evidence=…)` — le LLM restitue, ne recalcule pas. **Reste** : corpus `rag_cyber` (sourcing, séparé). Pôle K : dictionnaires Lingala/Kituba (i18n front déjà prêt).
 
 ---
 
