@@ -42,7 +42,7 @@ Pour chaque métier, **7 livrables** :
 | **P2e** | **Finance** (relevés bancaires persistés) + **Secrétariat** (Mandat) + **Projets ONG** (Projet/Budget) | ⏳ |
 | **P2f** | **Documents** (transverse) : artefacts générés (contrats Droit, rapports, bulletins) → métiers génératifs | ⏳ |
 | **P3** | BI branché sur le store (KPIs réels) ✅ · **trésorerie prévisionnelle** surfacée (moteur canonique) ✅ · multi-devise (MULTIDEV-1 socle gouverné ✅ · MULTIDEV-2 saisie en devise ✅) | ✅ |
-| **PX** | **Fintech** (scoring/KYC/AML + persistance + pilotage + **registre AML**) 🔄 quasi complet · **GRC complet**, **Cyber**, **Pôle K** à construire ⏳ | 🔄 |
+| **PX** | **Fintech** (…+ **registre AML**) 🔄 quasi complet · **GRC-1** (registre conformité + plan de contrôle) ✅ · **CYBER-1** (audit durcissement défensif) ✅ · **Pôle K** à construire ⏳ | 🔄 |
 
 ---
 
@@ -155,12 +155,12 @@ Pas de registre métier ; on persiste les **artefacts générés** (contrats, fi
 **Reste** : corpus `rag_fintech` (1/4 textes ingéré — LBC-FT/paiements bloqués OCR) ; overlays Polaris scoring/kyc encore sur `rag_legal` ; historisation des KPIs portefeuille (série temporelle) ; connecteurs MoMo/Airtel (sandbox) optionnels ; flag catalogue `/v1/agents` (enabled) = décision GA.
 **Plus-value** : dossiers de crédit, KYC et **surveillance AML tracés** (conformité ANIF/COBAC/GABAC).
 
-**18. GRC complet — ⏳ (PX)**
-Compléter les moteurs (conformité, audit institutionnel, reporting bailleurs), persistance `store_obligations` + `store_controls` + `store_findings`, endpoints `/v1/grc/*`, écrans.
-**Plus-value** : registres d'obligations/contrôles/constats, plans d'action suivis.
+**18. GRC — 🔄 GRC-1 livré (PX)**
+**Livré (GRC-1)** : registre de conformité `store_obligations` + `store_controls` + `store_findings` (migration 0054) + CRUD `/v1/grc/*` + moteur `agents/grc/conformite.py::synthese_conformite` (couverture, contrôles en retard, échéances, taux de conformité, constats par gravité, alertes) exposé `/v1/grc/plan-controle` ; écran `GrcScreen` (synthèse + 3 registres). **Reste** : cartographie des risques GRC (probabilité×gravité, cf. HSE) ; brancher `ReportingBailleursAgent` sur le registre ; corpus `rag_grc` (sourcing IATI/PRAG, séparé).
+**Plus-value** : registres d'obligations/contrôles/constats vivants, plan de contrôle piloté.
 
-**19. Cyber-défense — ⏳ (PX)** · **Pôle K (langues) — ⏳**
-Cyber : moteur + écran (hors persistance lourde initiale). Pôle K : dictionnaires Lingala/Kituba (i18n front déjà prêt).
+**19. Cyber-défense — 🔄 CYBER-1 livré (PX)** · **Pôle K (langues) — ⏳**
+**Livré (CYBER-1)** : moteur `agents/cyber/hardening.py::auditer` — checklist de durcissement **déterministe et strictement défensive** (15 contrôles, base indicative CIS/ANSSI/NIST CSF) sur faits déclarés (conforme|non_conforme|à vérifier) ; persistance légère `store_cyber_audits` (migration 0053) + `/v1/cyber/{baseline,audit,audits}` ; écran `CyberScreen`. **Reste** : détection d'anomalies sur journaux (7.2, chantier corpus/logs) ; overlay Polaris cyber_defense à brancher sur le moteur. Pôle K : dictionnaires Lingala/Kituba (i18n front déjà prêt).
 
 ---
 
@@ -192,7 +192,7 @@ Cyber : moteur + écran (hors persistance lourde initiale). Pôle K : dictionnai
 | P2e | Finance, Secrétariat, Projets ONG | ✅ | Finance ✅, **Projets ONG ✅**, **Secrétariat/Mandat ✅** (2026-07-22) |
 | P2f | Documents (Droit/Santé/Code) | ✅ | ORM/repo/routes ✅, écran (page `/documents` : liste + suppression) ✅, nav Sidebar ✅ ; tests dédiés ajoutés (2026-07-22) |
 | P3 | BI store, prévision trésorerie, multi-devise | 🔄 | BI cockpit sur store ✅ ; trésorerie prévisionnelle surfacée (moteur canonique, zéro réinvention) ✅ ; multi-devise MULTIDEV-1 (taux gouvernés + conversion + écran) ✅, MULTIDEV-2 (factures en devise → normalisation XAF, traçabilité) ✅ → **P3 clos** |
-| PX | Fintech, GRC, Cyber, Pôle K | 🔄 | Fintech quasi complet (scoring/KYC/AML + persistance + pilotage + registre AML FINTECH-10) ; GRC/Cyber/Pôle K à construire |
+| PX | Fintech, GRC, Cyber, Pôle K | 🔄 | Fintech quasi complet (…+ registre AML FINTECH-10) ; **GRC-1** (registre conformité + plan de contrôle) ✅ ; **CYBER-1** (audit durcissement défensif) ✅ ; Pôle K à construire |
 
 ---
 
