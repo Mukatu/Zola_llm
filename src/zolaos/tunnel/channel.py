@@ -27,7 +27,7 @@ from zolaos.core.logging import get_logger
 _log = get_logger("zolaos.tunnel.channel")
 
 # tenant_id (str) → canal vivant. Rempli à la connexion d'une box, vidé à sa coupure.
-REGISTRY: dict[str, "TunnelChannel"] = {}
+REGISTRY: dict[str, TunnelChannel] = {}
 
 
 class TunnelError(RuntimeError):
@@ -90,7 +90,7 @@ class TunnelChannel:
             async with self._send_lock:
                 await self._ws.send_text(frame)
             resp = await asyncio.wait_for(fut, timeout)
-        except (TimeoutError, asyncio.TimeoutError) as exc:
+        except TimeoutError as exc:
             raise TunnelError("box_timeout") from exc
         except Exception as exc:  # canal coupé pendant l'échange
             raise TunnelError(f"tunnel_broken: {exc}") from exc
@@ -137,7 +137,7 @@ class TunnelRagClient:
         self._token = mission_token
         self._timeout = timeout
 
-    async def __aenter__(self) -> "TunnelRagClient":
+    async def __aenter__(self) -> TunnelRagClient:
         return self
 
     async def __aexit__(self, *_exc: object) -> None:

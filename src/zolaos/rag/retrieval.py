@@ -70,11 +70,11 @@ _FRENCH_STOPWORDS: frozenset[str] = frozenset(
         "qu", "que", "quel", "quelle", "quelles", "quels", "qui", "sa", "se",
         "ses", "si", "son", "sont", "sur", "ta", "te", "tes", "toi", "ton", "tu",
         "un", "une", "vos", "votre", "vous", "y", "est", "etre", "ete", "avoir",
-        "ont", "a", "as", "ai", "aux", "cela", "ceci", "comme", "donc", "car",
-        "ni", "or", "dont", "les", "aussi", "tout", "tous", "toute", "toutes",
+        "ont", "a", "as", "ai", "cela", "ceci", "comme", "donc", "car",
+        "ni", "or", "dont", "aussi", "tout", "tous", "toute", "toutes",
         "entre", "sous", "sans", "chez", "vers", "afin", "lors", "selon",
         # fragments d'élision fréquents une fois l'apostrophe tokenisée
-        "d", "l", "j", "m", "n", "s", "t", "c", "qu",
+        "d", "l", "j", "m", "n", "s", "t", "c",
     }
 )
 

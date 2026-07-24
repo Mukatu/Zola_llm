@@ -140,6 +140,11 @@ ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**/*" = ["S101", "S105", "S106", "S110", "B017"]
+# Nettoyage best-effort du canal WebSocket : une trame illisible ou un socket
+# déjà fermé ne doit pas casser le tunnel (patterns intentionnels, commentés).
+"src/zolaos/tunnel/channel.py" = ["S110", "S112"]
+# Dossier temporaire de rapports de mission (Cortex) — chemin maîtrisé.
+"src/zolaos/api/v1/cortex.py" = ["S108"]
 
 # ===== Black (formateur) =====
 [tool.black]

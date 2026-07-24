@@ -12,7 +12,6 @@ from fastapi.responses import StreamingResponse
 from zolaos.agents.router import Pole, RouterError
 from zolaos.api.auth import Principal, authenticate
 from zolaos.api.dependencies import get_orchestrator
-from zolaos.core.logging import get_logger
 from zolaos.api.schemas import (
     AgentInfo,
     AgentResponseOut,
@@ -24,6 +23,7 @@ from zolaos.api.schemas import (
     QueryResponse,
     RoutingInfo,
 )
+from zolaos.core.logging import get_logger
 from zolaos.core.orchestrator import Orchestrator
 
 _log = get_logger("zolaos.api.v1.routes")

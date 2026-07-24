@@ -280,7 +280,6 @@ class RAGAgent:
         evidence: str | None = None,
     ) -> RAGAgentResponse:
         """Question/réponse RAG. Lève `InsufficientContextError` si garde-fou actif et pas assez de contexte."""
-        import time
 
         prepared = await self.prepare(query, extra_tags=extra_tags, k=k, evidence=evidence)
         return await self.answer_prepared(prepared)

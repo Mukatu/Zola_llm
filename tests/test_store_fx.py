@@ -25,7 +25,6 @@ from zolaos.core.settings import Settings
 from zolaos.db.session import get_session
 from zolaos.db.store_models import StoreBase
 
-
 # ---------------------------------------------------------------- moteur (pur)
 
 

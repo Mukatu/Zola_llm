@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import pytest
 
+from zolaos.core.settings import Settings
 from zolaos.rag.retrieval import (
     Match,
     _content_terms,
@@ -18,7 +19,6 @@ from zolaos.rag.retrieval import (
     hybrid_rerank,
     rerank_or_trim,
 )
-from zolaos.core.settings import Settings
 
 
 def _match(content: str, score: float, chunk_index: int = 0) -> Match:

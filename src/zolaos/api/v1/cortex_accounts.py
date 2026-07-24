@@ -25,7 +25,7 @@ from zolaos.api.auth import Principal, require_admin
 from zolaos.api.v1.auth import require_csrf
 from zolaos.core.logging import get_logger
 from zolaos.core.profiles import require_cortex
-from zolaos.core.rbac import ROLES, ROLE_ADMIN, is_valid_role
+from zolaos.core.rbac import ROLE_ADMIN, ROLES, is_valid_role
 from zolaos.core.security import hash_password
 from zolaos.db.models import User
 from zolaos.db.session import get_session
