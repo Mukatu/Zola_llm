@@ -30,6 +30,7 @@ from zolaos.db.store_models import (
     CustomerRecord,
     CyberAuditRecord,
     CyberDetectionRecord,
+    CyberParamsRecord,
     DocumentRecord,
     EcheanceRecord,
     EmployeeRecord,
@@ -464,6 +465,49 @@ class CyberAuditRepository(_CrudRepo):
 
 class CyberDetectionRepository(_CrudRepo):
     model = CyberDetectionRecord
+
+
+class CyberParamsRepository:
+    """Base de durcissement + seuils gouvernés (override) par (tenant, pays) — CYBER-3."""
+
+    def __init__(self, session: AsyncSession) -> None:
+        self._s = session
+
+    async def get(self, *, tenant_id: str, country: str) -> CyberParamsRecord | None:
+        stmt = select(CyberParamsRecord).where(
+            CyberParamsRecord.tenant_id == tenant_id,
+            CyberParamsRecord.country == country,
+        )
+        return (await self._s.scalars(stmt)).first()
+
+    async def upsert(
+        self, *, tenant_id: str, country: str, version: str, payload: dict[str, Any]
+    ) -> CyberParamsRecord:
+        """Éditer les paramètres ⇒ retombe non validé (re-validation requise)."""
+        rec = await self.get(tenant_id=tenant_id, country=country)
+        if rec is None:
+            rec = CyberParamsRecord(tenant_id=tenant_id, country=country)
+            self._s.add(rec)
+        rec.version = version
+        rec.payload = payload
+        rec.validated = False
+        rec.validated_by = ""
+        rec.validated_at = None
+        await self._s.flush()
+        return rec
+
+    async def set_validation(
+        self, *, tenant_id: str, country: str, validated: bool, validated_by: str, note: str
+    ) -> CyberParamsRecord | None:
+        rec = await self.get(tenant_id=tenant_id, country=country)
+        if rec is None:
+            return None
+        rec.validated = validated
+        rec.validated_by = validated_by
+        rec.note = note
+        rec.validated_at = datetime.now(UTC) if validated else None
+        await self._s.flush()
+        return rec
 
 
 class ObligationRepository(_CrudRepo):

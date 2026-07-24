@@ -2360,3 +2360,43 @@ class CyberDetectionRecord(StoreBase):
             "country": self.country,
             "created_at": self.created_at.isoformat() if self.created_at else None,
         }
+
+
+class CyberParamsRecord(StoreBase):
+    """Base de durcissement + seuils d'anomalies **gouvernés** (override tenant) — CYBER-3.
+
+    Même patron que le barème de paie : la graine reste les constantes du moteur
+    (`agents/cyber/`) ; dès qu'un tenant édite, ce ``payload`` prévaut. Chaque
+    édition remet ``validated`` à false (re-validation experte requise).
+    """
+
+    __tablename__ = "store_cyber_params"
+    __table_args__ = (UniqueConstraint("tenant_id", "country", name="uq_cyber_params"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    tenant_id: Mapped[str] = mapped_column(String(64), index=True)
+    country: Mapped[str] = mapped_column(String(2), default="cg")
+    version: Mapped[str] = mapped_column(String(64), default="")
+    # {"seuils": {...}, "controles": {cle: {"severite": ..., "active": ...}}}
+    payload: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    validated: Mapped[bool] = mapped_column(Boolean, default=False)
+    validated_by: Mapped[str] = mapped_column(String(120), default="")
+    note: Mapped[str] = mapped_column(Text, default="")
+    validated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_now, onupdate=_now
+    )
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "tenant_id": self.tenant_id,
+            "country": self.country,
+            "version": self.version,
+            "payload": self.payload,
+            "validated": self.validated,
+            "validated_by": self.validated_by,
+            "note": self.note,
+            "validated_at": self.validated_at.isoformat() if self.validated_at else None,
+        }

@@ -8,6 +8,7 @@ persisté (`/audits`).
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any
 
@@ -16,13 +17,142 @@ from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from zolaos.agents.cyber.anomalies import LogEvent, ParamsDetection, detecter_anomalies
-from zolaos.agents.cyber.hardening import BASELINE, ConfigAudit, auditer
+from zolaos.agents.cyber.hardening import BASELINE, ConfigAudit, Controle, auditer
 from zolaos.db.session import get_session
-from zolaos.db.store_repo import CyberAuditRepository, CyberDetectionRepository
+from zolaos.db.store_repo import (
+    CyberAuditRepository,
+    CyberDetectionRepository,
+    CyberParamsRepository,
+)
 
 router = APIRouter(prefix="/v1/cyber", tags=["cyber"])
 
 _STATUTS_DETECTION = {"a_examiner", "classee", "traitee"}
+
+
+# ============ Paramètres gouvernés : base de durcissement + seuils (CYBER-3) ============
+
+
+def _cyber_defaults() -> dict[str, Any]:
+    """Graine = constantes du moteur (seuils par défaut + base de durcissement)."""
+    return {
+        "seuils": ParamsDetection().model_dump(),
+        "controles": {
+            c.cle: {"severite": c.severite, "active": True, "libelle": c.libelle} for c in BASELINE
+        },
+    }
+
+
+async def _effective_cyber(
+    session: AsyncSession, tenant_id: str, country: str
+) -> tuple[ParamsDetection, list[Controle], dict[str, Any]]:
+    """Paramètres effectifs = graine surchargée par l'override tenant.
+
+    Retourne (seuils d'anomalies, base de durcissement effective, vue JSON avec
+    statut de validation).
+    """
+    defaults = _cyber_defaults()
+    rec = await CyberParamsRepository(session).get(tenant_id=tenant_id, country=country)
+    payload = rec.payload if rec is not None else {}
+
+    seuils = {**defaults["seuils"], **(payload.get("seuils") or {})}
+    params = ParamsDetection(**seuils)
+
+    ctrl_over = payload.get("controles") or {}
+    controles: list[Controle] = []
+    controles_view: list[dict[str, Any]] = []
+    for c in BASELINE:
+        ov = ctrl_over.get(c.cle) or {}
+        active = bool(ov.get("active", True))
+        severite = ov.get("severite", c.severite)
+        controles_view.append(
+            {
+                "cle": c.cle,
+                "libelle": c.libelle,
+                "fonction": c.fonction,
+                "severite": severite,
+                "active": active,
+            }
+        )
+        if active:
+            controles.append(c.model_copy(update={"severite": severite}))
+
+    view = {
+        "seuils": seuils,
+        "controles": controles_view,
+        "source_donnees": "tenant" if rec is not None else "defaut",
+        "validated": rec.validated if rec is not None else True,
+        "validated_by": rec.validated_by if rec is not None else "",
+        "validated_at": (
+            rec.validated_at.isoformat() if rec is not None and rec.validated_at else None
+        ),
+    }
+    return params, controles, view
+
+
+@router.get("/params", summary="Paramètres gouvernés : seuils + base de durcissement")
+async def get_cyber_params(
+    country: str = "cg",
+    tenant_id: str = "local",
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    _, _, view = await _effective_cyber(session, tenant_id, country)
+    return view
+
+
+class CyberParamsEdit(BaseModel):
+    seuils: dict[str, int] | None = None
+    controles: dict[str, dict[str, Any]] | None = None
+
+
+@router.put("/params", summary="Éditer les paramètres (override) — re-validation requise")
+async def edit_cyber_params(
+    body: CyberParamsEdit,
+    country: str = "cg",
+    tenant_id: str = "local",
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    payload: dict[str, Any] = {}
+    if body.seuils is not None:
+        payload["seuils"] = body.seuils
+    if body.controles is not None:
+        payload["controles"] = body.controles
+    version = f"custom-{datetime.now(UTC):%Y%m%dT%H%M%S}"
+    await CyberParamsRepository(session).upsert(
+        tenant_id=tenant_id, country=country, version=version, payload=payload
+    )
+    await session.commit()
+    _, _, view = await _effective_cyber(session, tenant_id, country)
+    return view
+
+
+class CyberParamsValidation(BaseModel):
+    validated: bool
+    validated_by: str = ""
+    note: str = ""
+
+
+@router.post("/params/validate", summary="Valider / révoquer les paramètres")
+async def validate_cyber_params(
+    body: CyberParamsValidation,
+    country: str = "cg",
+    tenant_id: str = "local",
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    rec = await CyberParamsRepository(session).set_validation(
+        tenant_id=tenant_id,
+        country=country,
+        validated=body.validated,
+        validated_by=body.validated_by,
+        note=body.note,
+    )
+    if rec is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="aucun_parametre_tenant_a_valider"
+        )
+    await session.commit()
+    _, _, view = await _effective_cyber(session, tenant_id, country)
+    return view
 
 
 @router.get("/baseline", summary="Base de durcissement (contrôles évalués)")
@@ -36,8 +166,14 @@ def cyber_baseline() -> dict[str, Any]:
 
 
 @router.post("/audit", summary="Audit de durcissement (calcul à la volée, sans persistance)")
-def cyber_audit(config: ConfigAudit) -> dict[str, Any]:
-    return auditer(config).model_dump(mode="json")
+async def cyber_audit(
+    config: ConfigAudit,
+    tenant_id: str = "local",
+    country: str = "cg",
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    _, controles, _ = await _effective_cyber(session, tenant_id, country)
+    return auditer(config, controles=controles).model_dump(mode="json")
 
 
 class CyberAuditCreate(BaseModel):
@@ -55,7 +191,8 @@ async def create_cyber_audit(
     tenant_id: str = "local",
     session: AsyncSession = Depends(get_session),
 ) -> dict[str, Any]:
-    res = auditer(body.config)
+    _, controles, _ = await _effective_cyber(session, tenant_id, "cg")
+    res = auditer(body.config, controles=controles)
     rec = await CyberAuditRepository(session).create(
         {
             "tenant_id": tenant_id,
@@ -117,8 +254,16 @@ class AnomaliesRequest(BaseModel):
 
 
 @router.post("/anomalies", summary="Détecter des anomalies (à la volée, sans persistance)")
-def cyber_anomalies(req: AnomaliesRequest) -> dict[str, Any]:
-    return detecter_anomalies(req.events, req.params).model_dump(mode="json")
+async def cyber_anomalies(
+    req: AnomaliesRequest,
+    tenant_id: str = "local",
+    country: str = "cg",
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    params = req.params
+    if params is None:
+        params, _, _ = await _effective_cyber(session, tenant_id, country)
+    return detecter_anomalies(req.events, params).model_dump(mode="json")
 
 
 class CyberDetectionCreate(BaseModel):
@@ -142,7 +287,9 @@ async def create_cyber_detection(
     tenant_id: str = "local",
     session: AsyncSession = Depends(get_session),
 ) -> dict[str, Any]:
-    params = body.params or ParamsDetection()
+    params = body.params
+    if params is None:
+        params, _, _ = await _effective_cyber(session, tenant_id, "cg")
     res = detecter_anomalies(body.events, params)
     rec = await CyberDetectionRepository(session).create(
         {

@@ -12,7 +12,7 @@ les seuils fintech : jamais de valeur normative figée sans validation experte).
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from decimal import ROUND_HALF_UP, Decimal
 from typing import Literal
 
@@ -195,8 +195,16 @@ def _statut(fait: bool | None) -> Statut:
     return "conforme" if fait else "non_conforme"
 
 
-def auditer(config: ConfigAudit | Mapping[str, bool | None]) -> AuditResult:
-    """Évalue la base de durcissement sur des faits déclarés (déterministe)."""
+def auditer(
+    config: ConfigAudit | Mapping[str, bool | None],
+    *,
+    controles: Sequence[Controle] = BASELINE,
+) -> AuditResult:
+    """Évalue la base de durcissement sur des faits déclarés (déterministe).
+
+    ``controles`` permet de fournir une base **gouvernée** (sévérités ajustées,
+    contrôles désactivés) au lieu de la base indicative par défaut.
+    """
     faits = config.model_dump() if isinstance(config, ConfigAudit) else dict(config)
 
     findings: list[Finding] = []
@@ -204,7 +212,7 @@ def auditer(config: ConfigAudit | Mapping[str, bool | None]) -> AuditResult:
     nb_conforme = nb_non_conforme = nb_a_verifier = 0
     pire = -1
 
-    for ctrl in BASELINE:
+    for ctrl in controles:
         statut = _statut(faits.get(ctrl.cle))
         findings.append(
             Finding(
