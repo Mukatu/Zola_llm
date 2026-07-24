@@ -249,6 +249,27 @@ export async function getPortfolio(): Promise<PortfolioStats> {
   return api<PortfolioStats>("/v1/fintech/portfolio");
 }
 
+// --- Historisation du portefeuille (instantanés manuels) -------------------
+
+export interface PortfolioPoint {
+  captured_at: string;
+  nb_dossiers: number;
+  taux_acceptation_pct: string;
+  taux_decaissement_pct: string;
+  encours_restant_du_xaf: string;
+  montant_en_retard_xaf: string;
+  par30_pct: string;
+  par90_pct: string;
+}
+
+export async function portfolioSnapshot(): Promise<unknown> {
+  return api("/v1/fintech/portfolio/snapshot", { method: "POST" });
+}
+
+export async function portfolioHistory(limit = 60): Promise<{ history: PortfolioPoint[] }> {
+  return api<{ history: PortfolioPoint[] }>(`/v1/fintech/portfolio/history?limit=${limit}`);
+}
+
 // --- Échéancier de remboursement (FINTECH-6) -------------------------------
 
 export interface Echeance {

@@ -38,3 +38,52 @@ export const URG: Record<string, string> = {
 export function Urg({ level }: { level: string }) {
   return <span className={"rounded-full px-2 py-0.5 text-xs font-semibold " + (URG[level] ?? "bg-gray-100 text-gray-600")}>{level}</span>;
 }
+
+/** Point d'une série de tendance : `date` déjà formatée pour l'affichage (ex : "24/07"). */
+export interface TrendPoint {
+  date: string;
+  value: number;
+}
+
+/**
+ * Ligne de tendance SVG autoportée (sans lib de graphes, CSP-safe).
+ * Modèle : `TrajectoireTreso` de BiScreen — viewBox + polyline min/max + libellés de dates.
+ */
+export function LineTrend({
+  points,
+  tone = "primary",
+  height = 96,
+  ariaLabel,
+}: {
+  points: TrendPoint[];
+  tone?: "primary" | "danger";
+  height?: number;
+  ariaLabel: string;
+}) {
+  if (points.length === 0) {
+    return <p className="text-sm text-muted">Aucune donnée.</p>;
+  }
+  const W = 320, H = height, PAD = 8;
+  const values = points.map((p) => p.value);
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const span = max - min || 1;
+  const x = (i: number) => PAD + (i * (W - 2 * PAD)) / Math.max(1, points.length - 1);
+  const y = (v: number) => PAD + ((max - v) / span) * (H - 2 * PAD);
+  const pts = points.map((p, i) => `${x(i).toFixed(1)},${y(p.value).toFixed(1)}`).join(" ");
+  const stroke = tone === "danger" ? "rgb(220 38 38)" : "rgb(13 148 136)";
+  const lastIdx = points.length - 1;
+  const last = points[lastIdx];
+  return (
+    <div>
+      <svg viewBox={`0 0 ${W} ${H}`} className="w-full" preserveAspectRatio="none" role="img" aria-label={ariaLabel}>
+        <polyline points={pts} fill="none" stroke={stroke} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
+        <circle cx={x(lastIdx)} cy={y(last.value)} r="3.5" fill={stroke} />
+      </svg>
+      <div className="mt-1 flex justify-between text-[10px] text-muted">
+        <span>{points[0].date}</span>
+        <span>{last.date}</span>
+      </div>
+    </div>
+  );
+}

@@ -19,9 +19,11 @@ import {
   Info,
   Download,
   Upload,
+  Loader2,
+  Camera,
 } from "lucide-react";
 import { Card, Button, Skeleton } from "../ui";
-import { FlagshipHeader, Inp } from "./_shared";
+import { FlagshipHeader, Inp, LineTrend, type TrendPoint } from "./_shared";
 import { ApiError } from "@/lib/api";
 import {
   scoreCredit,
@@ -46,6 +48,8 @@ import {
   getCohortes,
   importApplications,
   importTemplateUrl,
+  portfolioSnapshot,
+  portfolioHistory,
   PIECES_KYC,
   type CreditScore,
   type KycResult,
@@ -57,6 +61,7 @@ import {
   type PortfolioStats,
   type ScheduleResult,
   type CohortStat,
+  type PortfolioPoint,
 } from "@/lib/fintech";
 
 type Tab = "scoring" | "kyc" | "aml" | "registre" | "pilotage";
@@ -64,6 +69,7 @@ const EMPLOIS = ["salarie_public", "salarie_prive", "independant", "informel"];
 const SECTEURS = ["", "change_manuel", "immobilier", "transfert_fonds", "or_metaux_precieux", "jeux_paris"];
 
 const fmt = (s: string) => Number(s).toLocaleString("fr-FR");
+const shortDate = (s: string) => `${s.slice(8, 10)}/${s.slice(5, 7)}`;
 
 export function FintechScreen() {
   const params = useParams<{ capability?: string }>();
@@ -775,6 +781,70 @@ function MiniBtn({ onClick, tone, children }: { onClick: () => void; tone: "fore
 
 // --- Pilotage --------------------------------------------------------------
 
+/** Historique / tendances du portefeuille — instantanés manuels, historisation via LineTrend. */
+function HistoriqueTendances() {
+  const [hist, setHist] = useState<PortfolioPoint[]>([]);
+  const [loaded, setLoaded] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  const refresh = useCallback(async () => {
+    try {
+      const r = await portfolioHistory(60);
+      setHist(r.history);
+    } catch {
+      setHist([]);
+    } finally {
+      setLoaded(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
+
+  async function capturer() {
+    if (busy) return;
+    setBusy(true);
+    try {
+      await portfolioSnapshot();
+      await refresh();
+    } catch {
+      // ignoré — le bouton reste disponible pour réessayer
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const par30: TrendPoint[] = hist.map((h) => ({ date: shortDate(h.captured_at), value: Number(h.par30_pct) }));
+  const acceptation: TrendPoint[] = hist.map((h) => ({ date: shortDate(h.captured_at), value: Number(h.taux_acceptation_pct) }));
+
+  return (
+    <Card className="flex flex-col gap-3">
+      <div className="flex items-center justify-between gap-2">
+        <div className="text-sm font-semibold">Historique / Tendances</div>
+        <Button onClick={capturer} disabled={busy}>
+          {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}
+          Capturer un instantané
+        </Button>
+      </div>
+      {loaded && hist.length < 2 ? (
+        <p className="text-sm text-muted">Capturez des instantanés régulièrement pour voir la tendance.</p>
+      ) : (
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div>
+            <div className="mb-1 text-xs font-medium text-muted">PAR 30 j (%)</div>
+            <LineTrend points={par30} tone="danger" ariaLabel="Tendance PAR 30 jours" />
+          </div>
+          <div>
+            <div className="mb-1 text-xs font-medium text-muted">Taux d&apos;acceptation (%)</div>
+            <LineTrend points={acceptation} ariaLabel="Tendance taux d'acceptation" />
+          </div>
+        </div>
+      )}
+    </Card>
+  );
+}
+
 function PilotageTab() {
   const [p, setP] = useState<PortfolioStats | null>(null);
   const [cohortes, setCohortes] = useState<CohortStat[]>([]);
@@ -839,6 +909,8 @@ function PilotageTab() {
           <p className="text-sm text-muted">{p.note}</p>
         )}
       </Card>
+
+      <HistoriqueTendances />
 
       <Card className="flex flex-col gap-2">
         <div className="text-sm font-semibold">Conformité KYC ({p.nb_kyc})</div>

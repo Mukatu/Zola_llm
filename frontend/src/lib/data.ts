@@ -39,6 +39,14 @@ export function biBrief(): Promise<{ brief: string; signals_apercu: string }> {
 export function biAsk(question: string): Promise<{ answer: string }> {
   return api("/v1/bi/ask", { body: { question } });
 }
+// Historisation du cockpit — instantanés manuels des KPIs pour tracer des tendances.
+export interface BiSnapshot { captured_at: string; kpis: Kpi[] }
+export function biSnapshot(): Promise<unknown> {
+  return api("/v1/bi/snapshot", { method: "POST" });
+}
+export function biSnapshots(limit = 60): Promise<{ snapshots: BiSnapshot[] }> {
+  return api(`/v1/bi/snapshots?limit=${limit}`);
+}
 // Pilotage de trésorerie — prévisionnel daté + indicateurs (moteur canonique /v1/erp/treasury).
 export interface PeriodeForecast { libelle: string; debut: string; encaissements_xaf: string; decaissements_xaf: string; flux_net_xaf: string; solde_projete_xaf: string }
 export interface Previsionnel {

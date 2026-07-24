@@ -1,11 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { BarChart3, Sparkles, AlertTriangle, CalendarClock, Send, Loader2, TrendingDown } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { BarChart3, Sparkles, AlertTriangle, CalendarClock, Send, Loader2, TrendingDown, TrendingUp, Camera } from "lucide-react";
 import { Card, Button } from "../ui";
-import { FlagshipHeader } from "./_shared";
+import { FlagshipHeader, LineTrend, type TrendPoint } from "./_shared";
 import { Prose } from "../Prose";
-import { biCockpit, biBrief, biAsk, treasuryPilotage, fmt, type Cockpit, type Signal, type Kpi, type TreasuryPilotage } from "@/lib/data";
+import {
+  biCockpit, biBrief, biAsk, treasuryPilotage, biSnapshot, biSnapshots, fmt,
+  type Cockpit, type Signal, type Kpi, type TreasuryPilotage, type BiSnapshot,
+} from "@/lib/data";
 import { ApiError } from "@/lib/api";
 
 const jm = (s: string) => `${s.slice(8, 10)}/${s.slice(5, 7)}`;
@@ -104,6 +107,98 @@ function PilotageCard({ pilotage }: { pilotage: TreasuryPilotage }) {
           <div className="text-sm font-semibold tabular-nums">{ind.runway_mois !== null ? `${fmt(ind.runway_mois)} mois` : "—"}</div>
         </div>
       </div>
+    </Card>
+  );
+}
+
+/** Tendances des KPIs du cockpit — instantanés manuels, historisation via LineTrend. */
+function TendancesCard() {
+  const [snaps, setSnaps] = useState<BiSnapshot[]>([]);
+  const [loaded, setLoaded] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [code, setCode] = useState("");
+
+  const refresh = useCallback(async () => {
+    try {
+      const r = await biSnapshots(60);
+      setSnaps(r.snapshots);
+    } catch {
+      setSnaps([]);
+    } finally {
+      setLoaded(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
+
+  const dernier = snaps[snaps.length - 1];
+  const kpisDernier = dernier?.kpis ?? [];
+  useEffect(() => {
+    if (!code && dernier && dernier.kpis.length > 0) setCode(dernier.kpis[0].code);
+  }, [code, dernier]);
+
+  async function capturer() {
+    if (busy) return;
+    setBusy(true);
+    try {
+      await biSnapshot();
+      await refresh();
+    } catch {
+      // ignoré — le bouton reste disponible pour réessayer
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const libelle = kpisDernier.find((k) => k.code === code)?.libelle ?? code;
+  const points: TrendPoint[] = snaps
+    .map((s) => {
+      const k = s.kpis.find((x) => x.code === code);
+      return k ? { date: jm(s.captured_at), value: Number(k.valeur) } : null;
+    })
+    .filter((p): p is TrendPoint => p !== null);
+
+  return (
+    <Card>
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <TrendingUp className="h-5 w-5 text-primary" />
+          <h2 className="text-sm font-semibold">Tendances</h2>
+        </div>
+        <Button onClick={capturer} disabled={busy}>
+          {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}
+          Capturer un instantané
+        </Button>
+      </div>
+      {loaded && kpisDernier.length === 0 && (
+        <p className="mt-2 text-sm text-muted">Aucun instantané pour le moment. Capturez-en un pour démarrer l&apos;historisation.</p>
+      )}
+      {kpisDernier.length > 0 && (
+        <>
+          <div className="mt-3 flex items-center gap-2">
+            <label className="text-xs text-muted" htmlFor="tendance-kpi">Indicateur</label>
+            <select
+              id="tendance-kpi"
+              value={code}
+              onChange={(e) => setCode(e.target.value)}
+              className="rounded-lg border border-black/10 bg-white px-2 py-1 text-sm"
+            >
+              {kpisDernier.map((k) => (
+                <option key={k.code} value={k.code}>{k.libelle}</option>
+              ))}
+            </select>
+          </div>
+          {snaps.length < 2 ? (
+            <p className="mt-3 text-sm text-muted">Capturez des instantanés régulièrement pour voir la tendance.</p>
+          ) : (
+            <div className="mt-3">
+              <LineTrend points={points} ariaLabel={`Tendance ${libelle}`} />
+            </div>
+          )}
+        </>
+      )}
     </Card>
   );
 }
@@ -229,6 +324,9 @@ export function BiScreen() {
 
       {/* Pilotage de trésorerie — prévisionnel + indicateurs (moteur canonique) */}
       {pilotage && pilotage.previsionnel.periodes.length > 0 && <PilotageCard pilotage={pilotage} />}
+
+      {/* Tendances des KPIs — instantanés manuels du cockpit */}
+      <TendancesCard />
 
       {/* Échéances indicatives */}
       {echeances.length > 0 && (
