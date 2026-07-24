@@ -961,6 +961,10 @@ class BankAccountRecord(StoreBase):
     devise: Mapped[str] = mapped_column(String(3), default="XAF")
     iban: Mapped[str | None] = mapped_column(String(34), nullable=True)
     solde_initial_xaf: Mapped[Decimal] = mapped_column(Numeric(18, 2), default=Decimal("0"))
+    # Traçabilité multi-devise (MULTIDEV-3) : solde d'origine + taux appliqué à
+    # l'écriture. Nuls quand le compte est en XAF (le `_xaf` reste canonique).
+    solde_initial_devise: Mapped[Decimal | None] = mapped_column(Numeric(18, 2), nullable=True)
+    taux_applique: Mapped[Decimal | None] = mapped_column(Numeric(18, 6), nullable=True)
     country: Mapped[str] = mapped_column(String(2), default="cg")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
     updated_at: Mapped[datetime] = mapped_column(
@@ -978,6 +982,10 @@ class BankAccountRecord(StoreBase):
             "devise": self.devise,
             "iban": self.iban,
             "solde_initial_xaf": str(self.solde_initial_xaf),
+            "solde_initial_devise": (
+                str(self.solde_initial_devise) if self.solde_initial_devise is not None else None
+            ),
+            "taux_applique": str(self.taux_applique) if self.taux_applique is not None else None,
             "country": self.country,
         }
 
@@ -995,6 +1003,10 @@ class CashFlowRecord(StoreBase):
         String(13), default="encaissement"
     )  # encaissement|decaissement
     montant_xaf: Mapped[Decimal] = mapped_column(Numeric(18, 2), default=Decimal("0"))
+    # Traçabilité multi-devise (MULTIDEV-3) : devise + montant d'origine + taux.
+    devise: Mapped[str] = mapped_column(String(3), default="XAF")
+    montant_devise: Mapped[Decimal | None] = mapped_column(Numeric(18, 2), nullable=True)
+    taux_applique: Mapped[Decimal | None] = mapped_column(Numeric(18, 6), nullable=True)
     date_operation: Mapped[date] = mapped_column(Date)
     date_prevue: Mapped[date | None] = mapped_column(Date, nullable=True)
     statut: Mapped[str] = mapped_column(String(8), default="realise")  # prevu|realise
@@ -1017,6 +1029,11 @@ class CashFlowRecord(StoreBase):
             "compte_code": self.compte_code,
             "sens": self.sens,
             "montant_xaf": str(self.montant_xaf),
+            "devise": self.devise,
+            "montant_devise": (
+                str(self.montant_devise) if self.montant_devise is not None else None
+            ),
+            "taux_applique": str(self.taux_applique) if self.taux_applique is not None else None,
             "date_operation": self.date_operation.isoformat() if self.date_operation else None,
             "date_prevue": self.date_prevue.isoformat() if self.date_prevue else None,
             "statut": self.statut,
@@ -1223,6 +1240,9 @@ class ProjectRecord(StoreBase):
     convention_ref: Mapped[str | None] = mapped_column(String(80), nullable=True)
     devise: Mapped[str] = mapped_column(String(3), default="XAF")
     budget_total: Mapped[Decimal] = mapped_column(Numeric(18, 2), default=Decimal("0"))
+    # Traçabilité multi-devise (MULTIDEV-3) : budget d'origine + taux appliqué.
+    budget_total_devise: Mapped[Decimal | None] = mapped_column(Numeric(18, 2), nullable=True)
+    taux_applique: Mapped[Decimal | None] = mapped_column(Numeric(18, 6), nullable=True)
     date_debut: Mapped[date | None] = mapped_column(Date, nullable=True)
     date_fin: Mapped[date | None] = mapped_column(Date, nullable=True)
     statut: Mapped[str] = mapped_column(String(20), default="en_cours")  # en_cours|clos|suspendu
@@ -1242,6 +1262,10 @@ class ProjectRecord(StoreBase):
             "convention_ref": self.convention_ref,
             "devise": self.devise,
             "budget_total": str(self.budget_total),
+            "budget_total_devise": (
+                str(self.budget_total_devise) if self.budget_total_devise is not None else None
+            ),
+            "taux_applique": str(self.taux_applique) if self.taux_applique is not None else None,
             "date_debut": self.date_debut.isoformat() if self.date_debut else None,
             "date_fin": self.date_fin.isoformat() if self.date_fin else None,
             "statut": self.statut,

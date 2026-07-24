@@ -1413,6 +1413,9 @@ class BankAccountIn(BaseModel):
     devise: str = "XAF"
     iban: str | None = None
     solde_initial_xaf: Decimal = Decimal("0")
+    # Saisie en devise (MULTIDEV-3) : si `devise != XAF`, fournir le solde dans
+    # la devise ; le serveur normalise en XAF au taux validé.
+    solde_initial_devise: Decimal | None = None
     country: str = "cg"
 
 
@@ -1429,6 +1432,10 @@ class CashFlowIn(BaseModel):
     compte_code: str
     sens: str = "encaissement"  # encaissement | decaissement
     montant_xaf: Decimal = Decimal("0")
+    # Saisie en devise (MULTIDEV-3) : si `devise != XAF`, fournir `montant_devise`
+    # (le serveur normalise en XAF au taux validé).
+    devise: str = "XAF"
+    montant_devise: Decimal | None = None
     date_operation: date
     date_prevue: date | None = None
     statut: str = "realise"  # prevu | realise
@@ -1449,7 +1456,24 @@ async def create_bank_account(
     tenant_id: str = "local",
     session: AsyncSession = Depends(get_session),
 ) -> dict[str, Any]:
-    rec = await BankAccountRepository(session).create({**body.model_dump(), "tenant_id": tenant_id})
+    data = {**body.model_dump(), "tenant_id": tenant_id}
+    devise = (body.devise or "XAF").upper()
+    data["devise"] = devise
+    if devise != "XAF":
+        if body.solde_initial_devise is None:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="montant_devise_requis"
+            )
+        xaf, orig, taux = await _normaliser_xaf(
+            session, tenant_id, body.country, devise, body.solde_initial_devise
+        )
+        data["solde_initial_xaf"] = xaf
+        data["solde_initial_devise"] = orig
+        data["taux_applique"] = taux
+    else:
+        data["solde_initial_devise"] = None
+        data["taux_applique"] = None
+    rec = await BankAccountRepository(session).create(data)
     await session.commit()
     return rec.to_dict()
 
@@ -1501,7 +1525,24 @@ async def create_cash_flow(
     tenant_id: str = "local",
     session: AsyncSession = Depends(get_session),
 ) -> dict[str, Any]:
-    rec = await CashFlowRepository(session).create({**body.model_dump(), "tenant_id": tenant_id})
+    data = {**body.model_dump(), "tenant_id": tenant_id}
+    devise = (body.devise or "XAF").upper()
+    data["devise"] = devise
+    if devise != "XAF":
+        if body.montant_devise is None:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="montant_devise_requis"
+            )
+        xaf, orig, taux = await _normaliser_xaf(
+            session, tenant_id, body.country, devise, body.montant_devise
+        )
+        data["montant_xaf"] = xaf
+        data["montant_devise"] = orig
+        data["taux_applique"] = taux
+    else:
+        data["montant_devise"] = None
+        data["taux_applique"] = None
+    rec = await CashFlowRepository(session).create(data)
     await session.commit()
     return rec.to_dict()
 
@@ -3454,6 +3495,8 @@ class ProjectIn(BaseModel):
     convention_ref: str | None = None
     devise: str = "XAF"
     budget_total: Decimal = Decimal("0")
+    # Saisie en devise (MULTIDEV-3) : si `devise != XAF`, fournir `budget_total_devise`.
+    budget_total_devise: Decimal | None = None
     date_debut: date | None = None
     date_fin: date | None = None
     statut: str = "en_cours"  # en_cours | clos | suspendu
@@ -3495,7 +3538,24 @@ class BudgetLinePatch(BaseModel):
 async def create_project(
     body: ProjectIn, tenant_id: str = "local", session: AsyncSession = Depends(get_session)
 ) -> dict[str, Any]:
-    rec = await ProjectRepository(session).create({**body.model_dump(), "tenant_id": tenant_id})
+    data = {**body.model_dump(), "tenant_id": tenant_id}
+    devise = (body.devise or "XAF").upper()
+    data["devise"] = devise
+    if devise != "XAF":
+        if body.budget_total_devise is None:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="montant_devise_requis"
+            )
+        xaf, orig, taux = await _normaliser_xaf(
+            session, tenant_id, body.country, devise, body.budget_total_devise
+        )
+        data["budget_total"] = xaf
+        data["budget_total_devise"] = orig
+        data["taux_applique"] = taux
+    else:
+        data["budget_total_devise"] = None
+        data["taux_applique"] = None
+    rec = await ProjectRepository(session).create(data)
     await session.commit()
     return rec.to_dict()
 
@@ -3879,6 +3939,30 @@ async def _fx_overrides(
     }
     meta = {r.devise.upper(): r for r in recs}
     return overrides, meta
+
+
+async def _normaliser_xaf(
+    session: AsyncSession, tenant_id: str, country: str, devise: str, montant: Decimal
+) -> tuple[Decimal, Decimal | None, Decimal | None]:
+    """Normalise un montant vers XAF au taux **validé** (MULTIDEV-3).
+
+    Retourne ``(montant_xaf, montant_devise_origine, taux_applique)``. En XAF :
+    ``(montant, None, None)`` (valeur canonique inchangée). Sinon convertit au
+    taux validé (409 via HTTPException si le taux n'est pas validé — abstention,
+    aucun taux fabriqué) et conserve l'original + le taux pour la traçabilité.
+    """
+    dev = (devise or "XAF").upper()
+    if dev == "XAF":
+        return montant, None, None
+    overrides, _ = await _fx_overrides(session, tenant_id, country)
+    rates = effective_rates(load_fx_seed(country), overrides)
+    try:
+        xaf = convertir(montant, dev, "XAF", rates)
+    except FxRateNotValidated as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail=f"taux_non_valide:{exc.devise}"
+        ) from exc
+    return xaf, montant, rates[dev].taux_vers_xaf
 
 
 async def _fx_rates_view(session: AsyncSession, *, tenant_id: str, country: str) -> dict[str, Any]:
