@@ -159,8 +159,9 @@ Pas de registre métier ; on persiste les **artefacts générés** (contrats, fi
 **Livré (GRC-1)** : registre de conformité `store_obligations` + `store_controls` + `store_findings` (migration 0054) + CRUD `/v1/grc/*` + moteur `agents/grc/conformite.py::synthese_conformite` (couverture, contrôles en retard, échéances, taux de conformité, constats par gravité, alertes) exposé `/v1/grc/plan-controle` ; écran `GrcScreen` (synthèse + 3 registres). **Reste** : cartographie des risques GRC (probabilité×gravité, cf. HSE) ; brancher `ReportingBailleursAgent` sur le registre ; corpus `rag_grc` (sourcing IATI/PRAG, séparé).
 **Plus-value** : registres d'obligations/contrôles/constats vivants, plan de contrôle piloté.
 
-**19. Cyber-défense — 🔄 CYBER-1 livré (PX)** · **Pôle K (langues) — ⏳**
-**Livré (CYBER-1)** : moteur `agents/cyber/hardening.py::auditer` — checklist de durcissement **déterministe et strictement défensive** (15 contrôles, base indicative CIS/ANSSI/NIST CSF) sur faits déclarés (conforme|non_conforme|à vérifier) ; persistance légère `store_cyber_audits` (migration 0053) + `/v1/cyber/{baseline,audit,audits}` ; écran `CyberScreen`. **Reste** : détection d'anomalies sur journaux (7.2, chantier corpus/logs) ; overlay Polaris cyber_defense à brancher sur le moteur. Pôle K : dictionnaires Lingala/Kituba (i18n front déjà prêt).
+**19. Cyber-défense — 🔄 CYBER-1 + CYBER-2 livrés (PX)** · **Pôle K (langues) — ⏳**
+**Livré (CYBER-1, audit config 7.1/7.3)** : moteur `agents/cyber/hardening.py::auditer` — checklist de durcissement **déterministe et strictement défensive** (15 contrôles, base indicative CIS/ANSSI/NIST CSF) sur faits déclarés (conforme|non_conforme|à vérifier) ; `store_cyber_audits` (0053) + `/v1/cyber/{baseline,audit,audits}`.
+**Livré (CYBER-2, détection d'anomalies 7.2)** : moteur `agents/cyber/anomalies.py::detecter_anomalies` — règles déterministes sur **journaux déclarés** (force brute par IP/utilisateur en fenêtre glissante, succès après échecs, hors horaires, IP multiples, changements privilèges/config) ; `store_cyber_detections` (0055, workflow à examiner→classé|traité) + `/v1/cyber/{anomalies,detections}`. Écran `CyberScreen` (onglets Durcissement + Détection). **Reste** : overlay Polaris cyber_defense à brancher sur les moteurs. Pôle K : dictionnaires Lingala/Kituba (i18n front déjà prêt).
 
 ---
 
