@@ -24,6 +24,7 @@ import { ProjetsOngScreen } from "@/components/flagship/ProjetsOngScreen";
 import { SecretariatScreen } from "@/components/flagship/SecretariatScreen";
 import { DevisesScreen } from "@/components/flagship/DevisesScreen";
 import { CyberScreen } from "@/components/flagship/CyberScreen";
+import { GrcScreen } from "@/components/flagship/GrcScreen";
 import { getCapability } from "@/lib/capabilities";
 import { Card } from "@/components/ui";
 import type { ComponentType } from "react";
@@ -58,6 +59,7 @@ const FLAGSHIPS: Record<string, ComponentType> = {
   "fintech.kyc": FintechScreen,
   "fintech.aml": FintechScreen,
   "cyber.defense": CyberScreen,
+  "grc.conformite": GrcScreen,
 };
 
 export default function CapabilityPage() {
