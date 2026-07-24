@@ -129,8 +129,8 @@ export const CAPABILITIES: Record<string, Capability> = Object.fromEntries(
       "Surveillance des opérations, alertes et registre de déclarations (ANIF/CFT).",
       intents(["analyser", "Analyser"], ["declarer", "Déclarer"], ["registre", "Registre"]), "flagship"),
     cap("cyber.defense", "Cyber-défense", ShieldCheck,
-      "Audit de configuration et durcissement (défensif).",
-      intents(["audit", "Audit config"], ["durcissement", "Durcissement"])),
+      "Audit de configuration et durcissement (défensif) — base indicative CIS/ANSSI/NIST.",
+      intents(["audit", "Audit config"], ["durcissement", "Durcissement"]), "flagship"),
   ].map((c) => [c.code, c]),
 );
 
