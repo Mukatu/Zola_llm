@@ -53,6 +53,12 @@ def settings() -> Settings:
 
 @pytest.fixture
 async def orchestrator(settings: Settings):  # type: ignore[no-untyped-def]
+    # Ces tests asservissent le routage à un LLM réel : la classification est
+    # non déterministe et sensible à la contention (faux négatifs quand la suite
+    # complète charge le GPU). Opt-in explicite, comme l'intégration RAG lourde —
+    # le gate par défaut reste déterministe. Activer : ZOLAOS_RUN_LLM_E2E=1.
+    if not os.environ.get("ZOLAOS_RUN_LLM_E2E"):
+        pytest.skip("Test e2e LLM non déterministe : activer avec ZOLAOS_RUN_LLM_E2E=1")
     if not _server_reachable(settings.LLM_HOST_ROUTER):
         pytest.skip(f"Serveur LLM indisponible sur {settings.LLM_HOST_ROUTER}")
     router_client = make_router_client(settings)

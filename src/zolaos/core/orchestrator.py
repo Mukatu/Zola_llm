@@ -128,7 +128,9 @@ class Orchestrator:
         if (reply := smalltalk_reply(user_query)) is not None:
             return OrchestrationResult(
                 request_id=request_id,
-                decision=RouteDecision(pole=Pole.GENERAL, confidence=1.0, complexity="simple"),
+                decision=RouteDecision(
+                    pole=Pole.GENERAL, module=None, confidence=1.0, complexity="simple"
+                ),
                 plan=None,
                 responses=[
                     AgentResponse(
