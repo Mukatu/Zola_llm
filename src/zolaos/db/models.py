@@ -380,6 +380,16 @@ class RagFintechDocument(_RagDocumentMixin, Base):
     __table_args__ = _rag_doc_table_args("rag_fintech")
 
 
+class RagCyberDocument(_RagDocumentMixin, Base):
+    """Corpus RAG **réglementaire/standards cyber** : NIST CSF, OWASP, ANSSI,
+    Loi 29-2019 (CG). Textes **publics** (pas de PII) → hors SENSITIVE_SCHEMAS,
+    corpus de référence en lecture seule pour l'app. Ancre l'overlay cyber Polaris.
+    """
+
+    __tablename__ = "documents"
+    __table_args__ = _rag_doc_table_args("rag_cyber")
+
+
 # Lookup pour code générique (pipeline ingest/retrieve qui prend un schéma).
 RAG_MODELS: dict[str, type[Base]] = {
     "rag_health": RagHealthDocument,
@@ -388,4 +398,5 @@ RAG_MODELS: dict[str, type[Base]] = {
     "rag_tenant": RagTenantDocument,
     "rag_commons": RagCommonsDocument,
     "rag_fintech": RagFintechDocument,
+    "rag_cyber": RagCyberDocument,
 }
