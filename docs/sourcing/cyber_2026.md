@@ -1,5 +1,17 @@
 # Sourcing — corpus cybersécurité (`rag_cyber`)
 
+> **État d'ingestion — 2026-07-27 : corpus `rag_cyber` INGÉRÉ (~5 200 chunks).**
+> Socle international : **NIST** CSF 2.0 + SP 800-53r5/61r3/171r3 (1019, PDF natifs),
+> **OWASP** Top 10 + ASVS 5.0 + Cheat Sheets (1609, extraits markdown via
+> `scripts/extract_owasp.py`), **MITRE ATT&CK** défensif (2382, extrait STIX via
+> `scripts/extract_mitre_attack.py`) — tous `validated:true`, `lang:en`.
+> Bonus local : les **4 lois congolaises** (29-2019, 26-2020, 27-2020, 30-2019 ;
+> 193 chunks, `lang:fr`) réocérisées (`scripts/ocr_scan.py`, 37–42 % mots FR) en
+> `validated:false` + `ocr:true` — **relecture humaine requise** avant `validated:true`.
+> Retrieval validé (FR et EN). **NON ingérés** : guides **ANSSI** (conflit licence
+> commerciale, cf. §5 — décision juridique en attente), ISO/CIS (propriétaire / NC).
+> L'overlay Polaris cyber pointe sur `rag_cyber` avec `prefer_tags=("lang:fr",)`.
+
 Catalogue des **sources réelles** à ingérer dans le corpus `rag_cyber` (pôle
 Cyber/GRC : durcissement défensif, détection d'anomalies, registre de
 conformité). Sourcing du 2026-07-27, par WebSearch/WebFetch vérifiés (chaque

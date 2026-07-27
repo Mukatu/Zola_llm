@@ -1,0 +1,1333 @@
+PARLEMENT REPUBLIQUE DU CONGO
+naiss Unité *Travail* Progrès
+
+portant lutte contre la cybercriminalité
+
+L'ASSEMBLEE NATIONALE ET LE SENAT ONT DELIBERE ET ADOPTE ;
+LE PRESIDENT DE LA REPUBLIQUE PROMULGUE LA LOI DONT LA TENEUR SUIT ;
+
+TITRE I : DISPOSITIONS GENERALES
+
+Chapitre 1 : De l'objet et champ d'application
+
+Article premier : La présente loi a pour objet de définir et réprimer les infractions
+liées aux technologies de l'information et de la communication.
+
+Elle vise à compléter ainsi les dispositions du code pénal en vigueur.
+
+4
+
+Article 2: Les dispositions de la présente loi sont applicables à toutes les
+personnes, quelle que soit leur nationalité, ayant commis une infraction par le biais
+des technologies de l'information et de la communication en République du Congo.
+
+Chapitre 2 : Des définitions
+Article 3 : Au sens de la présente loi, on entend par :
+
+1 Acéès dérobé : mécanisme permettant de dissimuler l'accès à des données ou
+à un système d'information sans l'autorisation de l'utilisateur légitime :
+
+« Communication au public par voie électronique : toute mise à la disposition
+du public ou d'une catégorie de public, par un procédé de communications
+électroniques ou magnétiques, de signes, de signaux, d'écrits, d'images, de sons
+ou de messuges de toute nature ;
+
+= Communications électroniques : émission, transmission ou réception de
+signes, de signaux, d'écrits, d'images ou de sons, par voie électromagnétique ;
+
+" Cybercriminalité : ensemble des iïfractions s'effectuant à travers le
+cyberspace par des moyens autres qu2 ceux habituellement mis en œuvre, et
+de manière complémentaire à la criminalité classique ;
+
+
+GES 29 MERE PALERME a A me
+RES STD EEE TEnnee Eee
+
+Données informatiques : toute représentation de faits, d'informations où de
+concepts sous une forme qui se prête à un traitement informatique, y compris
+un programme de naïure à faire en sorte qu'un système informatique exécute
+une fonction ;
+
+Données à caractère personnel : toute information relative à une personne
+physique identifiée ou identifiable directement ou indirectement, par
+référence à un numéro d'identification où à un ou plusieurs éléments, propres
+à son identité physique, physiologique, génétique, psychique, culturelle, sociale
+ou économique ;
+
+Données relatives aux abonnés : toute information, sous forme de données
+informatiques ou sous toute autre forme, détenue par un fournisseur de
+services et se rapportant aux abonnés de ses services, autres que des
+données relatives au trafic ou au contenu, et permettant d'établir :
+
+le type de service de communication utilisé, les dispositions techniques prises
+à cet égard et la période de service :
+
+l'identité, l'adresse postale ou géographique et le numéro de téléphone de
+l'abonné, et tout autre numéro d'accès, les données concernant la facturation
+
+et le paiement, disponibles sur la base d'un contrat ou d'un arrangement de
+services ;
+
+toute autre information relative à l'endroit où se trouvent les équipements de
+communication, disponible sur la base d'un contrat ou d'un arrangement de
+
+services.
+
+Données relatives au trafic : toutes données ayant trait à une communication
+passant par un système d'information, produites par ce dernier en tant
+qu'élément de la chaîne de communication, indiquant l'origine, la destination,
+l'itinéraire, l'heure, la date, la taille et la durée de la communication ou le type
+
+de service sous-jacent :
+
+Matériel xénophobe : tout écrit, toute image ou toute autre représentation
+d'idées ou de théories qui préconise où encourage la haine, la discrimination ou
+la violence contre une personne ou un groupe de personnes, en raison de la
+couleur, de l'ascendance ou de l'origine nationale ou ethnique ou de la religion,
+dans la mesure où ce dernier sert de prétexte à l'un ou à l'autre de ces
+éléments ou qui incite à de tels actes :
+
+Pornographie infantile : toute donnée, quelle qu'en soit la nature ou la forme
+ou le support, représentant :
+
+un enfant se livrant à un comportement sexuellement explicite :
+
+
+- une personne qui apparaît comme un enfant se livrant à un comportement
+sexuellement explicite ;
+
+- des images réalistes représentant un enfant se livrant à un comportement
+sexuellement explicite.
+
+“" Programme informatique : séquence d'instructions qui spécifie, étape par
+étape, les opérations à effectuer par un ordinateur ou une composante
+d'ordinateur pour obtenir un résultat :
+
+=" Système d'information: ensemble organisé de ressources (matériels,
+logiciels, personnel, données et procédures) qui permet de collecter, de
+regrouper, de classifier, de traiter et de diffuser l'information ;
+
+" Système d'informatique : tout dispositif isolé où ensemble de dispositifs
+interconnectés ou apparentés, qui assure ou dont un ou plusieurs éléments
+assurent, en exécution d'un programme, un traitement automatisé de données :
+
+" Technologies de l'information et de la communication: désigne les
+technologies employées pour recueillir, stocker, utiliser et envoyer des
+informations ainsi que celles qui impliquent l'utilisation des ordinateurs ou de
+tout système de communication, y compris de télécommunication.
+
+TITRE IT : DES INFRACTIONS LIEES AUX TECHNOLOGIES
+DE L'INFORMATION ET DE LA COMMUNICATION
+
+Chapitre 1 : Des atteintes à la confidentialité des systèmes d'information
+
+Article 4: Quiconque accède ou tente d'accéder frauduleusement à tout ou partie
+d'un système d'information est puni d'un emprisonnement de six moins à trois ans au
+plus et d'une amende d'un million (1 000 000) à dix millions (10 000 000) de francs
+CFA ou de l'une de ces deux peines seulement.
+
+Est puni des mêmes peines, quiconque se procure ou tente de se procurer
+frauduleusement, pour soi-même ou pour autrui, un avantage quelconque en
+s'introduisant dans un système d'information.
+
+Article 5 : Quiconque se maintient ou tente de se maintenir frauduleusement dans
+tout ou partie d'un système d'information est puni d'un emprisonnement de six mois
+au moins à trois ans au plus et d'une amende d'un million (1 000 000) à dix millions
+(10 000 000) de francs CFA ou de l'une de ces deux peines seulement,
+
+Chapitre 2 : Des atteintes à l'intégrité des systèmes d'information
+
+Article 6 : Est puni d'un emprisonnement d'un an au moins à cinq ans au plus et d'une
+amende de cinq millions (5 000 000) à dix millions (10 000 000) de francs CFA ou de
+
+3
+
+
+l'une de ces deux peines seulement, quiconque entrave ou tente d'entraver le
+fonctionnement d'un système d'information.
+
+Chapitre 3 : De l'introduction frauduleuse de données dans un
+système d'information
+
+Article 7 : Quiconque introduit ou tente d'introduire frauduleusement des données
+dans un système d'information est puni d'un emprisonnement d'un an au moins à cinq
+ans au plus et d'une amende de cinq millions (5 000 000) à dix millions (10 000 000)
+de francs CFA ou de l'une de ces deux peines seulement.
+
+Chapitre 4 : De l'interception frauduleuse de données d'un système
+d'information
+
+Article 8 : Quiconque intercepte ou tente d'intercepter frauduleusement, par des
+moyens techniques, des données d'un système d'information lors de leur transmission
+non publique à destination, en provenance ou à l'intérieur d'un système d'information,
+est puni d'un emprisonnement d'un an ou moins à cinq ans au plus et d'une amende de
+cing millions (5 000 000) à dix millions (10 000 000) de francs CFA ou de l'une de ces
+deux peines seulement.
+
+Chapitre 5 : Des atteintes à l'intégrité des données d'un système
+d'information
+
+Article 9: Quiconque endommage ou tente d'endommager, efface ou tente
+d'effacer, détériore ou tente de détériorer, altère ou tente d'altérer, supprime ou
+tente de supprimer, frauduleusement des données d'un système d'information, est
+puni d'un emprisonnement d'un an au moins à cinq ans au plus et d'une amende de
+cinq millions (5 000 000) à dix millions (10 000 000) de francs CFA ou de l'une de
+ces deux peines seulement.
+
+Article 10 : Quiconque produit ou fabrique un ensemble de données numérisées par
+l'introduction, l'effacement ou la suppression frauduleuse de données informatisées
+stockées, traitées ou transmises par un système d'information, engendrant des
+données contrefaites, dans l'intention qu'elles soient prises en compte ou utilisées à
+des fins légales comme si elles étaient originales, est puni d'un emprisonnement d'un
+an au moins à cinq ans au plus et d'une amende de cinq millions (5 000 000) à dix
+millions (10 000 000) de francs CFA ou de l'une de ces deux peines seulement.
+
+Est puni des mêmes peines quiconque, en connaissance de cause, fait usage ou
+tente de faire usage des données obtenues dans les conditions prévues à l'alinéa
+premier du présent article.’
+
+
+Article 11 : Est puni d'un emprisonnement d'un an au moins à cinq ans au plus et d'une
+amende de cinq millions (5 000 000) à dix millions (10 000 000) de francs CFA ou de
+l'une de ces deux peines seulement, quiconque obtient frauduleusement, pour soi-
+même ou pour autrui, un avantage quelconque, par l'introduction, l'altération,
+l'effacement ou la suppression de données informatisées.
+
+Chapitre 6 : Des infractions relatives aux données à caractère personnel
+
+Article 12: Quiconque, même par négligence, procède ou fait procéder à des
+traitements de données à caractère personnel sans avoir respecté les formalités
+préalables à leur mise en œuvre prévues par la loi sur les données à caractère
+personnel est puni d'un emprisonnement d'un an au moins à cing ans au plus et d'une
+amende d'un million (1 000 000) à dix millions (10 000 000) de francs CFA ou de l'une
+de ces deux peines seulement.
+
+Article 13 : Est puni d'un emprisonnement d'un an au moins à cinq ans au plus et d'une
+amende d'un million (1 000 000) à dix millions (10 000 000) de francs CFA ou de l'une
+de ces deux peines seulement, quiconque, même par négligence, procède ou fait
+procéder à un traitement qui a fait l'objet d'un retrait provisoire de l'autorisation ou
+d'une interdiction provisoire de traitement.
+
+Article 14: Quiconque ne respecte pas, y compris par négligence, les normes
+simplifiées ou d'exonération établies à cet effet par la commission nationale pour la
+protection des données à caractère personnel, dans les hypothèses et conditions
+définies à l'article 35 de la loi relative à la protection des données à caractère
+personnel, est puni d'un emprisonnement d'un an au moins à cinq ans au plus et d'une
+amende d'un million (1 000 000) à dix millions (10 000 000) de francs CFA où de l'une
+de ces deux peines seulement.
+
+Article 15: Quiconque, hors les cas où le traitement a été autorisé dans les
+conditions prévues par la loi sur les données à caractère personnel, procède ou fait
+procéder à un traitement de données à caractère personnel incluant parmi les
+données sur lesquelles il porte le numéro d'inscription des personnes au répertoire
+national d'identification des personnes physiques, est puni d'un emprisonnement d'un
+an au moins à cinq ans au plus et d'une amende d'un million (1 000 000) à dix millions
+(10 000 000) de francs CFA ou de l'une de ces deux peines seulement.
+
+Article 16 : Est puni d'un emprisonnement d'un an au moins à cinq ans au plus et d'une
+amende d'un million (1 000 000) à dix millions (10 000 000) de francs CFA ou de l'une
+de ces deux peines seulement, quiconque procède ou fait procéder à un traitement
+de données à caractère personnel sans mettre en œuvre les mesures visant
+
+
+à préserver la sécurité des données et notamment d'empêcher qu'elles soient
+déformées, endommagées ou que des tiers non autorisés y aient accès.
+
+Article 17 : Quiconque collecte des données à caractère personnel par un moyen
+frauduleux, déloyal ou illicite, est puni d'un emprisonnement d'un an au moins à cinq
+ans au plus et d'une amende d'un million (1 000 000) à dix millions (10 000 000) de
+francs CFA ou de l'une de ces deux peines seulement.
+
+Article 18 : Quiconque procède ou fait procéder à un traitement de données à
+caractère personnel concernant une personne physique malgré l'opposition de cette
+personne, lorsque ce traitement répond à des fins de prospection, notamment
+commerciale, ou lorsque cette opposition est fondée sur des motifs légitimes, est
+puni d'un emprisonnement d'un an au moins à cinq ans au plus et d'une amende d'un
+million (1 000 000) à dix millions (10 000 000) de francs CFA ou de l'une de ces deux
+peines seulement.
+
+Article 19 : Est puni d'un emprisonnement d'un an au moins à cinq ans au plus et d'une
+amende d'un million (1 000 000) à dix millions.(10 000 000) de francs CFA ou de l'une
+de ces deux peines seulement, quiconque, hors les cas prévus par la loi, met ou
+| conserve sur support ou mémoire informatique, sans le consentement exprès de
+l'intéressé, des données à caractère personnel faisant apparaître, directement ou
+indirectement, l'origine ethnique, les opinions politiques, philosophiques ou
+religieuses, ou les appartenances syndicales, ou qui sont relatives à la santé où à
+l'orientation sexuelle de celui-ci.
+
+Est puni des mêmes peines, quiconque, hors les cas prévus par la loi, met ou
+conserve sur support ou mémoire informatique des données à caractère personnel.
+concernant des infractions, des condamnations ou des mesures de sûreté.
+
+Les dispositions de l'alinéa 1 du présent article s'appliquent aux traitements
+non automatisés des données à caractère personnel dont la mise en œuvre ne se
+limite pas à l'exercice d'activités exclusivement personnelles.
+
+Article 20 : Est puni des mêmes peines prévues à l'article 19 ci-dessus, quiconque
+procède au traitement de données à caractère personnel ayant pour fin la recherche
+dans le domaine de la santé :
+
+- sans avoir préalablement informé individuellement les personnes sur le compte
+desquelles des données à caractère personnel sont recueillies ou transmises
+de leur droit d'accès, de rectification et d'opposition, de la nature des
+données transmises et des destinataires de celles-ci ainsi que des dispositions
+prises pour leur traitement, leur conservation et leur protection;
+
+
+- malgré l'opposition de la personne concernée ou, lorsqu'il est prévu par la loi,
+en l'absence du consentement éclairé et exprès de la personne, ou s'il s'agit
+d'une personne décédée, malgré le refus exprimé par celle-ci de son vivant.
+
+Article 21: Est puni d'un emprisonnement d'un an au moins à cinq ans au plus et
+d'une amende d'un million (1000 000) à dix millions (10 000 000) de francs CFA ou
+de l'une de ces deux peines seulement , quiconque conserve des données à caractère
+personnel au-delà de la durée nécessaire aux finalités pour lesquelles elles ont été
+collectées ou traitées, sauf si cette conservation est effectuée à des fins
+historiques, statistiques ou scientifiques dans les conditions prévues par la loi.
+
+Article 22 : Quiconque détenant des données à caractère personnel à l'occasion de
+leur enregistrement, de leur classement, de leur transmission ou de toute autre
+forme de traitement, détourne ces informations de leur finalité telle que définie par
+les dispositions législatives et réglementaires sur la protection des données à
+caractère personnel, ou par la décision de la commission chargée de la protection des
+données à caractère personnel autorisant le traitement automatisé, ou par les
+déclarations préalables à la mise en œuvre de ce traïtement, est puni d'un
+emprisonnement d'un an au moins à cinq ans au plus et d'une amende d'un million
+: (1000 000) à dix millions (10 000 000) de francs CFA ou de l'une de ces deux peines
+seulement.
+
+Article 23: Est puni d'un emprisonnement d'un an au moins à cinq ans au plus et
+d'une amende d'un million (1 000 000) à dix millions (10 000 000) de francs CFA ou
+de l'une de ces deux peines seulement, quiconque recueille, à l'occasion de leur
+enregistrement, de leur classement, de leur transmission où d'une autre forme de
+traitement, des données à caractère personnel dont la divulgation aurait pour effet
+de porter atteinte à la considération de l'intéressé ou à l'intimité de sa vie privée, et
+porte, sans autorisation de l'intéressé, ces données à la connaissance d'un tiers qui
+n'a pas qualité pour les recevoir.
+
+Si la divulgation prévue à l'alinéa premier du présent article est commise par
+imprudence ou négligence, le responsable est puni d'un emprisonnement de six mois
+au moins à cinq ans au plus et d'une amende de trois cent mille (300 000) à cinq
+millions (5 000 000) de francs CFA ou de l'une de ces deux peines seulement.
+
+Dans les cas prévus aux deux alinéas du présent article, la poursuite ne peut
+être exercée que sur plainte de la victime, de son représentant légal ou de ses
+ayants droit.
+
+Article 24: Est puni d'un emprisonnement de six mois au moins à deux ans au plus
+et d'une amende d'un million (1 000 000) à dix millions (10 000 000) de francs CFA
+
+
+ou de l'une de ces deux peines seulement, quiconque entrave l'action de la
+commission chargée de la protection des données à caractère personnel ;
+
+- soit en refusant de communiquer à ses membres ou aux agents habilités, les
+renseignements et documents utiles à leur mission, ou en dissimulant lesdits
+documents ou renseignements, ou en les faisant disparaître ;
+
+- soit en communiquant des informations qui ne sont pas conformes au contenu
+des enregistrements tel qu'il était au moment où la demande a été formulée ou
+qui ne présentent pas ce contenu sous une forme directement accessible ;
+
+- soit en s'opposant à l'exercice des missions confiées à ses membres ou aux
+agents habilités en application de la loi sur la protection des données à
+caractère personnel.
+
+Chapitre 7 : De l'abus de dispositifs et de l'association de malfaiteurs
+informatiques
+
+Article 25 : Quiconque produit, vend, importe, détient, diffuse, offre, cède ou met
+à disposition un équipement, un programme informatique, tout dispositif ou donnée
+conçue ou spécialement adapiée pour commettre une ou plusieurs des infractions
+prévues aux articles 4 à 11 de la présente loi ou un mot de passe, un code d'accès ou
+des données informatisées similaires permettant d'accéder à tout ou partie d'un
+système d'information, est puni soit des peines prévues pour l'infraction elle-même,
+soit en cas de pluralité d'infractions, des peines prévues pour l'infraction la plus
+sévèrement réprimée.
+
+Article 26 : Quiconque participe à une association formée ou à une entente établie
+en vue de préparer ou de commettre une ou plusieurs des infractions prévues par la:
+présente loi, est puni soit des peines prévues pour l'infraction elle-même, soit en cas
+de pluralité d'infractions, des peines prévues pour l'infraction la plus sévèrement
+
+réprimée.
+
+Lorsqu'elles ont été commises en bande organisée, les infractions prévues par
+la présente loi sont punies du maximum de la peine correspondante.
+
+Chapitre 8 : De la pornographie infantile
+
+Article 27: Quiconque produit, enregistre, offre, met à disposition, ‘diffuse,
+transmet une image ou une présentation présentant un caractère de pornographié
+infantile par le biais d'un système d'information, commet un crime punissable'de la
+réclusion de cinq ans au moins à dix ans au plus.
+
+Article 28 : Quiconque se procure ou procure à autrui, importe ou fait importer,
+exporte ou fait exporter une image ou une représentation présentant un caractère
+
+8
+
+
+A JUDO LNT PP OL TRE
+
+de pornographie infantile par le biais d'un système d'information, commet un crime
+punissable de la réclusion de cinq ans au moins à dix ans au plus.
+
+Article 29: Quiconque possède une image ou une présentation présentant un
+caractère de pornographie infantile dans un système d'information ou dans un moyen
+quelconque de stockage de données informatisées, commet un crime punissable d'un
+emprisonnement de cinq ans au moins à dix ans au plus.
+
+Est puni des mêmes peines, quiconque facilite l'accès à des images, des
+documents, du son ou une représentation présentant un caractère de pornographie à
+un enfant.
+
+Article 30 : Toute personne adulte qui propose intentionnellement, par le biais des
+technologies de l'information et de la communication, une rencontre à un enfant,
+dans le but de commettre à son encontre une des infractions prévues aux articles
+27, 28 et 29 de la présente loi, lorsque cette proposition a été suivie d'actes
+matériels conduisant à ladite rencontre, commet un crime punissable de la réclusion
+
+‘de cinq ans au moins à dix ans au plus.
+
+Chapitre 9 : De la xénophobie par le biais d'un système d'information
+
+Article. 31 : Quiconque crée, télécharge, diffuse ou met à disposition, sous quelque
+
+‘forme que ce soit, du matériel raciste et xénophobe, par le biais d'un système
+
+d'information est puni d'un emprisonnement de six mois au moins à cinq ans au plus et
+d'une amende d'un million (1 000 000) à dix millions (10 000 000) de francs CFA ou
+de l'une de ces deux peines seulement.
+
+Article 32 : Quiconque profère une menace par le biais d'un système d'information,
+
+commet une. infraction pénale envers. une personne en raison de son appartenance à
+un groupe qui se caractérise par la couleur, l'ascendance ou l'origine nationale .ou
+ethnique, ou la religion dans la mesure où cette appartenance sert de prétexte à l'un
+ou l'autre de ces éléments, ou un groupe de personnes qui se distingue par une de.ces
+caractéristiques, est puni d'un emprisonnement de six mois au moins à cinq ans au
+plus et d'une amende d'un million (1 000 000) à dix millions (10.009 000) de francs
+CFA qu de l'une de ces deux peines seulement. : :
+
+Article 33 : Quiconque profère. une insulte par le biais: d'un système d'information
+envers une personne en raison de son appartenance à un groupe qui se caractérise
+par la couleur, l'ascendance ou l'origine nationale ou ethnique, où la religion . ou
+l'opinion politique dans la’mesure où cette appartenance sert de prétexte à l'un ou
+l'autre de ces éléments, ou un groupe de personnes qui se distingue por une de'ces
+caractéristiques est puni d'un emprisonnement de six mois au moins à cinq ans aù plus
+
+
+Re A cer TUE TE OVER
+
+et d'une amende d'un million (1 000 000) à dix millions (10 000 000) de francs CFA ou
+de l'une de ces deux peines seulement.
+
+Article 34: Quiconque diffuse ou met à disposition par le biais d'un système
+d'information, du matériel qui nie, minimise de manière grossière, approuve ou
+justifie des actes constitutifs de génocide ou de crimes contre l'humanité tels que
+définis par le droit international et reconnus comme tel par une décision définitive
+d'un tribunal international établi par des instruments internationaux pertinents et
+dont la juridiction est reconnue, est puni d'un emprisonnement de six mois au moins à
+cinq ans au plus et d'une amende d'un million (1000 000) à dix millions (10 000 000)
+de francs CFA ou de l'une de ces deux peines seulement.
+
+Article 35: Le tribunal peut, concomitamment à la condamnation, prononcer la
+confiscation des matériels, équipements, instruments, programmes informatiques ou
+tous dispositifs ou données appartenant au condamné et ayant servi à commettre les
+infractions prévues aux articles 4 à 34 de la présente loi.
+
+Chapitre 10 : Des infractions liées aux activités des prestataires de services
+de communication au public par voie électronique
+
+Article 36 : Quiconque présente un contenu ou une activité comme étant illicite dans
+le but d'en obtenir le retrait ou d'en faire cesser la diffusion par un prestataire de
+service de communication au public par voie électronique, alors qu'il sait cette
+information inexacte, est puni d'un emprisonnement de six mois au moins à un an au
+plus et d'une amende de deux cent mille (200 000) à un million (1 000 000) de
+francs CFA ou de l'une de ces deux peines seulement.
+
+Article 37: Tout prestataire de service de communication au public par voie
+électronique qui ne. satisfait pas à l'obligation de mettre en place un dispositif
+
+facilement accessible et visible permettant à toute personne de porter à. leur:
+connaissance les données illicites telles, l'incitation à la haine raciale, la pornographie
+infantile, le terrorisme ou à l'obligation d'informer promptement les autorités
+publiques compétentes de toutes activités illicites qui lui sont signalées et
+qu'exercent les destinataires de leurs services, est puni d'un emprisonnement de. six
+mois qu moins à un an au plus et d'une amende de cent mille (100 000) à cinq cent
+
+. mille (500.000) francs CF A'ou de l'une de ces deux peines seulement.
+
+Article. 38: Touf prestataire de services de communication au public par voie
+
+électronique qui ne satisfait pas à l'obligation de conservetion des dannées:
+permettant l'identification de quiconque a contribué à la création du contenu. ou de |
+l'un des contenus des services dont d est prestataire, est puni:d'un emprisonnement :
+
+e ‘
+
+10
+
+
+É
+Ë
+ÿ
+$
+
+Nes memes
+
+NON ATTAQUE PP TS
+
+de six mois au moins à un an au plus et d'une amende de cent mille (100 000) à cinq
+cent mille (500 000) francs CFA ou de l'une de ces deux peines seulement.
+
+Les peines prévues à l'alinéa premier du présent article s'appliquent lorsque le
+prestataire de services de communication par voie électronique ne défère pas à la
+demande d'une autorité judiciaire d'obtenir communication des données visées au
+
+même alinéa.
+
+Article 39 : Toute personne dont l'activité est d'éditer un service de communication
+au public en ligne qui ne met pas à la disposition du public et dans un standard ouvert,
+les informations requises par les dispositions du même article susvisé, est punie d'un
+emprisonnement de six mois au moins à un an au plus et d'une amende de deux cent
+mille (200 000) à deux millions (2 000 000) de francs CFA ou de l'une de ces deux
+peines seulement.
+
+Est puni des mêmes peines, tout prestataire de services de communication au
+public par voie électronique qui ne fournit pas les moyens techniques permettant de
+satisfaire aux conditions d'identification ci-après :
+
+- pour les personnes physiques, leurs noms, prénoms, domiciles et
+numéros de téléphone et, si elles sont assujetties aux formalités
+d'inscription au registre de commerce et du crédit immobilier, les
+numéros de leurs inscriptions :
+
+- pour les personnes morales, leurs dénominations ou leurs raisons
+sociales et leurs sièges sociaux, leurs numéros de téléphone et, s'il
+s'agit d'entreprises assujetties aux formalités d'inscription au registre
+du commerce et du crédit immobilier ou au répertoire national des
+entreprises et associations, les numéros de leurs sièges sociaux ;
+
+- le nom du directeur ou du codirecteur de la publication du service ‘de
+communication au public par voie électronique et, le cas. échéant, celui
+du responsable de la rédaction. |
+
+Article 40 : Toute personne nommée ou désignée dans un service de communication
+au public par voie électronique qui ne publie pas la réponse découlant de l'exercice du
+droit de réponse vingt-quatre heures .après la réception de la demande, est punie
+
+d'une amende de deux cent mille (200 000) à deux millions (2.000 000) de francs
+CFA, sans préjudice de toufes autres peines prévues. par la législation en vigueur.
+
+Article 41: Toute personne exerçant une activité dans le domaine du commerce.
+électronique qui ne satisfait pas aux obligations d'information relatives au maintien
+de l'ordre et de la sécurité publics, à la préservation des intérêts de la défense
+nationale, à la protection des enfants, de la vie privée, de la santé publique ou des
+consommateurs, est punie d'un emprisonnement de six mois au moins à un an au plus
+
+11
+
+
+et d'une amende de cent mille (100 000) à cinq cent mille (500 000) de francs CFA
+ou de l'une de ces deux peines seulement.
+
+Article 42 : Tout fournisseur de biens ou de services par voie électronique qui
+manifeste un refus de rembourser les montants reçus d'un consommateur qui exerce
+son droit de rétractation est puni d'un emprisonnement de six mois au moins à un an
+au plus et d'une amende de deux cent mille (200 000) à deux millions (2 000 000)
+de francs CFA ou de l'une de ces deux peines seulement.
+
+Article 43: Quiconque trompe ou tente de tromper, par des manœuvres
+frauduleuses, l'acheteur sur l'identité, la nature ou l'origine du bien vendu, en livrant
+un bien autre que celui commandé et acheté par le consommateur, est puni d'un
+emprisonnement de trois mois au moins à un an au plus et d'une amende de cinq cent
+mille (500 000) à dix millions (10 000 000) de francs CFA ou de l'une de ces peines
+seulement.
+
+Chapitre 11 : Des infractions relatives à la publicité par voie électronique
+
+‘ Article 44 : Toute publicité, sous quelque forme que ce soit, accessible par un
+: service de communication électronique, est clairement identifiée comme tel. A
+défaut, elle comporte la mention « publicité » de manière lisible, apparente et non
+équivoque.
+
+La personne physique ou morale pour le compte de laquelle la publicité est
+faite doit être clairement identifiée.
+
+Les offres promotionnelles, telles que les annonces de réduction de prix, les
+offres conjointes ou tout autre cadeau, ainsi que les concours ou les jeux
+promotionnels, adressés par. courrier électronique, sont clairement identifiables
+comme tel et .les:conditions pour en bénéficier sont aisément. accessibles et.
+présentées de manière précise et non équivoque sur l'objet du courrier dès leur
+réception par leur destinataire, ou en cas d'impossibilité technique, dans le corps du
+message. ;
+
+Les concours ou.jeux: promotionnels sant clairement identifiables comme tel
+et leurs conditions de participation comprenant, le cas échéant, le numéro
+d'autorisation dont le. prestataire doit disposer, sont aisément accessibles et
+préséntées de manière précise et non équivoque. ‘
+
+‘ Les-publicités. qui font partie d'un service de la société de l'information fourni
+par un membre d'une profession réglementée; ou qui constituent un tel service, sont
+autorisées, sous réserve .du respect des règles-professionnelles.visant, notamment,
+l'indépendance, la dignité et l'honneur de la profession ainsi que le secret
+professionnel et la loyauté & envers les clients et les autres membres de la profession.
+
+12
+
+
+Rene res
+
+f:
+|
+ë.
+‘
+
+‘Article 48 : Tout prestutaire de service de cryptologie qui ne satisfait pas. à
+
+Quiconque  contrevient aux dispositions ci-dessus, est puni d'un
+emprisonnement de six mois au moins à deux ans au plus et d'une amende de cent
+mille (100 000) à cinq cent mille (500 000) francs CFA ou de l'une de ces deux
+peines seulement.
+
+Chapitre 12 : Des infractions liées à la prospection directe
+
+Article 45 : L'utilisation du courrier électronique, de télécopieurs ou de systèmes
+automatisés d'appel et de communication sans intervention humaine, notamment
+d'automates d'appel, à des fins de publicité n'est autorisée que moyennant le
+consentement préalable, libre, spécifique et informé du destinataire des messages.
+
+Quiconque  contrevient aux dispositions ci-dessus, est puni d'un
+emprisonnement de six mois au moins à deux ans au plus et d'une amende de cent
+mille (100 000) à cinq cent mille (500 000) francs CFA ou de l'une de ces deux
+
+peines seulement.
+
+Article 46 : Quiconque émet, dans les cas autorisés, à des fins de prospection
+
+‘ directe, des messages au moyen d'automates d'appel, télécopieurs et courriers
+‘ électroniques, sans indiquer de coordonnées valables auxquelles le destinataire
+
+D]
+
+puisse utilement transmettre une demande tendant à obtenir que ces
+communications cessent, est puni d'un emprisonnement de six mois au moins à deux
+ans au plus et d'une amende de cent mille (100 000) à cinq cent mille (500 000)
+francs CFA ou de l'une de ces deux peines seulement.
+
+Est puni des mêmes peines fixées à l'alinéa premier du présent article,
+quiconque dissimule ou tente de dissimuler l'identité de la personne pour le compte
+de laquelle la communication est émise et de mentionner un objet sans rapport avec
+la prestation ou le service proposé. |
+
+_ Article 47 : Tout prestataire qui ne satisfait pas à la demande d'un destinataire de.
+
+faire cesser l'envoi de méssages, à des fins de prospection directe, au moyen
+d'automates d'appel, télécopieurs ou courriers électroniques, est puni d'un.
+emprisonnement de six mois au moins à deux ans au plus et d'une amende de cent
+
+. mille (100 000) à cinq cent mille (500 000) francs CFA ou de l'une de ces deux
+
+peines seulement.
+
+Chapitre 13 : Des infractions relatives à la cryptolagie
+
+\
+
+l'obligation de communiquer à l'agence nationale de sécurité des systèmes
+d'infarmation une description des caractéristiques techniques du moyen de
+cryptologie ainsi que le code source des logiciels utilisés, est puni d'un
+emprisonnement de six mois au moins à deux ans au plus et d'une amende
+
+13
+
+
+de quatre cent mille (400 000) à deux millions (2 000 000) de francs CFA ou de l'une
+de ces deux peines seulement.
+
+Article 49 : Quiconque fournit ou importe un moyen de cryptologie n'assurant pas
+exclusivement des fonctions d'authentification ou de contrôle d'intégrité sans
+satisfaire à l'obligation de déclaration préalable auprès de l'agence nationale de
+sécurité des systèmes d'information, est puni d'un emprisonnement de six mois au
+moins à cinq ans au plus et d'une amende de quatre cent mille (400 000) à cinq
+millions (5 000 000) de francs CFA ou de l'une de ces deux peines seulement.
+
+Article 50 : Quiconque exporte un moyen de cryptologie n'assurant pas
+exclusivement des fonctions d'authentification ou de contrôle d'intégrité sans avoir
+obtenu préalablement l'autorisation de l'agence nationale de sécurité des systèmes
+d'information est puni d'un emprisonnement d'un an au moins à cinq ans au plus et
+d'une amende d'un million (1 000 000) à vingt millions (20 000 000) de francs CFA ou
+de l'une de ces deux peines seulement.
+
+Article 51 : Quiconque fournit des prestations de cryptologie sans avoir obtenu
+préalablement l'agrément de l'agence nationale de sécurité des systèmes
+d'information est puni d'un emprisonnement d'un an au moins à cinq ans au plus et
+d'une amende d'un million (1000 000) à vingt millions (20 000 000) de francs CFA ou
+de l'une de ces deux peines seulement.
+
+Article 52 : Quiconque met à la disposition d'autrui un moyen de cryptologie ayant
+fait l'objet d'une interdiction d'utilisation et de mise en circulation est puri d'un
+emprisonnement d'un an au moins à cinq ans au plus et d'une amende d'un million
+(1 000 000) à vingt millions. (20 000 000) de francs CFA ou de l'une de ces deux
+peines seulement.
+
+Article 53 : Quiconque fait obstacle à l'exercice de la mission de contrôle de
+l'agence nationale de sécurité des systèmes d'information est puni d'un
+emprisonnement d'un an au moins à cinq ans au plus et d'une amende d'un million
+(1 000 000) à vingt millions (20 000 000) de francs CFA ou de l'une de ces deux
+peines seulement.
+
+Article 54 : Quiconque met en place un accès dérobé à des données ou à un système
+d'information. sans l'autorisation de l'utilisateur légitime ‘est puni d'un
+emprisonnement de deux ans au moins à cinq ans au plus et d'une amende de deux
+millions .(2 000 000) à trente millions (30 000 000) de francs CFA ou de l'une de
+ces deux peines seulement.
+
+
+Chapitre 14 : De l'adaptation des infractions portant sur les biens aux
+technologies de l'information et de la communication
+
+Article 55 : Quiconque commet un vol, au sens du code pénal, par le biais des
+technologies de l'information et de la communication est puni d'un emprisonnement
+de six mois au moins à cinq ans au plus et d'une amende de quatre cent mille
+(400 000) à cing millions (5 000 000) de francs CFA ou de l'une de ces deux peines
+seulement.
+
+Article 56 : Quiconque extorque des fonds, des valeurs, une signature, un écrit, un
+acte, un titre ou une pièce quelconque contenant ou opérant obligation, disposition ou
+décharge, par le biais des technologies de l'information et de la communication, est
+puni d'un emprisonnement de six mois au moins à cinq ans au plus et d'une amende de
+quatre cent mille (400 000) à cinq millions (5 000 000) de francs CFA ou de l'une de
+ces deux peines seulement.
+
+Article 57 : Quiconque commet un abus de confiance tel que défini par le code pénal
+par le biais des technologies de l'information et de la communication, encourt une
+peine qui peut être au double de celle prévue par le code pénal.
+
+Article 58 : Lorsque l'escroquerie est commise par le biais des technologies de
+l'information et de la communication, les peines prévues dans le code pénal peuvent
+être portées au double.
+
+Article 59 : Quiconque trompe ou tente de tromper le destinataire de produits ou
+de services par le biais des technologies de l'information et de la communication sur
+l'objét, l'origine, la nature, la qualité substantielle, la quantité, la teneur ou la
+composition est puni d'un emprisonnement de six mois au moins à cinq ans au plus et
+d'une amende de quatre cent mille (400 000) à cinq millions (5 000 000) de francs
+CFA ou de l'une de ces deux peines seulement.
+
+Article 60 : Quiconque recèle, en tout ou partie, les choses enlevées, détournées ou
+obtenues à l'aide d'un crime ou d'un délit, par le biais des technologies de
+l'information et-de la communication, est puni d'un emprisonnement de six mois au
+moin à cinq ans au plus et d'une amende de quatre’ cent mille (400 000) à cinq
+millions (5. 000.000) de francs CFA ou de l'une de ces. deux peines seulement.
+
+Article 61 : Quiconque accomplit intentiornellement un où plusieurs agissements
+qualifiés de.blanchiment de capitaux, au sens du Règlement n° O1/CEMAC/UMAC/CM
+du 11 avril 2016 portant prévention et répression du blanchiment des capitaux et du
+financement du terrorisme et de la prolifération en Afrique centrale, par le biais
+des technologies de l'information et de la communication, commet un crime
+punissable de la réclusion de cinq ans au moins à dix ans au plus.
+
+15
+
+
+Article 62 : Quiconque accomplit intentionnellement un acte qui constitue une
+infraction de terrorisme, au sens du Règlement n°01/CEMAC/UMAC/CM du 11 avril
+2016 portant prévention et répression du blanchiment des capitaux et du
+financement du terrorisme et de la prolifération en Afrique centrale, par le biais
+des technologies de l'information et de la communication, commet un crime
+punissable de la réclusion de cinq ans au moins à dix ans au plus.
+
+Article 63 : Quiconque copie ou tente de copier frauduleusement des données
+informatiques au préjudice d'un tiers est puni d'un emprisonnement de six mois au
+moins à cinq ans au plus et d'une amende de quatre cent mille (400 000) à cinq
+millions (5 000 000) de francs CFA ou de l'une de ces deux peines seulement.
+
+Article 64 : Quiconque, sciemment, recèle, en tout ou partie, des données
+informatiques enlevées, détournées ou obtenues à l'aide d'un crime ou d'un délit, est
+puni d'un emprisonnement de six mois au moins à cinq ans au plus et d'une amende de
+quatre cent mille (400 000) à cinq millions (5 000 000) de francs CFA ou de l'une de
+ces deux peines seulement.
+
+Article 65 : Quiconque extorque ou tente d'extorquer des données informatiques,
+dans les conditions définies par le code pénal, est puni d'un emprisonnement de six
+mois au moins à cinq ans au plus et d'une amende de quatre cent mille (400 000) à
+cinq millions (5 000 000) de francs CFA ou de l'une de ces deux peines seulement.
+
+Article 66 : L'application des dispositions des articles 62 à 64 de la présente loi ne
+fait pas obstacle à la prise en compte des circonstances aggravantes découlant de
+l'utilisation des technologies de l'information et. de la communication prévues aux
+articles 54 à 59 de la présente loi,
+
+Chapitre 15 : Des infractions commises par tout | moyen
+de diffusion publique
+
+Article 67 : Sont considérés comme moyens de diffusion publique : la radiodiffusion,
+la télévision, le cinéma, la presse, l'affichage, l'exposition, la distribution d'écrits ou
+d'images de toutes natures, les discours, chants, cris ou menaces proférés dans les
+.… Hieux ou réunions publics, tout procédé technique destiné à atteindre le public eï
+généralement tout moyen de communication numérique par voie électronique.
+
+Article 68 : Est puni d'un emprisonnement de six mois au moins à cinq ans au plus et
+d'une amende de cinq cent mille (500 000) à dix millions (10 000 000) de francs CFA
+ou de l'une de ces deux peines seulement, quiconque :
+
+- fabrique ou détient en vue d'en faire commerce, distribution, location,
+affichage où exposition ;
+
+16
+
+
+A SM MERDE RES RE _——
+
+- importe ou fait importer, exporte ou fait exporter, transporte ou fait
+transporter, sciemment aux mêmes fins :
+
+- affiche, expose ou projette aux regards du public :
+
+- vend, loue, met en vente ou en location, même non publiquement ;
+
+- offre, même à titre gratuit, même non publiquement sous quelque forme que
+ce soit, directement ou par moyen détourné ;
+
+- distribue ou remet en vue de leur distribution par un moyen quelconque, tous
+imprimés, tous écrits, dessins, affiches, gravures, peintures, photographies,
+films ou clichés, matrices ou reproductions photographiques, emblèmes, tous
+objets ou images contraires aux bonnes mœurs.
+
+Article 69 : Lorsque les faits visés à l'article 68 ci-dessus ont un caractère
+pornographique, le. maximum de la peine est prononcé.
+
+Le condamné peut, en outre, faire l'objet, pour une durée ne dépassant pas six
+mois, d'une interdiction d'exercer, directement ou par personne interposée, en droit
+ou en fait, des fonctions de direction de toute entreprise d'impression, d'édition ou
+de groupage et de distribution de journaux et de publication périodiques.
+
+Quiconque contrevient à l'interdiction visée ci-dessus est puni des peines
+prévues au présent article.
+
+Chapitre 16 : Des atteintes au droit d'auteur et aux droits voisins
+
+Article 70 : Quiconque commet délibérément, à une échelle commerciale et au
+moyen d'un système d'information, une atteinte au droit d'auteur et aux droits
+voisins définis par la loi sur le droit d'auteur et les droits voisins, conformément aux
+obligations que l'Etat a sauscrites, à l'exception de tout droit moral conféré par ces
+conventions, est puni d'un emprisonnement de six mois au moins à cinq ans au plus et
+d'une amende de cinq cent mille (500 000) à dix millions (10 009 000) de francs: CFA
+ou de l'une de ces deux peines seulement.
+
+Article 71 : Quiconque porte atteinte au droit patrimonial ou au droit moral de
+l'auteur d'une création informatique, à savoir un programme informatique ou une base
+de données tels que définis par la loi sur le droit d'auteur et les droits voisins,
+est puni d'un emprisonnement de six mois au moins à cinq ans au plus et d'une amende
+de cinq cent mille (500 000) à dix millions (10 000 000) de francs CFA ou de l'une de
+
+- ces deux peines seulement.
+
+Chapitre 17 :.De l'usurpation d'identité numérique
+
+Article 72 : Quiconque usurpe l'identité d'un tiers ou une où plusieurs données
+permettant de l'identifier, en vue de troubler sa tranquillité ou célle d'autrui ou de
+
+\ . . n]
+
+porter atteinte à son honneur, à sa considération ou à ses intérêts, est puni
+
+17
+
+
+d'un emprisonnement de six mois au moins à cinq ans au plus et d'une amende de cinq
+cent mille (500 000) à dix millions (10 000 000) de francs CFA ou de l'une de ces
+deux peines seulement.
+
+Chapitre 18 : Du refus d'assistance
+
+Article 73 : Quiconque, autre que le mis en cause, omet intentionnellement, sans
+excuse légitime ou justification de se conformer à une r'équisition judiciaire donnée,
+est puni d'un emprisonnement de six mois au moins à trois ans au plus et d'une
+amende de trois cent mille (300 000) à cinq millions (5 000 000) de francs CFA ou
+l'une de ces deux peines seulement.
+
+Article 74 :Tout fournisseur de service qui, intentionnellement, sans excuse légitime
+
+ou justification, divulgue les informations relatives à une enquête criminelle, alors
+
+qu'il a reçu, dans le cadre de cette enquête, une injonction stipulant explicitement
+
+que la confidentialité doit être maintenue ou qu'elle résulte de la loi, est puni d'un
+
+emprisonnement de six mois au moins à trois ans au plus et d'une amende de trois
+
+cent mille (300 000) à cinq millions (5 000 000) de francs CFA ou de l'une de ces
+. deux peines seulement.
+
+SAS mr TL . "
+
+Chapitre 19 : Des atteintes à la défense et à la sécurité nationale
+
+Article 75 : Est coupable de trahison et puni des travaux forcés à perpétuité tout
+Congolais c au étranger qui : ;
+
+- livre à une puissance étrangère ou à ses agents, sous quelque forme ou par
+quelque moyen que ce soit un renseignement, objet, dacument, procédé, une
+donnée numérisée ou un fichier informatisé qui doit être tenu secret dans
+
+: l'intérêt de la défense et de la sécurité nationale ;
+s'assure, par quelque moyen que ce soit, la possession d'un tel renseignement,
+objet, document, procédé, d'une telle donnée informatisée ou d'un tel fichier
+informatisé en vue de le livrer à une puissance étrangère ou à ses agents ;
+_- ‘détruit ou laisse détruire un tel renseignement, objet, document, procédé, une
+telle donnée numérisée ou un tel fichier informatisé en vue de favoriser une
+puissance étrangère.
+
+Article 76 :.Est coupable de trahison et puni des travaux forcés à perpétuité tout
+Congolais ou tout étranger qui, dans l'intention de les livrer à tout pays tiers,
+rassemblera des renseignements, objets, documents, procédés, données où fichiers
+informatisés dont la réunion et l'exploitation sont de nature à nuire à la défense et à
+la sécurité nationale.
+
+
+Article 77 : Est puni de la peine de réclusion de cinq ans au moins à dix ans au plus,
+tout Congolais ou étranger qui, sans intention de trahison ou d'espionnage :
+
+- s'assure, étant sans qualité, la possession d'un renseignement, objet,
+document, procédé, des données ou fichiers informatisés qui doivent être
+tenus secrets dans l'intérêt de la défense et de la sécurité nationale ou dont
+la connaissance pourrait conduire à la découverte d'un secret de la défense et
+de la sécurité nationale :
+
+-_ détruit, soustrait, laisse détruire ou soustraire, reproduit ou laisse reproduire
+un tel renseignement, objet, document, procédé, une telle donnée ou un tel
+fichier informatisé ;
+
+- porte ou laisse porter à la connaissance d'une personne non qualifiée ou du
+
+public un tel renseignement, objet, document, procédé, de tels données ou
+fichiers informatisés, ou en étend la divulgation.
+
+Chapitre 20 : De la responsabilité pénale des personnes morales
+
+Article 78 : Les personnes morales autres que l'Etat, les collectivités locales et les
+
+établissements publics sont pénalement responsables des infractions prévues par la
+“présente loi, lorsqu'elles sont commises pour leur compte par toute personne
+: physique, agissant soit individuellement, soit en tant que membre d'un organe de la
+
+personne morale, qui exerce un pouvoir de direction en son sein, fondé :
+
+- Sur un pouvoir de représentation de la personne morale ;
+:-. sur une autorité pour prendre des décisions au nom de la personne morale ;
+= Sur une autorité pour exercer un contrôle au sein de la personne morale.
+
+Article 79 : Les personnes morales visées à l'article 78 ci-dessus peuvent être
+tenues pour responsables lorsque l'absence de surveillance ou de contrôle.de la part
+de leurs organés où représentants a rendu possible la commission des infractions
+établies en application de la présente loi pour le compte de ladite personne morale
+par une personne physique agissant sous leur autorité.
+
+Article 80 : La responsabilité des personnes morales telle que définie aux articles
+78 et 79 de la présente loi n'exclut pas celle des personnes physiques auteurs ou
+complices des même faits.
+
+Article 81 : Peuvent être prononcées contre les personnes’ morales, les peines
+suivantes : US ° CL
+
+‘- larñende égale au quintuple de celle prévue pour les personnes physiques par la
+loi qui réprime l'infraction ;
+
+19
+
+
+- la dissolution, lorsque la personne morale a été créée ou détournée de son
+objet pour commettre les faits incriminés :
+
+- l'interdiction définitive ou temporaire, ne pouvant dépasser une durée de cinq
+ans, d'exercer directement ou indirectement une ou plusieurs activités
+professionnelles ou sociales ;
+
+- la fermeture définitive ou temporaire, ne pouvant dépasser une durée de cinq
+ans, d'un ou plusieurs des établissements de l'entreprise ayant servi à
+commettre les faits incriminés :
+
+- l'exclusion des marchés publics à titre définitif ou pour une durée. de cinq ans
+au plus ;
+
+- l'interdiction à titre définitif ou pour une durée de cinq ans au plus de faire
+appel public à l'épargne ;
+
+-__ l'interdiction pour une durée de cinq ans au plus d'émettre des chèques autres
+que ceux qui permettent le retrait de fonds par le tireur auprès du tiré ou
+ceux qui sont certifiés ou d'utiliser des cartes de paiement ;
+
+- la confiscation de la chose qui a servi où était destinée à commettre
+l'infraction ou de la chose qui en est le produit ;
+
+- l'affichage de la décision prononcée ou la diffusion de celle-ci soit par la
+presse écrite sait par tout moyen de communication au public par vaie
+électronique.
+
+Chapitre 21 : De l'adaptation de certaines sanctions aux technologies
+de l'information et de la communication
+
+Article 82 : En cas de condamnation pour une infraction commise par le biais des
+technologies de Finformation et de. la communication, la juridiction peut prononcer à
+titre de peines complémentaires l'interdiction d'émettre des. messages de
+communication numérique, l'interdiction, à titre provisoire au définitif, de l'accès au
+site ayant servi à.commettre. l'infraction, ou l'injonction d'en couper l'accès par tous.
+moyens techniques disponibles ou même en interdire l'hébergement.
+
+Le juge peut faire injonction à toute personne légalement responsäble du site
+ayant servi à commettre l'infraction ou à toute personne qualifiée. de mettre en
+œuvre. les moyens techniques de nature à garantir l'interdiction d'accès,
+d'hébergement ou la coupure de l'accès au site incriminé. |
+
+Article B3 : Quiconque: viole les interdictions prononcées par le: juge, en application
+de l'article. 82 ci- -déssus, est puni d'un.emprisonnement de six mois au moins à trois
+
+ans au blus et d'une ‘amende de trois sent mille: (300 000) à cinq millions (5 000 0090)
+dé francs CFA ou de l'une de ces deux peines seulement.
+
+20
+
+
+Article 84 : En cas de condamnation à une infraction commise par le biais des
+technologies de l'information et de la communication, le juge peut, à titre
+complémentaire, ordonner la diffusion au frais du condamné, par extrait, de la
+décision sur ce même support.
+
+Lorsqu'elle est ordonnée, la publication prévue à l'alinéa premier du présent
+article est exécutée dans les quinze jours suivant le jour où la condamnation est
+devenue définitive, sous peine d'un emprisonnement de six mois au moins à trois ans
+au plus et d'une amende de trois cent mille (300 000) à cinq millions (5 000 000) de
+francs CFA ou de l'une de ces deux peines seulement.
+
+Article 85 : Dans les cas prévus aux articles 12 à 23 de la présente loi, le juge peut
+ordonner l'effacement de tout ou partie des données à caractère personnel faisant
+l'objet du traitement ayant donné lieu à l'infraction.
+
+Article 86 : Sans préjudice des dispositions des articles 48 à 54 de la présente loi,
+peuvent être prononcées, pour les infractions liées à la. cryptologie, les peines
+- complémentaires suivantes :
+
+-_ la confiscation des outils qui ont servi à commettre l'infraction ou qui en sont
+le produit ;
+- l'interdiction d'exercer une fonction publique ou une activité professionnelle
+liée à la cryptologie pour une durée de cinq ans au plus ;
+- la fermeture de l'un ou des établissements de l'entreprise ayant servi à
+: commettre les faits:incriminés pour une durée. de cinq'ans au plus ;
+1#" l'exclusion des marchés publics:pour une durée de cing-ans:au plus.
+
+Les peines complémentaires s'appliquent à à toute personne physique ou morale
+coupable de l'une des infractions visées au présent article.
+
+TITRE" III : DE LA PROCEDURE EN MATIERE D'INFRACTIONS COMMISES
+PAR LE BIAIS DES TECHNOLOGIES DE L'INFORMATION ET DE
+‘LA COMMUNICATION
+
+- Chapitre 1 : De la preuve électronique en matière pénale
+
+Article: 87: : L'écrit électronique en matière ‘pénale est admis pour établir les
+
+::. infractions à la: loi pénale:.sous réserve qu'un tel élément de preuve soit apporté au:
+
+. cours des débats et discuté devant. le juge et que puisse être dûment identifiée la
+personne de qui il émane et qu'ilsoit établi et conservé dans des conditions ‘de
+nature à en garantir l'intégrité.
+
+
+Chapitre 2 : De la perquisition et saisie informatique
+
+Article 88 : Lorsque des données stockées dans un système d'information ou dans
+un support permettant de conserver des données informatisées sur le territoire
+congolais sont utiles à la manifestation de la vérité, le procureur de la République ou
+le juge d'instruction peut ordonner une perquisition ou accéder à un système
+d'information ou à une partie de celui-ci ou dans un autre système d'information, dès
+lors que ces données sont accessibles à partir du système initial ou disponible pour le
+système initial.
+
+S'il est préalablement établi que ces données, accessibles à partir du système
+initial ou disponible pour le système initial, sont srockées dans un autre système
+d'information situé en dehors du territoire national, elles sont recueillies par le
+procureur de la République ou le juge d'instruction, sous réserve des conditions
+d'accès prévues par les engagements internationaux en vigueur.
+
+Article 89 : Lorsque le procureur de la République ou le juge d'instruction découvre
+dans un système d'information des données stockées qui sont utiles pour la
+manifestation de la vérité, mais que la saisie du support ne paraît pas souhaitable,
+ces données, de même que celles qui sont nécessaires pour les comprendre, sont
+copiées sur des supports de stockage informatique pouvant être saisis et placés sous
+scellés.
+
+Le procureur de la République ou le juge d'instruction désigne toute personne
+qualifiée pour utiliser les moyens techniques appropriés afin d'empêcher l'accès aux
+données visées à l'article 5 de la présente loi dans le système d'information où aux
+copies de ces données qui sont à la disposition de personnes autorisées à utiliser le
+système d'information et de garantir leur intégrité.
+
+‘” Lorsque, pour des raisons techniques où en raison du volume des données, la
+mesure prévue à l'alinéa 2 du présent article ne peut être prise, le procureur de la
+République. ou le juge d'instruction utilise les moyens techniques appropriés pour
+empêcher l'accès à ces données dans le système d'information, de même qu'aux
+copies de ces données qui sont à la disposition de personnes autorisées à utiliser le
+système d'information, de même que pour garantir leur intégrité.
+
+Article. 90 : Lorsqu'il apparaît que les données. saisies ou obtenues au cours de
+… l'enquêre ou de l'instruction ont fait l'objet d'opérations de transformation
+| empêchant d'y accéder en clair ou sont de nature à compromettre les informations
+qu'elles contiennent, le procureur de la République ou le juge d'instruction peut
+
+to
+Le
+
+
+réquisitionner toute personne physique ou morale qualifiée, en vue d'effectuer les
+opérations techniques permettant d'obtenir la version en clair desdites données.
+
+Lorsqu'un moyen de cryptographie a été utilisé, les autorités judiciaires
+peuvent exiger la convention secrète de déchiffrement du cryptogramme.
+
+Article 91 : Les personnes physiques ou morales qui fournissent des prestations de
+cryptologie visant à assurer une fonction de confidentialité sont tenues de remettre
+aux officiers de police judiciaire ou aux agents habilités de l'agence nationale de
+sécurité des systèmes d'information, sur leur demande, les conventions permettant
+le déchiffrement des données transformées au moyen des prestations qu'elles ont
+fournies.
+
+Les officiers de police judiciaire et les agents habilités de l'agence
+nationale de sécurité des systèmes d'information peuvent demander aux
+fournisseurs des prestations visés à l'alinéa 1 ci-dessus de mettre eux-mêmes en
+œuvre ces conventions, sauf si ceux-ci démontrent qu'ils ne sont pas en mesure de
+satisfaire à de telles réquisitions.
+
+Article 92 : Si les données qui sont liées à l'infraction, soit qu'elles en constituent
+
+: l'objet, soit qu'elles en ont été le produit, sont contraires à l'ordre public ou aux
+bonnes mœurs ou constituent un danger pour l'intégrité des systèmes d'informations
+
+ou pour des données stockées, traitées ou transmises par le biais de tels systèmes,
+le procureur de la République ou le juge d'instruction ordonne les mesures
+conservatoires nécessaires, notamment en désignant toute personne qualifiée avec
+pour mission d'utiliser tous les moyens techniques appropriés pour rendre ces
+données inaccessibles.
+
+Article 93 : Le procureur de la République informe le responsable du système
+d'information de la recherche effectuée dans le système d'information et lui
+communique une copie des données qui ont été copiées, rendues inaccessibles ou
+
+retirées.
+
+Article 94 : Le juge compétent peut à tout moment, d'office ou sur la demande de
+
+l'intéressé, ardonner main levée de la saisie.
+
+Article 95 : L'officier de police judiciaire peut, pour les nécessités de l'enquête et
+de l'exécution d'une délégation judiciaire, procéder aux opérations prévues aux
+articles 88 à 99 de la présente loi
+
+23
+
+
+Chapitre 3 : De l'interception de données informatisées relatives
+au contenu
+
+Article 96 : Si les nécessités de l'enquête l'exigent, le procureur de la République ou
+le juge d'instruction peut utiliser les moyens techniques appropriés pour collècter ou
+enregistrer en temps réel, les données relatives au contenu de communications
+spécifiques, transmises au moyen d'un système d'information ou obliger un
+fournisseur de services, dans le cadre de ses capacités techniques, à collecter ou à
+enregistrer lesdites données informatisées, en application de moyens techniques
+existants, ou à prêter aux autorités compétentes son concours et son assistance
+pour collecter ou enregistrer ces données.
+
+Article 97 : Le fournisseur de services désigné à l'article 91 de la présente loi est
+tenu de garder le secret sur les informations reçues.
+
+Toute violation du secret est punie des peines applicables à l'infraction de
+violation du secret professionnel, conformément au code pénal.
+
+Chapitre 4 : De la conservation rapide des données informatiques
+stockées
+
+“Article 98 : Si les nécessités de l'enquête l'exigent, notamment lorsqu'il y a des
+raisons de penser que des données informatisées archivées dans un système
+d'information sont particulièrement susceptibles de perte ou de modification, le
+
+procureur de la République ou le juge d'instruction peut faire injonction à toute
+personne de conserver et de protéger l'intégrité des données en sa possession ou
+sous son contrôle, pendant une durée de deux ans maximum, pour la bonne marche
+des investigations judiciaires.
+
+Le gardien des données ou toute autre personne chargée de.les conserver. est
+tenu de garder le secret sur la mise en œuvre desdites procédures, sous peine des
+sanctions pénales encourues en matière de violation du secret professionnel.
+
+Chapitre 5 : De l'injonction de produire
+
+Article 99:: Si les nécessités de l'enquête l'exigent, le procureur de la République ou
+le juge d'instruction peut faire injonction à toute personne présente sur le territoire
+congolais de communiquer les données informatiques spécifiées, en sa possession où
+sous son contrôle, qui sont stockées dans un système d' information où un support de
+
+stockage informatique.
+
+.L'injonction de produire .peut être adressée, dans les mêmes conditions
+susmentionnées, à uh fournisseur de services offrant des prestations au Congo,
+
+24
+
+
+DÉPART PRIRENT ON FRE NT PCA NE
+
+de communiquer les données en sa possession ou sous son contrôle relatives aux
+abonnés ef concernant de tels services.
+
+Chapitre 6: De la collecte en temps réel des données relatives au trafic
+
+Article 100 : Si les nécessités de l'enquête l'exigent, le procureur de la République
+ou le juge d'instruction peut utiliser les moyens techniques appropriés pour collecter
+ou enregistrer, en temps réel, les données relatives au trafic associées à des
+communications spécifiques, transmises au moyen d'un système d'information.
+
+Le procureur de la République ou le juge d'instruction peut également obliger
+un fournisseur de services, dans le cadre de ses capacités techniques, à collecter ou
+à enregistrer, en application des moyens techniques existant, ou à prêter aux
+
+‘autorités compétentes son concours et son assistance pour collecter ou enregistrer,
+
+en temps réel, les données visées à l'alinéa premier du présent article.
+
+Article 101 : Le fournisseur de service désigné à l'alinéa 2 de l'article 100 ci-dessus
+est tenu de garder le secret sur les informations reçues.
+
+voute violation du secret est punie des peines applicables à l'infraction de
+
+violation du secret professionnel, conformément au code pénal.
+
+Chapitre 7: De l'utilisation de logiciels à distance
+
+Article 102 : Si les nécessités de l'enquête l'exigent et qu'il y a des motifs
+raisonnables de croire que des preuves essentielles ne peuvent pas être collectées
+suivant les modalités prévues par la présente loi, le juge peut, sur demande,
+autoriser à l'officier du ministère public ou à un officier de police à utilisér un
+
+“logiciel à distance et à l'installer dans le système d'information du mis en cause afin
+
+d& recueillir les éléments de.preuve pertinents.
+
+“
+
+La demande visée à l'alinéa premier du présent article doit contenir les
+informations suivantes :
+
+la personne mise en cause, avec, si possible, ses nom et adresse :
+
+la description du système d'information ciblé :
+
+la description de la mesure envisagée, l'étendue et la durée de l'utilisation :
+ies raisons de la nécessité de l'utilisation du logiciel.
+
+Chapitre 8: Des mesures particulières concernant la protection
+des données à caractère personnel
+
+Article 103 : Dans le cas où le juge ordonne, conformément aux dispositions de
+l'article 85 de la présente loi, l'effacement de tout ou partie des données
+
+25
+
+
+à caractère personnel faisant l'objet du traitement ayant donné lieu à l'infraction,
+les membres et les agents de la commission chargée de la protection des données à
+caractère personnel sont habilités à constater l'effacement de ces données.
+
+Article 104 : Durant la période allant de l'instruction à l'audience et dans les cas où
+l'infraction poursuivie concerne les articles 12 à 23 de la présente loi, le procureur
+de la République ou le juge peut appeler le président de la commission chargée de la
+protection des données à caractère personnel ou son représentant à déposer ses
+observations ou à les développer oralement à l'audience.
+
+TITRE IV : DE LA COOPERATION ET DE L'ENTRAIDE JUDICIAIRE
+INTERNATIONALE
+
+Chapitre 1 : De la coopération internationale
+
+Article 105 : les modalités d'établissement des conventions de coopération en
+matière de cybersécurité et de lutte contre la cybercriminalité sont déterminées
+par voie règlementaire.
+
+Chapitre 2 : De l'entraide judiciaire
+
+Article 106 : A moins qu'une convention internationale à laquelle la République du
+Congo est partie n'en dispose autrement, les demandes d'entraide émanant des
+autorités judiciaires congolaises et destinées aux autorités judiciaires étrangères
+sont transmises par l'intermédioire du ministère en charge des affaires étrangères.
+
+Les pièces d'exécution sont renvoyées aux autorités de l'Etat requérant par la
+même voie.
+Article 107: : Les demandes d'entraide émanant des autorités judiciaires étrangères
+
+_ et destinées aux autorités judiciaires congolaises sont présentées par la voie
+diplomatique par le gouvernement étranger intéressé.
+
+Les pièces d'exécution sont | renvoyées aux autorités de l'Etat requérant par la
+même voie.
+
+Article 108 : Les modalités et les conditions de: transmission des: demandes
+d'éntraide émanant des autorités judiciaires étrangères et destinées aux autorités:
+judiciaires congolaises, ainsi que les règles de procédure régissant leur exécution
+sont précisées par voie réglementaire
+
+
+TITRE V : DISPOSITION FINALE
+
+Article 109 : La présente loi sera publiée au J ournal officiel et exécutée comme loi
+de l'Etat./-
+
+27-2020 it à illé
+Fait à Brazzavil 5 juin 2020
+
+Par le Président de la République,
+
+Le Premier mibistre, chef du ministre
+Gouvernement Écommunications
+
+des postes, des
+
+Clément MOUAMBA.- Léon Jüste J
+
+Le ministre d'Etat, ministre du Pour le ministre des finances et du budget,
+commerce, des approvisionnements en mission :
+
+et de la consommation, . ro ou
+Le ministre délégué auprès du ministre des
+
+finances et du budget, chargé du budget,
+
+Alphonse Claude NSILOU. - Ludovic
+
+si
+
+
+
+Le ministre de l'intérieur et
+de la décentralisation,
+
+Rayñiônd Zéf MBOULOU. -
+|
+
+Le ministre de la justice et des
+droits humains et de la promotion
+
+BININGA.-
+
+27-2020
+
+Le ministre de la défense nationale,
+
+Charles Richard MONDJO.-
+
+Le ministre des affaires étrangères, de la
+coopération/t des Congolais de l'étranger,
+
+Jean - Cla

@@ -263,52 +263,63 @@ corpora:
       and Organizations, Rev. 3 (05/2024). 120 pages, texte natif confirmé.
   - id: owasp_asvs_5_0
     method: pdf
-    url: https://raw.githubusercontent.com/OWASP/ASVS/v5.0.0/5.0/OWASP_Application_Security_Verification_Standard_5.0.0_en.pdf
+    url: https://owasp.org/www-project-application-security-verification-standard/
+    file: data/cyber/owasp_asvs_5_0.txt
     schema: rag_cyber
     tags: [framework:owasp, scope:international, lang:en, domaine:web, type:referentiel, validated:true, source:owasp]
-    license: CC BY-SA 4.0 (attribution + partage à l'identique)
+    license: CC BY-SA 4.0 (attribution OWASP requise)
     status: ready
     note: >-
-      Application Security Verification Standard 5.0.0 (05/2025), 120
-      pages. Servi en octet-stream par raw.githubusercontent.com mais
-      contenu PDF natif confirmé par pypdf (page de garde lisible).
+      Application Security Verification Standard 5.0.0 (05/2025). L'extraction
+      PDF pypdf est CASSÉE (espaces perdus entre les mots) → réextrait via
+      scripts/extract_owasp.py --asvs depuis la source markdown
+      (github.com/OWASP/ASVS, tag v5.0.0_release, 5.0/en/, 27 chapitres :
+      frontispice + V1-V17 + annexes). Identifiants d'exigence normalisés en
+      forme complète (V1.2.3) pour rester citables après chunking. Chunker par défaut.
   # Licence OK mais aucun format ingérable avec method: pdf/hf_dataset —
   # cf. §4 du sourcing. Pas de url : rien à pointer qui soit un PDF unique.
   - id: owasp_top10
     method: pdf
+    url: https://owasp.org/Top10/
+    file: data/cyber/owasp_top10_2021.txt
     schema: rag_cyber
-    tags: [framework:owasp, scope:international, lang:en, domaine:web, type:referentiel]
-    license: CC BY-SA 3.0 (constaté sur owasp.org — pas 4.0)
-    status: pending
+    tags: [framework:owasp, scope:international, lang:en, domaine:web, type:referentiel, validated:true, source:owasp]
+    license: CC BY-SA 4.0 (dépôt github.com/OWASP/Top10 ; site owasp.org affiche 3.0 — attribution OWASP requise)
+    status: ready
     note: >-
-      Aucun PDF officiel compilé (seul le Top 10:2017 a un PDF archivé ;
-      2021 et 2025 sont web-only sur owasp.org/Top10/<annee>/). Nécessite
-      un extracteur HTML/markdown dédié (github.com/OWASP/Top10), pas
-      construit. Édition 2025 possiblement en cours — statut final non
-      confirmé au sourcing.
+      Top 10:2021 (10 catégories A01-A10), web-only à l'origine → extrait en
+      texte via scripts/extract_owasp.py depuis github.com/OWASP/Top10
+      (2021/docs/en/) vers data/cyber/owasp_top10_2021.txt. Chunker par défaut
+      (pas legal_article : ce ne sont pas des articles de loi).
   - id: owasp_cheatsheets
     method: pdf
+    url: https://cheatsheetseries.owasp.org/
+    file: data/cyber/owasp_cheatsheets.txt
     schema: rag_cyber
-    tags: [framework:owasp, scope:international, lang:en, domaine:technique, type:guide]
-    license: CC BY-SA 4.0
-    status: pending
+    tags: [framework:owasp, scope:international, lang:en, domaine:technique, type:guide, validated:true, source:owasp]
+    license: CC BY-SA 4.0 (attribution OWASP requise)
+    status: ready
     note: >-
-      Diffusé en ~100 fichiers markdown (github.com/OWASP/CheatSheetSeries)
-      + site cheatsheetseries.owasp.org, aucun PDF compilé. Nécessite un
-      extracteur markdown/HTML dédié, pas construit.
+      Cheat Sheet Series (120 fiches), diffusé en markdown
+      (github.com/OWASP/CheatSheetSeries) → concaténé en texte via
+      scripts/extract_owasp.py vers data/cyber/owasp_cheatsheets.txt (~2,5 Mo,
+      volumineux : normal). Chunker par défaut.
   - id: mitre_attack_enterprise
     method: pdf
+    url: https://attack.mitre.org/matrices/enterprise/
+    file: data/cyber/mitre_attack_defensive.txt
     schema: rag_cyber
-    tags: [framework:attack, scope:international, lang:en, domaine:technique, type:mapping]
-    license: "ATT&CK Terms of Use (réutilisation/attribution) ; données STIX Apache-2.0"
-    status: pending
+    tags: [framework:attack, scope:international, lang:en, domaine:technique, type:mapping, validated:true, source:mitre]
+    license: "ATT&CK Terms of Use (réutilisation avec attribution) ; données STIX Apache-2.0"
+    status: ready
     note: >-
-      Matrice Enterprise distribuée en STIX 2.1/2.0 JSON
-      (github.com/mitre-attack/attack-stix-data), pas en PDF. Contenu
-      humainement lisible sur attack.mitre.org (site, pas document).
-      Nécessite un parseur STIX/JSON dédié (sur le modèle de
-      ingest_ohada.py qui route un dataset HF), pas construit. Non
-      bloquant : CSF 2.0 + SP 800-53 couvrent déjà gouvernance/contrôles.
+      Matrice Enterprise (STIX 2.1 JSON, github.com/mitre-attack/attack-stix-data)
+      → volet DÉFENSIF uniquement (description + détection + mitigations, pas de
+      contenu offensif) extrait via scripts/extract_mitre_attack.py vers
+      data/cyber/mitre_attack_defensive.txt. 697 techniques actives (~4,5 Mo).
+      La détection provient du champ historique x_mitre_detection ou, sur les
+      bundles récents, des objets x-mitre-detection-strategy/analytic (relation
+      detects). Chunker par défaut.
   # ANSSI : conflit de licence non résolu, cf. §5 du sourcing. Colophon PDF
   # = "Licence Ouverte/Open Licence (Etalab V1)" (commercial OK a priori),
   # MAIS les mentions légales cyber.gouv.fr revendiquent une exception
@@ -347,67 +358,62 @@ corpora:
   - id: cg_loi_29_2019_donnees_perso
     method: pdf
     url: https://guot.cg/docs/texte_certification/Loi%20n%C2%B0%2029-2019%20du%2010%20octobre%202019%20-%20portant%20protection%20des%20donn%C3%A9es%20%C3%A0%20caract%C3%A8re%20personnel.pdf
+    file: data/cyber/cg_loi_29_2019_donnees_perso.txt
     schema: rag_cyber
-    tags: [framework:loi2919, scope:cg, lang:fr, domaine:conformite, type:texte_legal, validated:true, source:guot]
+    tags: [framework:loi2919, scope:cg, lang:fr, domaine:conformite, type:texte_legal, validated:false, source:guot, ocr:true]
     license: texte officiel CG (public)
     status: ready
     chunker: legal_article
     note: >-
-      Loi n°29-2019 du 10/10/2019 portant protection des données à
-      caractère personnel. 101 articles, texte natif relu intégralement
-      (obligations du responsable de traitement, violations de données,
-      sanctions — art. 98 renvoie à la loi sur la cybercriminalité).
-      Identique au JO sgg.cg 2019-45 (congo-jo-2019-45.pdf), vérifié
-      indépendamment.
+      Loi n°29-2019 du 10/10/2019 portant protection des données à caractère
+      personnel (101 articles). La couche texte du PDF guot.cg est CORROMPUE
+      (extraction pypdf illisible : « Caligories porticuliires ») → réocérisée
+      via scripts/ocr_scan.py --dpi 300 --lang fra (42 % mots FR reconnus) vers
+      data/cyber/. validated:false + ocr:true : relecture humaine des sanctions/
+      renvois requise avant validated:true (une valeur océrisée a l'air sourcée).
   - id: cg_loi_26_2020_cybersecurite
     method: pdf
     url: https://guot.cg/docs/texte_certification/Loi%20n%C2%B0%2026-2020%20du%205%20juin%202020%20-%20relative%20%C3%A0%20la%20cybers%C3%A9curit%C3%A9.pdf
+    file: data/cyber/cg_loi_26_2020_cybersecurite.txt
     schema: rag_cyber
-    tags: [framework:loi2620, scope:cg, lang:fr, domaine:conformite, type:texte_legal, validated:true, source:guot]
+    tags: [framework:loi2620, scope:cg, lang:fr, domaine:conformite, type:texte_legal, validated:false, source:guot, ocr:true]
     license: texte officiel CG (public)
     status: ready
     chunker: legal_article
     note: >-
-      Loi n°26-2020 du 05/06/2020 relative à la cybersécurité — cadre
-      juridique national de sécurité des systèmes d'information et des
-      réseaux de communications électroniques ; régime de la cryptologie.
-      14 pages, texte natif propre. Identique au JO sgg.cg 2020-23
-      (congo-jo-2020-23.pdf), vérifié indépendamment.
+      Loi n°26-2020 du 05/06/2020 relative à la cybersécurité — cadre juridique
+      national de sécurité des SI et des réseaux ; régime de la cryptologie.
+      Couche texte guot.cg corrompue → réocérisée via scripts/ocr_scan.py
+      --dpi 300 --lang fra (41 % mots FR) vers data/cyber/. validated:false +
+      ocr:true : relecture humaine requise avant validated:true.
   - id: cg_loi_27_2020_cybercriminalite
     method: pdf
     url: https://www.sgg.cg/textes-officiels/lois/2020/congo-loi-2020-27.pdf
+    file: data/cyber/cg_loi_27_2020_cybercriminalite.txt
     schema: rag_cyber
-    tags: [framework:loi2720, scope:cg, lang:fr, domaine:conformite, type:texte_legal, validated:false, source:sgg]
+    tags: [framework:loi2720, scope:cg, lang:fr, domaine:conformite, type:texte_legal, validated:false, source:sgg, ocr:true]
     license: texte officiel CG (public)
-    status: pending
-    verify: true
+    status: ready
     note: >-
       Loi n°27-2020 du 05/06/2020 portant lutte contre la cybercriminalité
-      (108 articles rapportés). SCAN PUR confirmé (0 caractère extrait sur
-      28 pages via pypdf) — deux miroirs testés (droit-afrique.com,
-      awa-afrika.com) sont aussi des scans image (DCTDecode/JPEG). OCR
-      requis avant ingestion : scripts/ocr_scan.py --dpi 300, puis
-      relecture humaine des peines/seuils avant validated:true (même
-      protocole que cemac_lbcft_2024 dans rag_fintech). NE PAS ingérer en
-      l'état.
+      (108 articles). SCAN PUR (0 caractère natif sur 28 pages) → réocérisée via
+      scripts/ocr_scan.py --dpi 300 --lang fra (40 % mots FR) vers data/cyber/.
+      validated:false + ocr:true : relecture humaine des peines/seuils requise
+      avant validated:true (même protocole que cemac_lbcft_2024 dans rag_fintech).
   - id: cg_loi_30_2019_anssi_creation
     method: pdf
     url: https://www.sgg.cg/JO/2019/congo-jo-2019-42.pdf
+    file: data/cyber/cg_loi_30_2019_anssi_creation.txt
     schema: rag_cyber
-    tags: [framework:loi3019, scope:cg, lang:fr, domaine:gouvernance, type:texte_legal, validated:false, source:sgg]
+    tags: [framework:loi3019, scope:cg, lang:fr, domaine:gouvernance, type:texte_legal, validated:false, source:sgg, ocr:true]
     license: texte officiel CG (public, Journal Officiel)
-    status: pending
-    verify: true
+    status: ready
     note: >-
-      Loi n°30-2019 du 10/10/2019 portant création de l'Agence Nationale
-      de Sécurité des Systèmes d'Information (ANSSI-Congo). Aucun PDF
-      autonome trouvé : présente uniquement dans le JO sgg.cg n°42-2019
-      (24 pages, texte natif confirmé sur le sommaire), MÊLÉE à 2 lois
-      sans rapport (accord transport aérien, loi d'orientation de la
-      performance de l'action publique) et à des décrets/nominations.
-      Nécessite une extraction par plage de pages pour isoler le texte de
-      la loi avant ingestion (pollution du corpus sinon) — point ouvert,
-      non bloquant.
+      Loi n°30-2019 du 10/10/2019 portant création de l'Agence Nationale de
+      Sécurité des Systèmes d'Information (ANSSI-Congo). Présente uniquement dans
+      le JO sgg.cg n°42-2019 (mêlée à 2 lois sans rapport) → JO océrisé puis
+      texte ISOLÉ (bornes Article premier → Article 8 + signataires, avant la
+      Loi n°31-2019) vers data/cyber/. 37 % mots FR. validated:false + ocr:true.
   - id: cemac_cyber_hipssa_2013
     method: pdf
     url: https://www.itu.int/en/ITU-D/Projects/ITU-EC-ACP/HIPSSA/Documents/REGIONAL%20documents/projets_des_lois_types-directives_cybersecurite_CEEAC_CEMAC.pdf

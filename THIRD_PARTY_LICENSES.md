@@ -118,6 +118,10 @@ Dernière mise à jour : 2026-05-19.
 | Corpus | Source | Licence | Obligation |
 |---|---|---|---|
 | **Actes uniformes OHADA** — les 9 Actes (3 126 articles), dont l'**AUDCIF** (droit comptable) → `rag_erp` et les 8 autres → `rag_legal` | Dataset HuggingFace `Maathis-com/ohada-actes-uniformes` (`nodes/articles.csv`) | **CC-BY-4.0** | ⚠️ **Attribution obligatoire** : créditer la source + la licence, et indiquer les modifications apportées. |
+| **Standards cyber NIST** — CSF 2.0 + SP 800-53r5/61r3/171r3 → `rag_cyber` | nvlpubs.nist.gov (PDF natifs) | **Domaine public** (œuvre du gouv. fédéral US, 17 U.S.C. §105) | Aucune obligation ; attribution NIST par courtoisie. |
+| **OWASP** — Top 10:2021, ASVS 5.0, Cheat Sheet Series → `rag_cyber` | Dépôts GitHub OWASP (`Top10`, `ASVS`, `CheatSheetSeries`) | **CC-BY-SA 4.0** | ⚠️ **Attribution OWASP Foundation** + partage à l'identique de tout dérivé du texte. |
+| **MITRE ATT&CK®** Enterprise — volet défensif (descriptions, détections, mitigations) → `rag_cyber` | STIX 2.1 `github.com/mitre-attack/attack-stix-data` | **ATT&CK Terms of Use** (réutilisation + attribution) ; données STIX **Apache-2.0** | ⚠️ Attribution **« MITRE ATT&CK® »** (marque déposée de The MITRE Corporation) obligatoire. |
+| **Lois cyber congolaises** — n°29-2019, 26-2020, 27-2020, 30-2019 → `rag_cyber` | Textes officiels CG (guot.cg, sgg.cg) | Texte légal public | Aucune ; textes océrisés `validated:false` en attente de relecture humaine. |
 
 > **Modifications apportées** au corpus OHADA : filtrage/routage par `acte_code`,
 > reformatage par article (entête « CODE (nom) — Article N — Titre »), découpage
@@ -126,6 +130,14 @@ Dernière mise à jour : 2026-05-19.
 > Script d'ingestion reproductible : `scripts/ingest_ohada.py`.
 > Le texte des Actes uniformes OHADA est par ailleurs une norme réglementaire
 > publique ; l'obligation CC-BY porte sur la *compilation* du dataset source.
+
+> **Modifications apportées** au corpus cyber (`rag_cyber`) : NIST téléchargé
+> (PDF natifs) ; OWASP extrait du markdown (`scripts/extract_owasp.py`) ; MITRE
+> ATT&CK extrait du STIX, **volet défensif uniquement** (`scripts/extract_mitre_attack.py`) ;
+> lois congolaises réocérisées (`scripts/ocr_scan.py`, couches texte corrompues/scans) ;
+> nettoyage, chunking et vectorisation (bge-m3). **Non ingérés** : guides ANSSI
+> (conflit de licence commerciale non tranché), ISO 27001/27002 (propriétaire) et
+> CIS Controls/Benchmarks (clause Non-Commercial) — repères de structure seulement.
 
 ---
 
