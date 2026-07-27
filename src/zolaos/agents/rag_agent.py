@@ -16,6 +16,11 @@ Optionnels :
   - `response_schema`: BaseModel pour OUTPUT_FORMAT structuré (overlays Polaris)
   - `min_confidence` : seuil de refus si la similarité du meilleur chunk est trop faible
   - `requires_citation`: si True, refuse si aucun match RAG (anti-hallucination strict)
+  - `prefer_tags`     : tags de PRÉFÉRENCE DOUCE (opt-in, défaut vide = inchangé) —
+                        les chunks qui les portent sont privilégiés (retrieve deux
+                        passes), SANS exclure ceux qui ne les portent pas. Ex:
+                        `("lang:fr",)` pour privilégier la narration en français
+                        sur un corpus majoritairement anglophone. Cf. `_retrieve_preferred`.
 
 Garde-fou anti-hallucination :
   - Si `requires_citation=True` et `retrieve()` retourne 0 match → on lève
@@ -123,6 +128,16 @@ class RAGAgent:
     # → retrieve boosté par forme pour ancrer sur les articles OHADA de la bonne
     # forme plutôt qu'un mélange (SARL vs coopératives). Cf. `_primary_retrieve`.
     forme_aware: ClassVar[bool] = False
+    # Tags de **préférence douce** (opt-in, défaut vide = comportement actuel
+    # inchangé, une seule passe). Contrairement à `default_tags`/`extra_tags`
+    # (filtre `@>` strict — ET, exclusion des chunks qui ne les portent pas),
+    # `prefer_tags` PRIVILÉGIE les chunks qui les portent SANS exclure les
+    # autres : passe 1 avec `default_tags + prefer_tags`, et si elle ne rend
+    # pas `top_k` résultats, une passe 2 sans `prefer_tags` vient compléter
+    # (backfill) sans doublon. Utile ex. pour préférer la narration en
+    # français sans écarter le socle documentaire international en anglais.
+    # Cf. `_retrieve_preferred`.
+    prefer_tags: ClassVar[tuple[str, ...]] = ()
     top_k: ClassVar[int] = 5
     max_tokens: ClassVar[int] = 800
     temperature: ClassVar[float] = 0.2
@@ -446,7 +461,7 @@ class RAGAgent:
         """
         facet = self._detect_facet(query)
         if facet is None:
-            return await retrieve(query=query, schema=self.rag_schema, required_tags=tags, k=k)
+            return await self._retrieve_preferred(query=query, tags=tags, k=k)
 
         prefix, value = facet
         facet_tag = f"{prefix}:{value}"
@@ -482,6 +497,47 @@ class RAGAgent:
             n_total=len(chosen),
         )
         return chosen
+
+    async def _retrieve_preferred(self, *, query: str, tags: list[str], k: int) -> list[Match]:
+        """Retrieve dans `self.rag_schema`, avec **préférence douce** (`prefer_tags`).
+
+        Générique et opt-in (défaut `prefer_tags = ()` → comportement ACTUEL
+        inchangé, une seule passe, aucun surcoût). Quand `prefer_tags` est
+        défini, deux passes :
+          1. `required_tags = tags + prefer_tags` : privilégie les chunks
+             portant la préférence (ex. `lang:fr`) — mais NE les impose pas en
+             filtre exclusif (contrairement à `default_tags`/`extra_tags`,
+             filtrés en `@>` strict), donc jamais d'exclusion silencieuse d'un
+             corpus qui n'aurait pas encore ce tag.
+          2. Si la passe 1 rend **moins de `k`** résultats, une passe 2 SANS
+             `prefer_tags` complète (backfill) : les résultats préférés restent
+             EN TÊTE, les autres viennent compléter SANS DOUBLON (dédup sur
+             `(source_uri, chunk_index)`), le tout tronqué à `k`.
+        """
+        if not self.prefer_tags:
+            return await retrieve(query=query, schema=self.rag_schema, required_tags=tags, k=k)
+
+        preferred = await retrieve(
+            query=query,
+            schema=self.rag_schema,
+            required_tags=[*tags, *self.prefer_tags],
+            k=k,
+        )
+        if len(preferred) >= k:
+            return preferred
+
+        fallback = await retrieve(query=query, schema=self.rag_schema, required_tags=tags, k=k)
+        seen = {(m.source_uri, m.chunk_index) for m in preferred}
+        merged = list(preferred)
+        for m in fallback:
+            if len(merged) >= k:
+                break
+            key = (m.source_uri, m.chunk_index)
+            if key in seen:
+                continue
+            merged.append(m)
+            seen.add(key)
+        return merged
 
     #: Préfixe apposé devant tout extrait issu du corpus TENANT (documents
     #: téléversés par le client : règlement intérieur, notes internes…) pour
