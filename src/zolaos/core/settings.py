@@ -105,6 +105,13 @@ class Settings(BaseSettings):
     # Auth Bearer si on met un reverse-proxy (Caddy) devant llama-server.
     LLM_API_KEY: SecretStr = SecretStr("")
 
+    # ===== Moteur (API générique / profil engine) =====
+    # Metering d'usage + quota de requêtes/jour par clé (Phase 1 : quota GLOBAL).
+    # 0 = illimité. Le metering est fail-open (une panne du compteur ne bloque
+    # jamais le moteur). Quota par-clé fin = plus tard.
+    ENGINE_METERING_ENABLED: bool = True
+    ENGINE_DAILY_REQUEST_QUOTA: int = 0
+
     # ===== Fallback API externe (DÉSACTIVÉ par défaut) =====
     ENABLE_EXTERNAL_FALLBACK: bool = False
     ANTHROPIC_API_KEY: SecretStr = SecretStr("")

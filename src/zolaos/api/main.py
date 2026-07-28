@@ -152,6 +152,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     # /v1/agents. Monté dans TOUS les profils (y compris `engine` headless).
     app.include_router(v1_router)
 
+    # Adaptateur OpenAI-compatible (/v1/chat/completions) : drop-in pour outils
+    # tiers. Surface MOTEUR → tous les profils. Auth + metering + quota par clé
+    # via `require_quota` (comme /v1/query).
+    from zolaos.api.v1.openai_compat import router as openai_compat_router
+    from zolaos.core.metering import require_quota
+
+    app.include_router(openai_compat_router, dependencies=[Depends(require_quota)])
+
     # Authentification de production : login email + mot de passe, cookies
     # httpOnly + refresh + CSRF. Montée dans tous les environnements (le
     # moteur générique a besoin d'une identité, même en profil `engine`).

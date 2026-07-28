@@ -10,7 +10,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse
 
 from zolaos.agents.router import Pole, RouterError
-from zolaos.api.auth import Principal, authenticate
+from zolaos.api.auth import Principal
 from zolaos.api.dependencies import get_orchestrator
 from zolaos.api.schemas import (
     AgentInfo,
@@ -24,6 +24,7 @@ from zolaos.api.schemas import (
     RoutingInfo,
 )
 from zolaos.core.logging import get_logger
+from zolaos.core.metering import require_quota
 from zolaos.core.orchestrator import Orchestrator
 
 _log = get_logger("zolaos.api.v1.routes")
@@ -49,7 +50,7 @@ _AGENT_CATALOG: list[AgentInfo] = [
 async def query(
     payload: QueryRequest,
     orch: Orchestrator = Depends(get_orchestrator),
-    principal: Principal = Depends(authenticate),
+    principal: Principal = Depends(require_quota),
 ) -> QueryResponse:
     """Point d'entrée unique pour adresser une requête utilisateur à ZolaOS."""
     # Tenant dérivé de l'identité → l'agent fusionne le corpus privé du bon client.
@@ -103,7 +104,7 @@ async def query(
 async def query_stream(
     payload: QueryRequest,
     orch: Orchestrator = Depends(get_orchestrator),
-    principal: Principal = Depends(authenticate),
+    principal: Principal = Depends(require_quota),
 ) -> StreamingResponse:
     """Même chose que `/v1/query`, mais en SSE — la réponse s'affiche au fil de l'eau.
 
