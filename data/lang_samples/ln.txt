@@ -1,0 +1,7 @@
+# Lingala — salutations et phrases courantes (confiance moyenne : formulations
+# attestées dans les manuels de conversation lingala usuels, non validées par un
+# locuteur natif dans le cadre de ce dépôt). Voir docs/TOKENIZER_AFRICAN.md.
+Mbote.
+Sango nini?
+Nazali malamu.
+Matondi mingi.

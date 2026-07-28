@@ -1,0 +1,7 @@
+# Français — phrases simples, usage courant (haute confiance).
+# Sert de référence "langue bien dotée" dans docs/TOKENIZER_AFRICAN.md (lot L2.2).
+Bonjour, comment allez-vous ?
+Je vais bien, merci beaucoup.
+Où se trouve la gare la plus proche ?
+Il fait très beau aujourd'hui à Brazzaville.
+Merci pour votre aide, à bientôt.

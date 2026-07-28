@@ -1,0 +1,7 @@
+# Kituba / Munukutuba (mkw) — confiance FAIBLE, volontairement réduit à 2 mots
+# de base largement partagés dans la famille kikongo (cf. docs/sourcing/african_languages.md
+# §3.3 : "désert quasi total" de corpus texte pour cette langue). Ne pas
+# considérer comme des phrases complètes validées — voir docs/TOKENIZER_AFRICAN.md
+# pour les limites de cet échantillon.
+Mbote.
+Matondo.
