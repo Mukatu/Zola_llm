@@ -37,8 +37,14 @@ haoussa, amharique…) ; sourcing **ouvert depuis zéro** ; base **Llama-3** ada
     (2026-07-07, `src/zolaos/commons/`, 13 tests verts) — la roadmap/mémoire le disaient « à coder » à tort. Corrigé.
   - **L2.4 — éval africaine** — *fait* (`fbf5e2a`) : harnais **chrF** ; FLORES-200 gated → repli **UDHR Art. 1**
     (domaine public), 15 paires FR↔{sw,ln,wo,ha,am}, 19 tests, live gated. Le mètre-étalon AVANT l'entraînement.
-  - **Reste réel** : couche 1 — L1.4 (packs pays) ; couche 2 — L2.3 (SFT/LoRA), L2.5 (registre+service),
-    L2.6 (fermer le volant vers l'entraînement). **Long-pole = collecte corpus bantou (partenariats).**
+  - **L1.4 — packs juridiction** — *fait* (`4cf6785`) : registre `config/jurisdictions.yaml` + résolution hybride
+    (X-Country/query → pays du principal → défaut) + `/v1/jurisdictions`. Injection tags retrieval = suivi L1.4b.
+  - **Kit de collecte corpus** — *fait* : `docs/CORPUS_COLLECTION_KIT.md` (priorisation déserts kituba/lingala/wolof,
+    types de données, canevas licence, protocole annotation, partenaires **vérifiés au web**). Outille le vrai goulot.
+  - **Reste** : **couche 1 COMPLÈTE** (product-ready). Couche 2 = **data/GPU-gated** — L2.3 (SFT/LoRA), L2.5
+    (registre+service), L2.6 (volant→entraînement) attendent le **corpus collecté**. **Prochaines actions = NON-code** :
+    1. contacter CERELLO (`cerello@umng.cg`, seul sur kituba+lingala) ; 2. relicensing MasakhaNEWS-lingala ;
+    3. GALSENAI/Baamtu pour le wolof. Cf. `docs/CORPUS_COLLECTION_KIT.md`.
 
 ## 2026-07-28 — Assistant code souverain (produit client tech, profil box)
 
