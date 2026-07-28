@@ -169,3 +169,57 @@ async def code_index(
         tenant=tenant,
         message=f"Indexation lancée ({mode}) — suivre l'avancement via GET /v1/code/status.",
     )
+
+
+class CodeRunRequest(BaseModel):
+    language: str = Field(..., max_length=32, description="python | javascript | bash")
+    code: str = Field(..., min_length=1, max_length=100_000)
+    timeout_seconds: int | None = Field(default=None, ge=1, le=60)
+
+
+class CodeRunResponse(BaseModel):
+    stdout: str
+    stderr: str
+    exit_code: int | None
+    timed_out: bool
+    duration_seconds: float
+
+
+@router.post(
+    "/run",
+    response_model=CodeRunResponse,
+    summary="Exécuter du code en sandbox jetable (on-box, désactivé par défaut)",
+)
+async def code_run(
+    body: CodeRunRequest,
+    settings: Settings = Depends(get_settings),
+) -> CodeRunResponse:
+    """Exécute un extrait dans un conteneur Docker JETABLE et durci (--network none,
+    non-root, read-only, limites) sur la box. Désactivé par défaut
+    (`CODE_SANDBOX_ENABLED=false`) → 403 tant que le client ne l'active pas."""
+    # Import paresseux : le démarrage de l'app ne dépend pas du runner sandbox.
+    from zolaos.agents.engineering.sandbox import (
+        SandboxDisabledError,
+        SandboxLanguageError,
+        run_code,
+    )
+
+    try:
+        result = await run_code(
+            body.language, body.code, settings=settings, timeout_seconds=body.timeout_seconds
+        )
+    except SandboxDisabledError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="sandbox_disabled"
+        ) from exc
+    except SandboxLanguageError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="unsupported_language"
+        ) from exc
+    return CodeRunResponse(
+        stdout=result.stdout,
+        stderr=result.stderr,
+        exit_code=result.exit_code,
+        timed_out=result.timed_out,
+        duration_seconds=result.duration_seconds,
+    )

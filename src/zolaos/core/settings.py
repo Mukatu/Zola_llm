@@ -87,6 +87,19 @@ class Settings(BaseSettings):
     # latence utilisable (32B). Port 11436 (3ᵉ processus llama-server/ollama).
     LLM_HOST_CODE: str = "http://host.docker.internal:11436"
     LLM_MODEL_CODE: str = "qwen2.5-coder-32b"
+    # ===== Sandbox d'exécution de code (Phase 3, profil box) =====
+    # DÉSACTIVÉE par défaut : exécuter du code généré est sensible. Le client
+    # l'active explicitement. Exécution dans un conteneur Docker JETABLE
+    # (--network none, non-root, read-only rootfs, cap-drop ALL, limites) piloté
+    # via le socket Docker de la box. Requiert le socket monté + le binaire docker
+    # accessible côté app. Rayon de souffle = le conteneur jetable (aucun accès
+    # dépôt/DB/secrets/réseau).
+    CODE_SANDBOX_ENABLED: bool = False
+    CODE_SANDBOX_TIMEOUT_SECONDS: int = 10
+    CODE_SANDBOX_MEMORY: str = "256m"
+    CODE_SANDBOX_CPUS: str = "0.5"
+    CODE_SANDBOX_PIDS_LIMIT: int = 128
+    CODE_SANDBOX_OUTPUT_MAX_BYTES: int = 64_000
     # Auth Bearer si on met un reverse-proxy (Caddy) devant llama-server.
     LLM_API_KEY: SecretStr = SecretStr("")
 

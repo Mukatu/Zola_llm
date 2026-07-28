@@ -81,5 +81,32 @@ async def test_index_accepts_and_derives_tenant(tmp_path, monkeypatch) -> None: 
     assert calls.get("since") == "HEAD~5"
 
 
+async def test_run_disabled_by_default(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    # CODE_SANDBOX_ENABLED est False par défaut → 403 tant que le client n'active pas.
+    async with _client(tmp_path) as ac:
+        r = await ac.post("/v1/code/run", json={"language": "python", "code": "print(1)"})
+        assert r.status_code == 403
+        assert r.json()["detail"] == "sandbox_disabled"
+
+
+async def test_run_executes_when_enabled(tmp_path, monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    from types import SimpleNamespace
+
+    async def _fake_run(language, code, *, settings, timeout_seconds=None):  # type: ignore[no-untyped-def]
+        return SimpleNamespace(
+            stdout="hello\n", stderr="", exit_code=0, timed_out=False, duration_seconds=0.1
+        )
+
+    # Mock complet du runner → bypass le check d'activation + tout Docker réel.
+    monkeypatch.setattr("zolaos.agents.engineering.sandbox.run_code", _fake_run)
+    async with _client(tmp_path) as ac:
+        r = await ac.post("/v1/code/run", json={"language": "python", "code": "print('hello')"})
+        assert r.status_code == 200
+        body = r.json()
+        assert body["stdout"] == "hello\n"
+        assert body["exit_code"] == 0
+        assert body["timed_out"] is False
+
+
 if __name__ == "__main__":  # pragma: no cover
     pytest.main([__file__, "-v"])
