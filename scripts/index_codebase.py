@@ -37,10 +37,30 @@ d'abord les lignes `rag_code` existantes de même `source_uri`. `--reindex`
 va plus loin et purge TOUTES les lignes du tenant avant de tout réindexer
 (utile après un renommage/suppression massifs de fichiers).
 
+**Indexation incrémentale** (Phase 2) : pour éviter de ré-embedder tout le
+dépôt à chaque run (coûteux — bge-m3 + insertion pgvector), deux mécanismes
+complémentaires :
+- **Skip par hash de contenu** : le sha256 du contenu de chaque fichier est
+  stocké dans `extra_metadata.content_sha` des chunks insérés. Avant de
+  ré-indexer un fichier, on relit ce hash sur une ligne `rag_code` existante
+  du même `source_uri` ; s'il est identique au hash courant, le fichier est
+  **skip** (aucun delete, aucun ré-embedding). `--reindex` ignore ce skip.
+- **`--since <réf-git>`** : restreint les candidats aux fichiers changés
+  depuis cette référence (commits + working tree, via `git diff`) quand
+  `repo_dir` est un dépôt git ; les fichiers supprimés depuis cette référence
+  voient leurs lignes `rag_code` retirées (sans ré-indexation).
+
+Point d'entrée programmatique : `index_repo()` fait tout (sélection,
+filtrage `--since`, skip par hash, embedding+insertion ou dry-run) et
+retourne un résumé `{"indexed", "skipped", "deleted", "chunks"}`. C'est la
+fonction à importer depuis un endpoint API ; `main()` n'est qu'un wrapper CLI
+(parsing argparse) autour d'elle.
+
 Usage :
     python scripts/index_codebase.py /chemin/vers/le/depot --tenant acme
     python scripts/index_codebase.py /chemin/vers/le/depot --tenant acme --dry-run
     python scripts/index_codebase.py /chemin/vers/le/depot --tenant acme --reindex
+    python scripts/index_codebase.py /chemin/vers/le/depot --tenant acme --since HEAD~20
 """
 
 from __future__ import annotations
@@ -48,10 +68,11 @@ from __future__ import annotations
 import argparse
 import asyncio
 import fnmatch
+import hashlib
 import subprocess
 from pathlib import Path, PurePosixPath
 
-from sqlalchemy import delete
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from zolaos.core.logging import get_logger
@@ -195,6 +216,15 @@ def build_tags(tenant: str, lang: str) -> list[str]:
     return [f"tenant:{tenant}", f"lang:{lang}", "type:code"]
 
 
+def compute_content_sha(path: Path) -> str:
+    """sha256 hexadécimal du contenu brut (octets) du fichier.
+
+    Sert de fondement au skip incrémental : un hash inchangé entre deux runs
+    signifie un contenu inchangé, donc aucun besoin de ré-embedder.
+    """
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
 def _to_posix(rel_path: str) -> str:
     """Normalise un chemin relatif (séparateurs OS) en POSIX (`/`)."""
     return rel_path.replace("\\", "/")
@@ -223,6 +253,49 @@ def _git_tracked_files(repo_dir: Path) -> list[str] | None:
         _log.warning("index_codebase.git_ls_files_failed", error=str(exc))
         return None
     return [line.strip() for line in result.stdout.splitlines() if line.strip()]
+
+
+def _git_diff_name_only(repo_dir: Path, args: list[str]) -> list[str] | None:
+    """`git diff --name-only <args>`, ou `None` si la commande échoue."""
+    try:
+        result = subprocess.run(  # noqa: S603
+            ["git", "-C", str(repo_dir), "diff", "--name-only", *args],  # noqa: S607
+            capture_output=True,
+            text=True,
+            check=True,
+            encoding="utf-8",
+            errors="replace",
+        )
+    except (OSError, subprocess.CalledProcessError) as exc:
+        _log.warning("index_codebase.git_diff_failed", args=args, error=str(exc))
+        return None
+    return [line.strip() for line in result.stdout.splitlines() if line.strip()]
+
+
+def _git_changed_since(repo_dir: Path, since_ref: str) -> tuple[set[str], set[str]] | None:
+    """Fichiers changés/ajoutés et supprimés depuis `since_ref`.
+
+    Union de deux diffs : `<since_ref> HEAD` (commits déjà faits depuis la réf.)
+    et `<since_ref>` seul (compare aussi au working tree — capture les
+    modifications non commitées). Les suppressions (`--diff-filter=D`) sont
+    calculées séparément et retirées de l'ensemble "changé" : un fichier
+    supprimé n'est jamais candidat à la ré-indexation, seulement à la purge.
+
+    Retourne `None` si `repo_dir` n'est pas un dépôt git exploitable (ou si
+    l'une des commandes git échoue) — l'appelant doit alors ignorer `--since`.
+    """
+    if not (repo_dir / ".git").exists():
+        return None
+
+    committed = _git_diff_name_only(repo_dir, [since_ref, "HEAD"])
+    working = _git_diff_name_only(repo_dir, [since_ref])
+    deleted = _git_diff_name_only(repo_dir, ["--diff-filter=D", since_ref])
+    if committed is None or working is None or deleted is None:
+        return None
+
+    deleted_set = {_to_posix(p) for p in deleted}
+    changed = ({_to_posix(p) for p in committed} | {_to_posix(p) for p in working}) - deleted_set
+    return changed, deleted_set
 
 
 def _walk_files(repo_dir: Path) -> list[str]:
@@ -319,6 +392,22 @@ async def _delete_existing_for_tenant(session: AsyncSession, tenant: str) -> int
     return result.rowcount or 0
 
 
+async def _get_existing_content_sha(session: AsyncSession, source_uri: str) -> str | None:
+    """Relit `extra_metadata.content_sha` d'UNE ligne `rag_code` existante pour ce
+    `source_uri` (toutes les lignes d'un même fichier partagent le même hash,
+    inutile de les comparer toutes). Retourne `None` si aucune ligne n'existe
+    encore, ou si l'ancienne ligne n'a pas ce champ (ré-indexation historique
+    d'avant l'introduction du skip par hash → traitée comme "changé").
+    """
+    model = RAG_MODELS[_SCHEMA]
+    stmt = select(model.extra_metadata).where(model.source_uri == source_uri).limit(1)
+    result = await session.execute(stmt)
+    metadata = result.scalar_one_or_none()
+    if not metadata:
+        return None
+    return metadata.get("content_sha")
+
+
 async def index_one_file(
     *,
     session: AsyncSession,
@@ -326,10 +415,13 @@ async def index_one_file(
     rel_path: str,
     tenant: str,
     pii_policy: PIIRedactionPolicy,
+    content_sha: str | None = None,
 ) -> int:
     """Indexe un fichier : delete-then-insert (idempotent). Retourne le nb de chunks insérés.
 
     Retourne 0 sans rien écrire si le fichier est vide après lecture.
+    `content_sha` : hash déjà calculé par l'appelant (évite un second calcul
+    dans la boucle d'orchestration) ; recalculé si non fourni.
     """
     text = _read_text(repo_dir / rel_path)
     if not text.strip():
@@ -339,6 +431,7 @@ async def index_one_file(
     source_uri = build_source_uri(tenant, rel_path)
     tags = build_tags(tenant, lang)
     chunker = CodeChunker(language=lang, file_path=rel_path)
+    sha = content_sha or compute_content_sha(repo_dir / rel_path)
 
     await _delete_existing_for_source(session, source_uri)
     return await ingest_text(
@@ -348,7 +441,7 @@ async def index_one_file(
         tags=tags,
         pii_policy=pii_policy,
         source_id=rel_path,
-        extra_metadata={"tenant_id": tenant, "language": lang},
+        extra_metadata={"tenant_id": tenant, "language": lang, "content_sha": sha},
         session=session,
         chunker=chunker,
     )
@@ -360,12 +453,20 @@ def _dsn_async_migrator(settings: Settings) -> str:
     return settings.postgres_dsn_migrations.replace("+psycopg", "+asyncpg")
 
 
-async def run_dry(repo_dir: Path, tenant: str, selection: FileSelection) -> None:
+def _dry_run_summary(
+    repo_dir: Path,
+    tenant: str,
+    selection: FileSelection,
+    deleted_paths: set[str],
+) -> dict[str, int]:
     """Compte fichiers + chunks SANS embedding ni écriture (comme `ingest_pdf.py`).
 
     Le comptage de chunks exécute le `CodeChunker` réel (tokenizer bge-m3, en
     cache local/offline) pour rester honnête sur le nombre de chunks produits,
     mais aucun vecteur n'est calculé et aucune connexion base n'est ouverte.
+    Le skip par hash n'est donc PAS appliqué ici (il exige une lecture DB) :
+    tous les candidats (après filtrage `--since` éventuel) sont comptés comme
+    "à indexer".
     """
     files_indexed = 0
     total_chunks = 0
@@ -382,81 +483,165 @@ async def run_dry(repo_dir: Path, tenant: str, selection: FileSelection) -> None
         total_chunks += len(chunks)
         print(f"  {rel} ({lang}) → {len(chunks)} chunk(s)")
 
-    _print_summary(
-        tenant=tenant,
-        files_indexed=files_indexed,
-        total_chunks=total_chunks,
-        selection=selection,
-        dry_run=True,
-    )
+    summary = {
+        "indexed": files_indexed,
+        "skipped": 0,
+        "deleted": len(deleted_paths),
+        "chunks": total_chunks,
+    }
+    _print_summary(tenant=tenant, selection=selection, summary=summary, dry_run=True)
+    return summary
 
 
-async def run_index(
-    repo_dir: Path,
+async def index_repo(
+    repo_dir: Path | str,
     tenant: str,
-    selection: FileSelection,
     *,
-    reindex: bool,
-    pii_policy: PIIRedactionPolicy,
-) -> None:
-    settings = get_settings()
-    engine = create_async_engine(_dsn_async_migrator(settings), pool_pre_ping=True)
-    sessionmaker = async_sessionmaker(engine, expire_on_commit=False)
+    since: str | None = None,
+    reindex: bool = False,
+    dry_run: bool = False,
+    pii_policy: PIIRedactionPolicy = PIIRedactionPolicy.GENERIC,
+    session: AsyncSession | None = None,
+) -> dict[str, int]:
+    """Indexe (incrémentalement) un dépôt client dans `rag_code`.
+
+    Point d'entrée programmatique unique : la CLI (`main`) n'est qu'un wrapper
+    argparse autour de cette fonction, qui peut aussi être importée par un
+    endpoint API pour déclencher une (ré)indexation.
+
+    Comportement :
+    - Sélectionne les fichiers via `collect_files` (respecte `.gitignore`,
+      exclut secrets/binaires/volumineux).
+    - Si `since` est fourni ET `repo_dir` est un dépôt git : restreint les
+      candidats aux fichiers changés depuis cette réf. (`_git_changed_since`)
+      et retire du corpus les fichiers supprimés depuis (purge sans
+      ré-indexation). Si `repo_dir` n'est pas un dépôt git, `since` est ignoré
+      (avertissement loggé) et le comportement complet s'applique.
+    - Si `dry_run` : compte fichiers/chunks sans DB ni embedding (le skip par
+      hash n'est pas applicable, il nécessite une lecture DB).
+    - Sinon, pour chaque candidat : sauf `reindex=True`, compare le sha256 du
+      contenu courant à `extra_metadata.content_sha` d'une ligne `rag_code`
+      existante pour ce `source_uri` ; identique → **skip** (aucun
+      delete/ré-embedding). Différent (ou absent) → delete-then-insert comme
+      avant, en enregistrant le nouveau hash.
+    - `reindex=True` : purge d'abord TOUTES les lignes du tenant, puis
+      réindexe tous les candidats sans jamais skip (comme aujourd'hui).
+
+    `session` : si fournie (tests, appel imbriqué dans une transaction
+    existante), elle est utilisée telle quelle et **n'est pas committée** ici
+    (à l'appelant de le faire). Sinon, une engine/session dédiée est ouverte,
+    committée puis fermée en interne (comportement CLI historique).
+
+    Retourne un résumé : `{"indexed": N, "skipped": N, "deleted": N, "chunks": N}`.
+    """
+    repo_dir = Path(repo_dir).resolve()
+    selection = collect_files(repo_dir)
+
+    deleted_paths: set[str] = set()
+    if since:
+        git_result = _git_changed_since(repo_dir, since)
+        if git_result is None:
+            _log.warning(
+                "index_codebase.since_ignored_not_git", repo_dir=str(repo_dir), since=since
+            )
+            print(f"  --since {since} ignoré : {repo_dir} n'est pas un dépôt git exploitable.")
+        else:
+            changed, deleted_paths = git_result
+            selection.candidates = [rel for rel in selection.candidates if rel in changed]
+            print(
+                f"  --since {since} : {len(selection.candidates)} fichier(s) changé(s) à "
+                f"traiter, {len(deleted_paths)} supprimé(s) à retirer de l'index."
+            )
+
+    if dry_run:
+        return _dry_run_summary(repo_dir, tenant, selection, deleted_paths)
 
     files_indexed = 0
+    files_skipped = 0
+    files_deleted = 0
     total_chunks = 0
-    try:
-        async with sessionmaker() as session:
-            if reindex:
-                purged = await _delete_existing_for_tenant(session, tenant)
-                print(f"--reindex : {purged} chunk(s) existant(s) purgé(s) pour tenant={tenant!r}.")
 
-            for rel in selection.candidates:
-                n = await index_one_file(
-                    session=session,
-                    repo_dir=repo_dir,
-                    rel_path=rel,
-                    tenant=tenant,
-                    pii_policy=pii_policy,
-                )
-                if n:
-                    files_indexed += 1
-                    total_chunks += n
-                    print(f"  {rel} → {n} chunk(s) inséré(s)")
+    async def _process(active_session: AsyncSession) -> None:
+        nonlocal files_indexed, files_skipped, files_deleted, total_chunks
 
-            await session.commit()
-    finally:
-        await engine.dispose()
+        if reindex:
+            purged = await _delete_existing_for_tenant(active_session, tenant)
+            print(f"--reindex : {purged} chunk(s) existant(s) purgé(s) pour tenant={tenant!r}.")
 
-    _print_summary(
-        tenant=tenant,
-        files_indexed=files_indexed,
-        total_chunks=total_chunks,
-        selection=selection,
-        dry_run=False,
-    )
+        for rel in sorted(deleted_paths):
+            source_uri = build_source_uri(tenant, rel)
+            removed = await _delete_existing_for_source(active_session, source_uri)
+            if removed:
+                files_deleted += 1
+                print(f"  {rel} (supprimé) → {removed} ligne(s) rag_code retirée(s)")
+
+        for rel in selection.candidates:
+            content_sha = compute_content_sha(repo_dir / rel)
+            source_uri = build_source_uri(tenant, rel)
+
+            if not reindex:
+                existing_sha = await _get_existing_content_sha(active_session, source_uri)
+                if existing_sha is not None and existing_sha == content_sha:
+                    files_skipped += 1
+                    continue
+
+            n = await index_one_file(
+                session=active_session,
+                repo_dir=repo_dir,
+                rel_path=rel,
+                tenant=tenant,
+                pii_policy=pii_policy,
+                content_sha=content_sha,
+            )
+            if n:
+                files_indexed += 1
+                total_chunks += n
+                print(f"  {rel} → {n} chunk(s) inséré(s)")
+
+    if session is not None:
+        await _process(session)
+    else:
+        settings = get_settings()
+        engine = create_async_engine(_dsn_async_migrator(settings), pool_pre_ping=True)
+        sessionmaker = async_sessionmaker(engine, expire_on_commit=False)
+        try:
+            async with sessionmaker() as new_session:
+                await _process(new_session)
+                await new_session.commit()
+        finally:
+            await engine.dispose()
+
+    summary = {
+        "indexed": files_indexed,
+        "skipped": files_skipped,
+        "deleted": files_deleted,
+        "chunks": total_chunks,
+    }
+    _print_summary(tenant=tenant, selection=selection, summary=summary, dry_run=False)
+    return summary
 
 
 def _print_summary(
     *,
     tenant: str,
-    files_indexed: int,
-    total_chunks: int,
     selection: FileSelection,
+    summary: dict[str, int],
     dry_run: bool,
 ) -> None:
-    n_ignored = (
+    n_excluded = (
         len(selection.ignored_secret)
         + len(selection.ignored_binary)
         + len(selection.ignored_too_large)
     )
     print("\n=== Résumé ===")
-    print(f"  tenant            : {tenant}")
-    print(f"  mode              : {'dry-run' if dry_run else 'indexation réelle'}")
-    print(f"  fichiers indexés  : {files_indexed}")
-    print(f"  chunks {'comptés' if dry_run else 'insérés'}   : {total_chunks}")
+    print(f"  tenant                       : {tenant}")
+    print(f"  mode                         : {'dry-run' if dry_run else 'indexation réelle'}")
+    print(f"  fichiers indexés             : {summary['indexed']}")
+    print(f"  fichiers ignorés (inchangés) : {summary['skipped']}")
+    print(f"  fichiers supprimés           : {summary['deleted']}")
+    print(f"  chunks {'comptés' if dry_run else 'insérés'}                : {summary['chunks']}")
     print(
-        f"  fichiers ignorés  : {n_ignored} "
+        f"  fichiers exclus              : {n_excluded} "
         f"(secrets={len(selection.ignored_secret)}, "
         f"binaires={len(selection.ignored_binary)}, "
         f"trop volumineux={len(selection.ignored_too_large)})"
@@ -480,7 +665,17 @@ def _build_arg_parser() -> argparse.ArgumentParser:
     p.add_argument(
         "--reindex",
         action="store_true",
-        help="purge TOUTES les lignes rag_code du tenant avant de tout réindexer",
+        help="purge TOUTES les lignes rag_code du tenant avant de tout réindexer (ignore le skip par hash)",
+    )
+    p.add_argument(
+        "--since",
+        default=None,
+        metavar="GIT_REF",
+        help=(
+            "n'indexe que les fichiers changés depuis cette réf. git (commits + "
+            "working tree) ; retire du corpus les fichiers supprimés depuis. "
+            "Ignoré (avec avertissement) si repo_dir n'est pas un dépôt git."
+        ),
     )
     p.add_argument(
         "--dry-run",
@@ -507,29 +702,19 @@ def main(argv: list[str] | None = None) -> int:
         print(f"Erreur : {repo_dir} n'est pas un répertoire.")
         return 1
 
-    selection = collect_files(repo_dir)
-    print(
-        f"Dépôt : {repo_dir}\n"
-        f"  {len(selection.candidates)} fichier(s) candidat(s), "
-        f"{len(selection.ignored_secret)} secret(s) exclu(s), "
-        f"{len(selection.ignored_binary)} binaire(s) exclu(s), "
-        f"{len(selection.ignored_too_large)} trop volumineux."
-    )
-
+    print(f"Dépôt : {repo_dir}")
     pii_policy = PIIRedactionPolicy(args.pii)
 
-    if args.dry_run:
-        asyncio.run(run_dry(repo_dir, args.tenant, selection))
-    else:
-        asyncio.run(
-            run_index(
-                repo_dir,
-                args.tenant,
-                selection,
-                reindex=args.reindex,
-                pii_policy=pii_policy,
-            )
+    asyncio.run(
+        index_repo(
+            repo_dir,
+            args.tenant,
+            since=args.since,
+            reindex=args.reindex,
+            dry_run=args.dry_run,
+            pii_policy=pii_policy,
         )
+    )
     return 0
 
 

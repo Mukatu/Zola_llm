@@ -214,3 +214,196 @@ async def test_index_one_file_skips_empty_file_without_touching_ingest(
 
     assert n == 0
     assert called is False
+
+
+# =============================================================================
+# Indexation incrémentale — `index_repo` : skip par hash, --since, résumé
+#
+# `ingest_text` et les helpers DB (`_get_existing_content_sha`,
+# `_delete_existing_for_source`, `_delete_existing_for_tenant`) sont
+# intégralement mockés (dict Python en guise de "base"). Aucun réseau, aucun
+# Postgres, aucun bge-m3, aucun git réel.
+# =============================================================================
+
+
+async def test_index_repo_skips_unchanged_file_by_hash(
+    petit_depot: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    store: dict[str, str] = {}  # source_uri -> content_sha, simule rag_code
+    ingest_calls: list[dict] = []
+
+    async def fake_ingest_text(**kwargs: object) -> int:
+        ingest_calls.append(kwargs)
+        extra_metadata = kwargs["extra_metadata"]
+        assert isinstance(extra_metadata, dict)
+        store[kwargs["source_uri"]] = extra_metadata["content_sha"]
+        return 2
+
+    async def fake_get_existing_content_sha(session: object, source_uri: str) -> str | None:
+        return store.get(source_uri)
+
+    async def fake_delete_existing_for_source(session: object, source_uri: str) -> int:
+        existed = source_uri in store
+        store.pop(source_uri, None)
+        return 1 if existed else 0
+
+    monkeypatch.setattr(index_codebase, "ingest_text", fake_ingest_text)
+    monkeypatch.setattr(index_codebase, "_get_existing_content_sha", fake_get_existing_content_sha)
+    monkeypatch.setattr(
+        index_codebase, "_delete_existing_for_source", fake_delete_existing_for_source
+    )
+
+    session = AsyncMock()
+
+    # Passe 1 : fichier jamais vu -> indexé, hash enregistré.
+    summary1 = await index_codebase.index_repo(
+        petit_depot, "acme", pii_policy=PIIRedactionPolicy.GENERIC, session=session
+    )
+    assert summary1 == {"indexed": 1, "skipped": 0, "deleted": 0, "chunks": 2}
+    assert len(ingest_calls) == 1
+
+    # Passe 2 : contenu inchangé -> skip, aucun nouvel appel à ingest_text.
+    summary2 = await index_codebase.index_repo(
+        petit_depot, "acme", pii_policy=PIIRedactionPolicy.GENERIC, session=session
+    )
+    assert summary2 == {"indexed": 0, "skipped": 1, "deleted": 0, "chunks": 0}
+    assert len(ingest_calls) == 1
+
+    # Passe 3 : fichier modifié -> hash différent -> ré-indexé.
+    (petit_depot / "src" / "main.py").write_text(
+        "def bonjour(nom):\n    return f'Salut {nom}'\n", encoding="utf-8"
+    )
+    summary3 = await index_codebase.index_repo(
+        petit_depot, "acme", pii_policy=PIIRedactionPolicy.GENERIC, session=session
+    )
+    assert summary3 == {"indexed": 1, "skipped": 0, "deleted": 0, "chunks": 2}
+    assert len(ingest_calls) == 2
+
+
+async def test_index_repo_reindex_ignores_hash_skip(
+    petit_depot: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    main_path = petit_depot / "src" / "main.py"
+    current_sha = index_codebase.compute_content_sha(main_path)
+    # La "base" connaît déjà le hash courant : sans --reindex, ce serait un skip.
+    store = {"code://acme/src/main.py": current_sha}
+    purge_calls: list[str] = []
+
+    async def fake_ingest_text(**kwargs: object) -> int:
+        return 2
+
+    async def fake_get_existing_content_sha(session: object, source_uri: str) -> str | None:
+        return store.get(source_uri)
+
+    async def fake_delete_existing_for_tenant(session: object, tenant: str) -> int:
+        purge_calls.append(tenant)
+        return 5
+
+    async def fake_delete_existing_for_source(session: object, source_uri: str) -> int:
+        return 1
+
+    monkeypatch.setattr(index_codebase, "ingest_text", fake_ingest_text)
+    monkeypatch.setattr(index_codebase, "_get_existing_content_sha", fake_get_existing_content_sha)
+    monkeypatch.setattr(
+        index_codebase, "_delete_existing_for_tenant", fake_delete_existing_for_tenant
+    )
+    monkeypatch.setattr(
+        index_codebase, "_delete_existing_for_source", fake_delete_existing_for_source
+    )
+
+    summary = await index_codebase.index_repo(
+        petit_depot,
+        "acme",
+        reindex=True,
+        pii_policy=PIIRedactionPolicy.GENERIC,
+        session=AsyncMock(),
+    )
+
+    # --reindex : le fichier est retraité malgré un hash identique à celui "en base".
+    assert summary == {"indexed": 1, "skipped": 0, "deleted": 0, "chunks": 2}
+    assert purge_calls == ["acme"]
+
+
+async def test_index_repo_dry_run_returns_summary_without_touching_db(
+    petit_depot: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    called = False
+
+    async def fake_ingest_text(**kwargs: object) -> int:
+        nonlocal called
+        called = True
+        return 1
+
+    monkeypatch.setattr(index_codebase, "ingest_text", fake_ingest_text)
+
+    summary = await index_codebase.index_repo(
+        petit_depot, "acme", dry_run=True, pii_policy=PIIRedactionPolicy.GENERIC
+    )
+
+    assert called is False  # dry-run : aucun embedding
+    assert summary == {"indexed": 1, "skipped": 0, "deleted": 0, "chunks": summary["chunks"]}
+    assert summary["chunks"] >= 1
+
+
+def test_git_changed_since_returns_none_when_not_git(tmp_path: Path) -> None:
+    repo = tmp_path / "not_a_repo"
+    repo.mkdir()
+    assert index_codebase._git_changed_since(repo, "HEAD~1") is None
+
+
+async def test_index_repo_since_filters_changed_and_removes_deleted(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo = tmp_path / "repo_since"
+    (repo / "src").mkdir(parents=True)
+    (repo / ".git").mkdir()  # marque un dépôt git, sans invoquer git réellement (mocké plus bas)
+    (repo / "src" / "a.py").write_text("def a():\n    return 1\n", encoding="utf-8")
+    (repo / "src" / "b.py").write_text("def b():\n    return 2\n", encoding="utf-8")
+
+    class _Result:
+        def __init__(self, stdout: str) -> None:
+            self.stdout = stdout
+
+    def fake_run(cmd: list[str], **kwargs: object) -> _Result:
+        if "ls-files" in cmd:
+            return _Result("src/a.py\nsrc/b.py\n")
+        if "--diff-filter=D" in cmd:
+            return _Result("src/deleted.py\n")
+        if cmd[-1] == "HEAD":
+            return _Result("")  # rien de commité depuis la réf.
+        return _Result("src/a.py\n")  # working tree : seul a.py a changé localement
+
+    monkeypatch.setattr(index_codebase.subprocess, "run", fake_run)
+
+    ingest_calls: list[dict] = []
+    delete_calls: list[str] = []
+
+    async def fake_ingest_text(**kwargs: object) -> int:
+        ingest_calls.append(kwargs)
+        return 4
+
+    async def fake_delete_existing_for_source(session: object, source_uri: str) -> int:
+        delete_calls.append(source_uri)
+        return 1
+
+    async def fake_get_existing_content_sha(session: object, source_uri: str) -> str | None:
+        return None  # jamais indexé auparavant -> jamais skip
+
+    monkeypatch.setattr(index_codebase, "ingest_text", fake_ingest_text)
+    monkeypatch.setattr(
+        index_codebase, "_delete_existing_for_source", fake_delete_existing_for_source
+    )
+    monkeypatch.setattr(index_codebase, "_get_existing_content_sha", fake_get_existing_content_sha)
+
+    summary = await index_codebase.index_repo(
+        repo,
+        "acme",
+        since="deadbeef",
+        pii_policy=PIIRedactionPolicy.GENERIC,
+        session=AsyncMock(),
+    )
+
+    assert summary == {"indexed": 1, "skipped": 0, "deleted": 1, "chunks": 4}
+    assert len(ingest_calls) == 1
+    assert ingest_calls[0]["source_uri"] == "code://acme/src/a.py"  # b.py non changé -> exclu
+    assert "code://acme/src/deleted.py" in delete_calls
