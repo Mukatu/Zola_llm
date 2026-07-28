@@ -1,0 +1,202 @@
+# Jeu d'éval TRADUCTION langues africaines (L2.4) — français -> langue cible.
+#
+# Source réelle utilisée : Déclaration universelle des droits de l'homme
+# (DUDH/UDHR, ONU 1948, texte du domaine public), Article 1 uniquement.
+#
+# FLORES-200 (facebook/flores, HuggingFace) était le premier choix demandé
+# par le lot L2.4, mais le dépôt est GATED (vérifié le 2026-07-28 :
+# `huggingface_hub.hf_hub_download` renvoie `GatedRepoError: 401` sans jeton
+# HF authentifié et accepté) — aucun jeton HF n'est configuré dans cet
+# environnement. Conformément à la consigne du lot ("si gated/indispo, un
+# PETIT jeu de paires vérifiables en dur, moins de paires plutôt que du
+# faux"), ce fichier contient donc un jeu réduit mais réellement vérifié :
+# les traductions de l'Article 1 de la DUDH compilées par Omniglot
+# (https://www.omniglot.com/udhr/index.htm -> bantu.htm / afroasiatic.htm /
+# nigercongo.htm), récupérées depuis le HTML brut (pas de résumé par un
+# modèle IA, pas d'invention) le 2026-07-28 :
+#   - Swahili   : omniglot.com/udhr/bantu.htm
+#   - Lingala   : omniglot.com/udhr/bantu.htm
+#   - Wolof     : omniglot.com/udhr/nigercongo.htm
+#   - Haoussa   : omniglot.com/udhr/afroasiatic.htm
+#   - Amharique : omniglot.com/writing/amharic.htm (texte en écriture Ge'ez
+#     authentique, décodé directement depuis les références d'entités HTML
+#     `&#xNNNN;` de l'attribut alt de l'image source — pas une
+#     translittération romanisée)
+# Le français source est le texte officiel de l'ONU (un.org/fr, vérifié).
+#
+# Granularité : pour chaque langue, 3 paires (phrase 1, phrase 2, paragraphe
+# complet = phrase 1 + phrase 2) — permet de tester chrF à la fois sur des
+# segments courts et un segment plus long.
+#
+# Limitation documentée (ne pas masquer, cf. consigne "moins de paires
+# plutôt que du faux") :
+#   - 15 paires seulement (5 langues x 3), pas un banc d'éval exhaustif —
+#     un mètre-étalon minimal mais réel, à étendre dès que FLORES-200 est
+#     accessible (jeton HF + acceptation des conditions) ou qu'un corpus
+#     parallèle plus large et commercialement propre est identifié
+#     (cf. docs/sourcing/african_languages.md).
+#   - Amharique : la source utilise la ponctuation traditionnelle éthiopique
+#     "፡" (séparateur de mot) et "።" (point final) plutôt que des espaces
+#     ASCII modernes. Un modèle produisant de l'amharique "moderne" (espaces
+#     latins) sera pénalisé par chrF sur ce seul point orthographique — biais
+#     connu, cf. docs/sourcing/african_languages.md §3.7/§4.3 sur le risque
+#     tokenizer/script Ge'ez pour cette langue précise.
+#   - Kituba/munukutuba non couvert ici : confirmé absent de FLORES-200 et
+#     sans traduction UDHR/Omniglot trouvée — cohérent avec le "désert de
+#     données" documenté dans docs/sourcing/african_languages.md §3.3.
+
+version: "1.0"
+source: >
+  Universal Declaration of Human Rights, Article 1 (domaine public, ONU
+  1948) — paires français/langue extraites du HTML brut d'Omniglot
+  (omniglot.com/udhr/*.htm), vérifiées directement (pas de résumé IA),
+  2026-07-28. FLORES-200 tenté en premier choix, confirmé gated (401 sans
+  jeton HF) dans cet environnement.
+notes: >
+  Jeu volontairement petit (15 paires) — mètre-étalon minimal pour le lot
+  L2.4, pas un banc d'éval exhaustif. Voir commentaires en tête de fichier
+  pour le détail des limitations (amharique : ponctuation éthiopique
+  traditionnelle ; kituba absent).
+
+cases:
+  # ---------------------------------------------------------------- Swahili
+  - id: udhr_art1_s1_sw
+    lang: sw
+    source_fr: "Tous les êtres humains naissent libres et égaux en dignité et en droits."
+    reference: "Watu wote wamezaliwa huru, hadhi na haki zao ni sawa."
+    notes: "UDHR Art.1 phrase 1 — omniglot.com/udhr/bantu.htm"
+
+  - id: udhr_art1_s2_sw
+    lang: sw
+    source_fr: >-
+      Ils sont doués de raison et de conscience et doivent agir les uns
+      envers les autres dans un esprit de fraternité.
+    reference: "Wote wamejaliwa akili na dhamiri, hivyo yapasa watendeane kindugu."
+    notes: "UDHR Art.1 phrase 2 — omniglot.com/udhr/bantu.htm"
+
+  - id: udhr_art1_full_sw
+    lang: sw
+    source_fr: >-
+      Tous les êtres humains naissent libres et égaux en dignité et en
+      droits. Ils sont doués de raison et de conscience et doivent agir les
+      uns envers les autres dans un esprit de fraternité.
+    reference: >-
+      Watu wote wamezaliwa huru, hadhi na haki zao ni sawa. Wote wamejaliwa
+      akili na dhamiri, hivyo yapasa watendeane kindugu.
+    notes: "UDHR Art.1 paragraphe complet — omniglot.com/udhr/bantu.htm"
+
+  # ---------------------------------------------------------------- Lingala
+  - id: udhr_art1_s1_ln
+    lang: ln
+    source_fr: "Tous les êtres humains naissent libres et égaux en dignité et en droits."
+    reference: "Bato nyonso na mbotama bazali nzomi pe bakokani na limemya pe makoki."
+    notes: "UDHR Art.1 phrase 1 — omniglot.com/udhr/bantu.htm"
+
+  - id: udhr_art1_s2_ln
+    lang: ln
+    source_fr: >-
+      Ils sont doués de raison et de conscience et doivent agir les uns
+      envers les autres dans un esprit de fraternité.
+    reference: "Bazali na mayele pe base, geli kofanda na bondeko okati na bango."
+    notes: "UDHR Art.1 phrase 2 — omniglot.com/udhr/bantu.htm"
+
+  - id: udhr_art1_full_ln
+    lang: ln
+    source_fr: >-
+      Tous les êtres humains naissent libres et égaux en dignité et en
+      droits. Ils sont doués de raison et de conscience et doivent agir les
+      uns envers les autres dans un esprit de fraternité.
+    reference: >-
+      Bato nyonso na mbotama bazali nzomi pe bakokani na limemya pe makoki.
+      Bazali na mayele pe base, geli kofanda na bondeko okati na bango.
+    notes: "UDHR Art.1 paragraphe complet — omniglot.com/udhr/bantu.htm"
+
+  # ------------------------------------------------------------------ Wolof
+  - id: udhr_art1_s1_wo
+    lang: wo
+    source_fr: "Tous les êtres humains naissent libres et égaux en dignité et en droits."
+    reference: "Doomi aadama yépp dañuy juddu, yam ci tawfeex ci sag ak sañ-sañ."
+    notes: "UDHR Art.1 phrase 1 — omniglot.com/udhr/nigercongo.htm"
+
+  - id: udhr_art1_s2_wo
+    lang: wo
+    source_fr: >-
+      Ils sont doués de raison et de conscience et doivent agir les uns
+      envers les autres dans un esprit de fraternité.
+    reference: >-
+      Nekk na it ku xam dëgg te ànd na ak xelam, te war naa jëflante ak
+      nawleem, te teg ko ci wàllu mbokk.
+    notes: "UDHR Art.1 phrase 2 — omniglot.com/udhr/nigercongo.htm"
+
+  - id: udhr_art1_full_wo
+    lang: wo
+    source_fr: >-
+      Tous les êtres humains naissent libres et égaux en dignité et en
+      droits. Ils sont doués de raison et de conscience et doivent agir les
+      uns envers les autres dans un esprit de fraternité.
+    reference: >-
+      Doomi aadama yépp dañuy juddu, yam ci tawfeex ci sag ak sañ-sañ. Nekk
+      na it ku xam dëgg te ànd na ak xelam, te war naa jëflante ak nawleem,
+      te teg ko ci wàllu mbokk.
+    notes: "UDHR Art.1 paragraphe complet — omniglot.com/udhr/nigercongo.htm"
+
+  # ----------------------------------------------------------------- Hausa
+  - id: udhr_art1_s1_ha
+    lang: ha
+    source_fr: "Tous les êtres humains naissent libres et égaux en dignité et en droits."
+    reference: >-
+      Su dai yan-adam, ana haifuwarsu ne duka yantattu, kuma kowannensu na
+      da mutunci da hakkoki daidai da na kowa.
+    notes: "UDHR Art.1 phrase 1 — omniglot.com/udhr/afroasiatic.htm"
+
+  - id: udhr_art1_s2_ha
+    lang: ha
+    source_fr: >-
+      Ils sont doués de raison et de conscience et doivent agir les uns
+      envers les autres dans un esprit de fraternité.
+    reference: >-
+      Suna da hankali da tunani, saboda haka duk abin da za su aikata wa
+      juna, ya kamata su yi shi a cikin yan-uwanci.
+    notes: "UDHR Art.1 phrase 2 — omniglot.com/udhr/afroasiatic.htm"
+
+  - id: udhr_art1_full_ha
+    lang: ha
+    source_fr: >-
+      Tous les êtres humains naissent libres et égaux en dignité et en
+      droits. Ils sont doués de raison et de conscience et doivent agir les
+      uns envers les autres dans un esprit de fraternité.
+    reference: >-
+      Su dai yan-adam, ana haifuwarsu ne duka yantattu, kuma kowannensu na
+      da mutunci da hakkoki daidai da na kowa. Suna da hankali da tunani,
+      saboda haka duk abin da za su aikata wa juna, ya kamata su yi shi a
+      cikin yan-uwanci.
+    notes: "UDHR Art.1 paragraphe complet — omniglot.com/udhr/afroasiatic.htm"
+
+  # -------------------------------------------------------------- Amharique
+  - id: udhr_art1_s1_am
+    lang: am
+    source_fr: "Tous les êtres humains naissent libres et égaux en dignité et en droits."
+    reference: "የሰው፡ልጅ፡ሁሉ፡ሲወለድ፡ነጻና፡በክብርና፡በመብትም፡እኩልነት፡ያለው፡ነው።"
+    notes: >-
+      UDHR Art.1 phrase 1 — omniglot.com/writing/amharic.htm, texte Ge'ez
+      décodé depuis les entités HTML de l'attribut alt (ponctuation
+      éthiopique traditionnelle "፡"/"።", pas d'espaces ASCII — cf. limitation
+      documentée en tête de fichier).
+
+  - id: udhr_art1_s2_am
+    lang: am
+    source_fr: >-
+      Ils sont doués de raison et de conscience et doivent agir les uns
+      envers les autres dans un esprit de fraternité.
+    reference: "የተፈጥሮ፡ማስተዋልና፡ሕሊና፡ስላለው፡አንዱ፡ሌላውን፡በወንድማማችነት፡መንፈስ፡መመልከት፡ይገባዋል።"
+    notes: "UDHR Art.1 phrase 2 — omniglot.com/writing/amharic.htm"
+
+  - id: udhr_art1_full_am
+    lang: am
+    source_fr: >-
+      Tous les êtres humains naissent libres et égaux en dignité et en
+      droits. Ils sont doués de raison et de conscience et doivent agir les
+      uns envers les autres dans un esprit de fraternité.
+    reference: >-
+      የሰው፡ልጅ፡ሁሉ፡ሲወለድ፡ነጻና፡በክብርና፡በመብትም፡እኩልነት፡ያለው፡ነው።፡የተፈጥሮ፡ማስተዋልና፡ሕሊና፡ስላለው፡አንዱ፡ሌላውን፡በወንድማማችነት፡መንፈስ፡መመልከት፡ይገባዋል።
+    notes: "UDHR Art.1 paragraphe complet — omniglot.com/writing/amharic.htm"
