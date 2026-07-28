@@ -20,10 +20,14 @@ haoussa, amharique…) ; sourcing **ouvert depuis zéro** ; base **Llama-3** ada
   (`/v1/query`, `/query/stream`, `/agents` + auth + health) ; les routers verticaux/UI
   (config, feedback, kb, legal, commons) et les blocs box/cortex sont gatés hors `engine`.
   Box/cortex inchangés. `tests/test_engine_profile.py` (3 tests, isolation de surface).
-- **L2.1 — Sourcing corpus langues africaines** — *en cours*. `docs/sourcing/african_languages.md` :
-  sources ouvertes réelles par langue (Masakhane, FLORES-200, OSCAR, Wikipedia…),
-  licences (usage commercial), volumes réalistes + design du pipeline d'entraînement
-  (dédup/filtrage/PII, manifeste distinct du RAG) + piège tokenizer bantou.
+- **L2.1 — Sourcing corpus langues africaines** — *fait, à committer*. `docs/sourcing/african_languages.md`.
+  **Fait stratégique** : swahili/haoussa/amharique ont du volume ouvert commercial-clean ;
+  **lingala/wolof très pauvres**, **kituba = désert total** (zéro corpus ouvert) → pour ces
+  langues, **partenariats + collecte primaire** obligatoires (pas d'ouvert à ingérer).
+  Pièges honnêtes : jw.org interdit le TDM ; PII sans NER bantou ; langid via GlotLID/AfroLID
+  (fastText ne couvre pas lingala/kituba). Design pipeline + `training_manifest.yml` + réfs tokenizer.
+- **Sprint parallèle en cours** : L1.2 (adaptateur OpenAI-compatible), L1.3 (metering/quotas par clé),
+  L1.6 (harnais d'éval moteur), L2.2 (analyse tokenizer bantou). Fichiers disjoints ; câblage à la convergence.
 
 ## 2026-07-28 — Assistant code souverain (produit client tech, profil box)
 
