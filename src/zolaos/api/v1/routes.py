@@ -35,7 +35,9 @@ _AGENT_CATALOG: list[AgentInfo] = [
     AgentInfo(pole=Pole.GENERAL, label="Assistance générale", enabled=True, phase=1),
     AgentInfo(pole=Pole.HEALTH, label="Santé / Pharmacologie", enabled=False, phase=2),
     AgentInfo(pole=Pole.LEGAL, label="Droit OHADA + national CG", enabled=False, phase=2),
-    AgentInfo(pole=Pole.ENGINEERING, label="Code Agent", enabled=False, phase=3),
+    AgentInfo(
+        pole=Pole.ENGINEERING, label="Assistant code souverain (on-box)", enabled=True, phase=3
+    ),
     AgentInfo(pole=Pole.ERP, label="ERP (RH, finance, SYSCOHADA)", enabled=False, phase=4),
     AgentInfo(pole=Pole.GRC, label="Gouvernance / Risque / Conformité", enabled=False, phase=5),
     AgentInfo(pole=Pole.FINTECH, label="Fintech (KYC, scoring)", enabled=False, phase=6),

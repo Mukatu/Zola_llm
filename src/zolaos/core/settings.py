@@ -79,6 +79,14 @@ class Settings(BaseSettings):
     # les synthèses juridiques substantielles en bénéficient, au prix de la latence.
     # Vide → 70B jamais sollicité (tout reste sur le 8B).
     LLM_CORE_ON_COMPLEXITY: str = "complex"
+    # ===== Assistant code souverain (produit client tech, profil box) =====
+    # Modèle spécialisé code servi LOCALEMENT sur la box du client — le code ne
+    # sort jamais des murs. Dérogation DÉLIBÉRÉE à la règle « stack Llama » : ici
+    # la qualité du code EST la valeur vendue, donc modèle open dédié code plutôt
+    # que Llama-3-70B (médiocre en code). Nécessite un GPU sur la box pour une
+    # latence utilisable (32B). Port 11436 (3ᵉ processus llama-server/ollama).
+    LLM_HOST_CODE: str = "http://host.docker.internal:11436"
+    LLM_MODEL_CODE: str = "qwen2.5-coder-32b"
     # Auth Bearer si on met un reverse-proxy (Caddy) devant llama-server.
     LLM_API_KEY: SecretStr = SecretStr("")
 

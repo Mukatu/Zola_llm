@@ -390,6 +390,18 @@ class RagCyberDocument(_RagDocumentMixin, Base):
     __table_args__ = _rag_doc_table_args("rag_cyber")
 
 
+class RagCodeDocument(_RagDocumentMixin, Base):
+    """Corpus RAG du **code DU CLIENT** (assistant code souverain, produit box).
+    **Cloisonné par tenant** (tag `tenant:<id>`, source_uri `code://…`).
+    Schéma **SENSIBLE** (code propriétaire du client) → dans SENSITIVE_SCHEMAS,
+    politique PII obligatoire à l'ingestion. Lecture/écriture par le rôle
+    `zolaos_code_agent` (indexation incrémentale du dépôt client).
+    """
+
+    __tablename__ = "documents"
+    __table_args__ = _rag_doc_table_args("rag_code")
+
+
 # Lookup pour code générique (pipeline ingest/retrieve qui prend un schéma).
 RAG_MODELS: dict[str, type[Base]] = {
     "rag_health": RagHealthDocument,
@@ -399,4 +411,5 @@ RAG_MODELS: dict[str, type[Base]] = {
     "rag_commons": RagCommonsDocument,
     "rag_fintech": RagFintechDocument,
     "rag_cyber": RagCyberDocument,
+    "rag_code": RagCodeDocument,
 }

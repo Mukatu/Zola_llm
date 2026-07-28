@@ -8,6 +8,7 @@ frontières sémantiques d'un domaine :
 - `LegalClauseChunker` : 1 chunk = 1 clause d'un contrat (entête + corps)
 - `LegalArticleChunker`: 1 chunk = 1 article d'un texte de loi (CGI, OHADA)
 - `MedicalCaseChunker` : 1 chunk = 1 section d'un dossier patient
+- `CodeChunker`        : 1 chunk = 1 symbole de haut niveau (fonction/classe)
 
 Chacun retombe automatiquement sur le `Chunker` générique si le pattern attendu
 n'est pas détecté dans le texte (fallback robuste — on ne casse jamais
@@ -18,6 +19,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
+from pathlib import Path
 
 from zolaos.core.logging import get_logger
 from zolaos.rag.chunking import Chunk, Chunker
@@ -350,6 +352,280 @@ class MedicalCaseChunker:
 
 
 # =============================================================================
+# Code source (indexation par symboles : fonctions / classes)
+# =============================================================================
+
+# Chaque pattern détecte l'entête d'un symbole de haut niveau (colonne 0, pas
+# d'indentation) et capture son nom dans le groupe nommé `name`. Approche
+# heuristique par regex — pas un vrai parseur AST — volontairement tolérante :
+# mieux vaut un découpage imparfait par symbole qu'une fenêtre glissante aveugle
+# qui coupe une fonction en deux.
+_PY_SYMBOL_PATTERNS = [
+    re.compile(r"^(?:async\s+)?(?:def|class)\s+(?P<name>\w+)", re.MULTILINE),
+]
+
+_JS_SYMBOL_PATTERNS = [
+    re.compile(
+        r"^(?:export\s+(?:default\s+)?)?(?:async\s+)?function\s*\*?\s+(?P<name>\w+)",
+        re.MULTILINE,
+    ),
+    re.compile(r"^(?:export\s+(?:default\s+)?)?class\s+(?P<name>\w+)", re.MULTILINE),
+    re.compile(
+        r"^(?:export\s+)?const\s+(?P<name>\w+)\s*=\s*(?:async\s*)?\([^)]*\)\s*(?::[^=]+)?=>",
+        re.MULTILINE,
+    ),
+]
+
+_GO_SYMBOL_PATTERNS = [
+    re.compile(r"^func\s+(?:\([^)]*\)\s*)?(?P<name>\w+)", re.MULTILINE),
+]
+
+# Java / C# / C++ : pas de mot-clé unique comme `def`/`func`, on repère soit une
+# déclaration de classe/interface, soit une signature `modifiers type nom(...)`.
+_C_FAMILY_SYMBOL_PATTERNS = [
+    re.compile(
+        r"^(?:(?:public|private|protected|internal|static|final|abstract|sealed|partial)\s+)*"
+        r"(?:class|interface|struct|enum)\s+(?P<name>\w+)",
+        re.MULTILINE,
+    ),
+    re.compile(
+        r"^(?:(?:public|private|protected|internal|static|final|virtual|override|async|abstract)\s+)+"
+        r"[\w:<>\[\],.]+\s+(?P<name>\w+)\s*\([^;{}]*\)\s*\{?\s*$",
+        re.MULTILINE,
+    ),
+]
+
+_LANGUAGE_SYMBOL_PATTERNS: dict[str, list[re.Pattern[str]]] = {
+    "python": _PY_SYMBOL_PATTERNS,
+    "javascript": _JS_SYMBOL_PATTERNS,
+    "go": _GO_SYMBOL_PATTERNS,
+    "java": _C_FAMILY_SYMBOL_PATTERNS,
+    "csharp": _C_FAMILY_SYMBOL_PATTERNS,
+    "cpp": _C_FAMILY_SYMBOL_PATTERNS,
+}
+
+_LANGUAGE_ALIASES = {
+    "py": "python",
+    "python": "python",
+    "js": "javascript",
+    "jsx": "javascript",
+    "ts": "javascript",
+    "tsx": "javascript",
+    "javascript": "javascript",
+    "typescript": "javascript",
+    "go": "go",
+    "golang": "go",
+    "java": "java",
+    "cs": "csharp",
+    "c#": "csharp",
+    "csharp": "csharp",
+    "cpp": "cpp",
+    "c++": "cpp",
+    "c": "cpp",
+}
+
+_EXTENSION_LANGUAGE = {
+    ".py": "python",
+    ".js": "javascript",
+    ".jsx": "javascript",
+    ".mjs": "javascript",
+    ".cjs": "javascript",
+    ".ts": "javascript",
+    ".tsx": "javascript",
+    ".go": "go",
+    ".java": "java",
+    ".cs": "csharp",
+    ".cpp": "cpp",
+    ".cc": "cpp",
+    ".cxx": "cpp",
+    ".hpp": "cpp",
+    ".h": "cpp",
+    ".c": "cpp",
+}
+
+# En dessous de ce nombre de tokens, on ne se donne pas la peine de découper
+# par symbole : le fichier est trop court, un seul chunk générique suffit.
+_CODE_MIN_TOKENS_FOR_SYMBOL_SPLIT = 10
+
+
+def _find_symbol_headers(text: str, patterns: list[re.Pattern[str]]) -> list[tuple[int, str]]:
+    """Retourne les positions (offset, nom) des entêtes de symboles détectés."""
+    found: dict[int, str] = {}
+    for pat in patterns:
+        for m in pat.finditer(text):
+            start = m.start()
+            if start not in found:
+                found[start] = m.groupdict().get("name") or "symbole"
+    return sorted(found.items())
+
+
+def _extend_for_decorators(text: str, positions: list[int]) -> list[int]:
+    """Étend chaque position en arrière pour englober les décorateurs/annotations
+    (`@decorateur` Python, `@Override` Java) qui précèdent immédiatement le
+    symbole — ils lui appartiennent sémantiquement, pas au symbole précédent.
+    """
+    lines = text.splitlines(keepends=True)
+    starts: list[int] = []
+    offset = 0
+    for line in lines:
+        starts.append(offset)
+        offset += len(line)
+    offset_to_idx = {s: i for i, s in enumerate(starts)}
+
+    extended: list[int] = []
+    for pos in positions:
+        idx = offset_to_idx.get(pos)
+        if idx is None:
+            extended.append(pos)
+            continue
+        while idx > 0 and lines[idx - 1].strip().startswith("@"):
+            idx -= 1
+        extended.append(starts[idx])
+    return extended
+
+
+class CodeChunker:
+    """Chunker pour code source : 1 chunk = 1 symbole de haut niveau.
+
+    Stratégie : on détecte les entêtes de fonctions/classes de haut niveau
+    (colonne 0, pas d'indentation) via des heuristiques regex par langage
+    (Python, JS/TS, Go, Java/C#/C++) — pas un vrai parseur AST. Chaque symbole
+    devient un chunk avec son corps jusqu'au prochain symbole de même niveau.
+
+    - Un symbole qui dépasse `target_tokens` est re-découpé via le `fallback`
+      générique (sliding window), en conservant l'entête `# symbole` sur
+      chaque sous-chunk.
+    - Les petits fragments consécutifs (imports, constantes, petites
+      fonctions) sont regroupés dans un même chunk tant que la somme reste
+      ≤ `target_tokens`, pour éviter une avalanche de micro-chunks.
+    - Chaque chunk est préfixé d'un entête `# symbole: <nom>` (et
+      `# fichier: <path>` si `file_path` est fourni) pour rester citable hors
+      contexte après retrieval.
+
+    Fallback complet sur le `Chunker` générique si aucun symbole n'est détecté
+    (fichier de config, markdown, langage non reconnu) ou si le texte est trop
+    court pour justifier un découpage par symbole.
+    """
+
+    def __init__(
+        self,
+        target_tokens: int = 512,
+        overlap_tokens: int = 64,
+        fallback: Chunker | None = None,
+        language: str | None = None,
+        file_path: str | None = None,
+    ) -> None:
+        self.target_tokens = target_tokens
+        self.overlap_tokens = overlap_tokens
+        self._fallback = fallback or Chunker(target_tokens, overlap_tokens)
+        self.language = language
+        self.file_path = file_path
+
+    def _resolve_patterns(self) -> list[re.Pattern[str]]:
+        if self.language:
+            key = _LANGUAGE_ALIASES.get(self.language.strip().lower())
+            if key and key in _LANGUAGE_SYMBOL_PATTERNS:
+                return _LANGUAGE_SYMBOL_PATTERNS[key]
+        if self.file_path:
+            ext = Path(self.file_path).suffix.lower()
+            key = _EXTENSION_LANGUAGE.get(ext)
+            if key:
+                return _LANGUAGE_SYMBOL_PATTERNS[key]
+        # Langage inconnu : on tente toutes les heuristiques (détection générique
+        # multi-langages) plutôt que d'abandonner tout de suite au fallback.
+        combined: list[re.Pattern[str]] = []
+        for patterns in _LANGUAGE_SYMBOL_PATTERNS.values():
+            combined.extend(patterns)
+        return combined
+
+    def _render(self, names: list[str], bodies: list[str]) -> str:
+        header = f"# fichier: {self.file_path}\n" if self.file_path else ""
+        parts = [f"# symbole: {name}\n{body}" for name, body in zip(names, bodies, strict=False)]
+        return header + "\n\n".join(parts)
+
+    def chunk(self, text: str) -> list[Chunk]:
+        if not text or not text.strip():
+            return []
+
+        self._fallback._ensure_tokenizer()
+        tok = self._fallback._tokenizer
+        assert tok is not None
+
+        def _count(s: str) -> int:
+            return len(tok(s, add_special_tokens=False)["input_ids"])
+
+        if _count(text) <= _CODE_MIN_TOKENS_FOR_SYMBOL_SPLIT:
+            _log.info("code.fallback_generic", reason="text too short")
+            return self._fallback.chunk(text)
+
+        patterns = self._resolve_patterns()
+        headers = _find_symbol_headers(text, patterns)
+        if not headers:
+            _log.info("code.fallback_generic", reason="no symbol detected", language=self.language)
+            return self._fallback.chunk(text)
+
+        positions = _extend_for_decorators(text, [p for p, _ in headers])
+        names = [n for _, n in headers]
+
+        # Dédoublonnage : deux entêtes qui, après extension pour décorateurs,
+        # pointent vers la même ligne (ex. décorateur partagé mal détecté).
+        dedup_positions: list[int] = []
+        dedup_names: list[str] = []
+        for pos, name in zip(positions, names, strict=False):
+            if dedup_positions and dedup_positions[-1] == pos:
+                continue
+            dedup_positions.append(pos)
+            dedup_names.append(name)
+
+        segments: list[tuple[str, str]] = []
+        if dedup_positions[0] > 0:
+            prelude = text[: dedup_positions[0]].strip()
+            if prelude:
+                segments.append(("prélude", prelude))
+
+        bounds = [*dedup_positions, len(text)]
+        for i, name in enumerate(dedup_names):
+            body = text[bounds[i] : bounds[i + 1]].strip()
+            if body:
+                segments.append((name, body))
+
+        chunks: list[Chunk] = []
+        idx = 0
+        buffer_names: list[str] = []
+        buffer_bodies: list[str] = []
+        buffer_tokens = 0
+
+        def _flush() -> None:
+            nonlocal buffer_names, buffer_bodies, buffer_tokens, idx
+            if not buffer_bodies:
+                return
+            rendered = self._render(buffer_names, buffer_bodies)
+            chunks.append(Chunk(text=rendered, index=idx, tokens=_count(rendered)))
+            idx += 1
+            buffer_names, buffer_bodies, buffer_tokens = [], [], 0
+
+        for name, body in segments:
+            body_tokens = _count(body)
+            if body_tokens > self.target_tokens:
+                _flush()
+                # Symbole trop volumineux : re-découpe via le fallback générique,
+                # en conservant l'entête `# symbole` sur chaque sous-chunk.
+                for sub in self._fallback.chunk(body):
+                    sub_text = self._render([name], [sub.text])
+                    chunks.append(Chunk(text=sub_text, index=idx, tokens=_count(sub_text)))
+                    idx += 1
+                continue
+            if buffer_bodies and buffer_tokens + body_tokens > self.target_tokens:
+                _flush()
+            buffer_names.append(name)
+            buffer_bodies.append(body)
+            buffer_tokens += body_tokens
+
+        _flush()
+        return chunks
+
+
+# =============================================================================
 # Registry — sélection du chunker selon le domaine
 # =============================================================================
 
@@ -358,12 +634,15 @@ CHUNKER_REGISTRY = {
     "legal_clause": LegalClauseChunker,
     "legal_article": LegalArticleChunker,
     "medical_case": MedicalCaseChunker,
+    "code": CodeChunker,
 }
 
 
 def get_specialized_chunker(
     domain: str,
-) -> AccountingChunker | LegalClauseChunker | LegalArticleChunker | MedicalCaseChunker:
+) -> (
+    AccountingChunker | LegalClauseChunker | LegalArticleChunker | MedicalCaseChunker | CodeChunker
+):
     """Retourne une instance de chunker selon le domaine. ValueError si inconnu."""
     cls = CHUNKER_REGISTRY.get(domain)
     if cls is None:

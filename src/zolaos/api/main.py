@@ -199,6 +199,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         from zolaos.api.v1.bi import router as bi_router
         from zolaos.api.v1.box import router as box_router
         from zolaos.api.v1.categorisation import router as categorisation_router
+        from zolaos.api.v1.code import router as code_router
         from zolaos.api.v1.crm import router as crm_router
         from zolaos.api.v1.cyber import router as cyber_router
         from zolaos.api.v1.documents import router as documents_router
@@ -245,6 +246,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         app.include_router(cyber_router, dependencies=_box_auth)
         # GRC — registre de conformité (obligations/contrôles/constats) + plan de contrôle.
         app.include_router(grc_router, dependencies=_box_auth)
+        # Assistant code souverain — ancré sur le dépôt du client (rag_code, on-box).
+        app.include_router(code_router, dependencies=_box_auth)
 
     # Routes Zolacortex (gestion missions) : exposées uniquement en profil `cortex`.
     # Inversement, en profil `box`, 404 sur /v1/cortex/*.

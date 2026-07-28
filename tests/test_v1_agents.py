@@ -20,7 +20,6 @@ def test_agents_catalog_lists_all_pole(client: TestClient) -> None:
         "fintech",
         "cyber",
     }
-    # Phase 1 : seul "general" est enabled.
-    enabled = [a for a in data["agents"] if a["enabled"]]
-    assert len(enabled) == 1
-    assert enabled[0]["pole"] == "general"
+    # Activés : "general" (assistance) + "engineering" (assistant code souverain on-box).
+    enabled = {a["pole"] for a in data["agents"] if a["enabled"]}
+    assert enabled == {"general", "engineering"}

@@ -1,20 +1,20 @@
-"""Sous-agent Code (Pôle Engineering) — V2.2 Phase 3 #25, Engineering-1.
+"""Sous-agent Code (Pôle Engineering) — assistant code SOUVERAIN (produit client).
 
-Premier vrai sous-agent du Pôle Engineering. **MVP Phase 3** : génération,
-refactor, debug, explication de code. Pas d'exécution de code (à venir Phase 3.2
-avec sandbox éphémère Docker). Pas de RAG (le code est généré par le LLM, pas
-récupéré d'un corpus indexé).
+Assistant de codage destiné aux **clients tech**, exécuté **sur la box du client**
+sur un modèle dédié code servi localement (Qwen2.5-Coder-32B, cf. `LLM_MODEL_CODE`) :
+le code du client **ne quitte jamais ses murs**. C'est la proposition de valeur —
+là où l'entreprise ne peut/veut pas envoyer son code propriétaire à une API externe.
 
-Pattern différent des sous-agents RAG : pas de `requires_citation`, pas de
-`rag_schema`. Sortie structurée optionnelle (`CodeArtifact`) pour qu'un appelant
-puisse extraire `language`, `code`, `tests_suggested`…
+**RAG ancré sur le dépôt DU CLIENT** : avant de générer, l'agent récupère les
+extraits pertinents du code indexé (`rag_code`, **cloisonné par tenant** comme
+`rag_tenant`) et les injecte en contexte → il connaît *ce* dépôt, pas du code
+générique. Si rien n'est indexé, il retombe en génération pure (dégradation douce).
+Le corpus est peuplé par `scripts/index_codebase.py`.
 
-Pour persister le code généré : utiliser `SafeWriteTool` séparément (allowlist
-de workspaces obligatoire). Le Code Agent en lui-même n'écrit jamais sur disque.
-
-Disponible dans les deux profils (`box` ET `cortex`) : un développeur d'une
-entreprise cliente peut tout autant l'utiliser qu'un consultant Polaris dans
-une mission d'audit technique.
+Intents : génération, refactor, debug, explication, review, tests. Sortie
+structurée optionnelle (`CodeArtifact`). Pas d'exécution de code (Phase 3.2 :
+sandbox éphémère Docker). L'agent n'écrit jamais sur disque (persistance via
+`SafeWriteTool` séparé, allowlist obligatoire).
 """
 
 from __future__ import annotations
@@ -24,12 +24,14 @@ from dataclasses import dataclass, field
 from typing import Literal
 
 from pydantic import BaseModel, Field
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from zolaos.agents._prompts import load_prompt
 from zolaos.core.logging import get_logger
 from zolaos.core.metrics import AGENT_INVOCATIONS_TOTAL
 from zolaos.core.settings import Settings
 from zolaos.llm.base import GenerationOptions, LLMClient, Message
+from zolaos.rag.retrieval import retrieve
 
 _log = get_logger("zolaos.agents.engineering.code")
 
@@ -76,14 +78,41 @@ class CodeAgent:
     name = "engineering.code"
     prompt_file = "engineering/code.md"
 
-    # Le Code Agent utilise potentiellement le modèle CORE (Llama-3-70B) pour
-    # les gros projets, mais en MVP on reste sur BRIGADE (8B) pour la latence.
-    # L'appelant peut surcharger via `force_model` à l'invocation.
-    default_model_attr = "LLM_MODEL_BRIGADE"
+    # Assistant code SOUVERAIN : tourne sur le modèle dédié code servi localement
+    # sur la box du client (Qwen2.5-Coder-32B, cf. LLM_MODEL_CODE) — le code ne
+    # quitte jamais ses murs. L'appelant peut surcharger via `force_model`.
+    default_model_attr = "LLM_MODEL_CODE"
 
-    def __init__(self, client: LLMClient, settings: Settings) -> None:
+    #: Nb d'extraits du dépôt indexé injectés en contexte (retrieval rag_code).
+    top_k = 6
+
+    def __init__(self, client: LLMClient, settings: Settings, *, tenant_id: str = "local") -> None:
         self._client = client
         self._settings = settings
+        # Clé d'isolation : le retrieval du code est borné à CE tenant (rag_code
+        # cloisonné, comme rag_tenant). Un tenant ne voit jamais le code d'un autre.
+        self._tenant_id = tenant_id
+
+    async def _retrieve_context(self, query: str, *, session: AsyncSession | None) -> str:
+        """Récupère les extraits pertinents du dépôt du client (rag_code),
+        **cloisonnés au tenant courant**. Chaîne vide si rien n'est indexé (pas
+        d'échec : l'agent répond alors sans contexte de dépôt)."""
+        try:
+            matches = await retrieve(
+                query=query,
+                schema="rag_code",
+                required_tags=[f"tenant:{self._tenant_id}"],
+                k=self.top_k,
+                session=session,
+            )
+        except Exception as exc:  # index absent, DB indisponible… → dégradation douce
+            _log.warning("code_agent.retrieve_failed", error=str(exc))
+            return ""
+        if not matches:
+            return ""
+        return "\n\n".join(
+            f"--- {m.source_uri} (sim {m.similarity:.2f}) ---\n{m.content}" for m in matches
+        )
 
     @property
     def _system_prompt(self) -> str:
@@ -99,6 +128,7 @@ class CodeAgent:
         force_model: str | None = None,
         temperature: float = 0.2,
         max_tokens: int = 2000,
+        session: AsyncSession | None = None,
     ) -> CodeAgentResponse:
         """Génère/refactore/debug/explique/review du code via LLM.
 
@@ -112,9 +142,19 @@ class CodeAgent:
         start = time.perf_counter()
         outcome = "error"
 
+        # Ancrage sur le dépôt du client (rag_code, cloisonné tenant). Vide si
+        # rien n'est indexé → l'assistant répond alors en génération pure.
+        contexte = await self._retrieve_context(query, session=session)
+
         user_msg_parts = [f"[Intent] {intent}"]
         if language_hint:
             user_msg_parts.append(f"[Language] {language_hint}")
+        if contexte:
+            user_msg_parts.append(
+                "\n[Contexte du dépôt indexé — extraits pertinents du code du client. "
+                "Utilise ces éléments en PRIORITÉ ; n'invente pas d'API/signature absente "
+                "du dépôt ; cite les chemins de fichiers concernés]\n" + contexte
+            )
         user_msg_parts.append(f"\n[Demande]\n{query}")
         if structured_output:
             user_msg_parts.append(
@@ -168,7 +208,11 @@ class CodeAgent:
                 content=result.content,
                 artifact=artifact,
                 duration_seconds=duration,
-                metadata={"model": result.model, "provider": result.provider},
+                metadata={
+                    "model": result.model,
+                    "provider": result.provider,
+                    "repo_context": "yes" if contexte else "no",
+                },
             )
         finally:
             AGENT_INVOCATIONS_TOTAL.labels(agent=self.name, outcome=outcome).inc()

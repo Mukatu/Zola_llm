@@ -39,6 +39,15 @@ def make_core_client(settings: Settings) -> LLMClient:
     return _make_local(settings.LLM_HOST_CORE, settings)
 
 
+def make_code_client(settings: Settings) -> LLMClient:
+    """Client pour l'assistant code souverain (Qwen2.5-Coder-32B, port 11436).
+
+    Servi LOCALEMENT sur la box du client — le code ne quitte jamais ses murs.
+    Modèle dédié code (dérogation assumée à la stack Llama), cf. LLM_MODEL_CODE.
+    """
+    return _make_local(settings.LLM_HOST_CODE, settings)
+
+
 def make_external_client(settings: Settings) -> ExternalLLMClient:
     """Retourne le client externe. L'instanciation NE déclenche PAS le guard
     (le guard se déclenche à l'usage). Le client lui-même refuse tout appel

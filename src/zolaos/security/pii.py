@@ -330,7 +330,7 @@ def redact_text(text: str, policy: PIIRedactionPolicy) -> tuple[str, RedactionSt
 # =============================================================================
 
 # Schémas RAG qui contiennent ou peuvent contenir des PII : politique exigée explicitement.
-SENSITIVE_SCHEMAS = {"rag_health", "rag_legal", "rag_erp", "rag_tenant"}
+SENSITIVE_SCHEMAS = {"rag_health", "rag_legal", "rag_erp", "rag_tenant", "rag_code"}
 
 
 def require_policy_for_ingest(schema: str, policy: PIIRedactionPolicy | None) -> PIIRedactionPolicy:
