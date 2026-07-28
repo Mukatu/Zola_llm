@@ -33,8 +33,12 @@ haoussa, amharique…) ; sourcing **ouvert depuis zéro** ; base **Llama-3** ada
   - **L2.2** (`4d28ea1`) **tokenizer bantou** : fertility Llama-3 fr 1.67 / sw 2.60 / wo·ln 2.71 / kituba 3.00
     (+60-80 % tokens) → **garder Llama-3, différer l'extension de vocab** (corpus absent). Réf. InkubaLM/Lelapa.
   - Câblage `main.py`/`settings.py` fait à la convergence (montage OpenAI + settings quotas), zéro conflit.
-  - **Reste couche 2** : L2.3 (pipeline SFT/LoRA), L2.4 (éval africaine), L2.5 (registre+service), L2.6 (volant) ;
-    couche 1 : L1.4 (packs pays), L1.5 (volant commons). Long-pole = collecte corpus bantou (partenariats).
+  - **Correction (best practice, zéro réinvention)** : **L1.5 (volant de données/COMMONS) était DÉJÀ implémenté**
+    (2026-07-07, `src/zolaos/commons/`, 13 tests verts) — la roadmap/mémoire le disaient « à coder » à tort. Corrigé.
+  - **L2.4 — éval africaine** *(en cours)* : harnais chrF (FLORES-200) pour mesurer un modèle sur les langues
+    africaines — le mètre-étalon À BÂTIR AVANT l'entraînement (éval-driven).
+  - **Reste réel** : couche 1 — L1.4 (packs pays) ; couche 2 — L2.3 (SFT/LoRA), L2.5 (registre+service),
+    L2.6 (fermer le volant vers l'entraînement). **Long-pole = collecte corpus bantou (partenariats).**
 
 ## 2026-07-28 — Assistant code souverain (produit client tech, profil box)
 

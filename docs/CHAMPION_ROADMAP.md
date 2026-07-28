@@ -43,7 +43,7 @@ effet de réseau de données, pas force brute).
 | **L1.2** | **Contrat d'API public v1** | Figer `/v1/query` (contrat versionné, OpenAPI publié) + adaptateur **OpenAI-compatible** `/v1/chat/completions` (drop-in) + SDK minimal (py/js) + quickstart. | M |
 | **L1.3** | **Metering / quotas / clés** | Quotas + rate-limit **par clé API** (Redis déjà là), metering d'usage (requêtes/tokens), export facturation, endpoints de gestion de clés. | M |
 | **L1.4** | **Packs juridiction (multi-pays)** | Généraliser « pack pays » = corpus + prompts + tags par juridiction, branchables à chaud. Ajouter un pays = ajouter un pack, **pas** du code. (CG/CEMAC/OHADA = pack pilote.) | M |
-| **L1.5** | **Volant de données (COMMONS Phase A)** | Implémenter la boucle DÉJÀ conçue (`docs/COMMONS_PIPELINE.md`) : feedback → anonymisation → quarantaine → k-anonymat(3) → validation humaine → promotion `rag_commons`. **C'est le moat qui compose.** | L |
+| **L1.5** | **Volant de données (COMMONS)** — ✅ **DÉJÀ IMPLÉMENTÉ (2026-07-07)** | La boucle complète TOURNE (`src/zolaos/commons/`, `docs/COMMONS_PIPELINE.md` Phases A/B/C) : feedback → anonymisation → quarantaine → k-anonymat(3) → validation humaine → promotion `rag_commons`. **Le moat qui compose est en place.** Reste à le brancher sur l'entraînement (L2.6). | ✅ |
 | **L1.6** | **Harnais d'éval moteur** | Suite auto (justesse de routage, qualité d'ancrage/citation, abstention correcte, latence) qui tourne au fil du passage à l'échelle → pas de régression. Étend `tests/eval/`. | M |
 
 **Définition de « fait » couche 1** : un tiers (autre projet/pays africain) peut obtenir
@@ -92,7 +92,7 @@ ré-entraînable depuis les données validées par l'usage.
    - **L1.1** (profil engine) — petit, débloque le récit « moteur réutilisable ».
    - **L2.1** (collecte corpus langues africaines) — **long-pole + moat durable**, à lancer immédiatement car c'est ce qui prend le plus de temps et que personne d'autre ne fera.
 2. **Puis** L1.2/L1.3 (contrat + facturation → ça finance) et L2.2/L2.3 (base + LoRA → premier « modèle africain » démontrable).
-3. **Ensuite** L1.5 + L2.6 (le volant fermé) — la mécanique qui compose et rend le moat inrattrapable.
+3. **Ensuite** L2.6 (fermer le volant vers l'entraînement — **L1.5 commons est déjà en place**) — la mécanique qui compose et rend le moat inrattrapable.
 4. L1.4, L1.6, L2.4, L2.5 en soutien continu.
 
 > Le premier pas *concret* vers « notre DeepSeek » n'est ni un GPU géant ni une levée :
