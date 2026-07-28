@@ -35,8 +35,8 @@ haoussa, amharique…) ; sourcing **ouvert depuis zéro** ; base **Llama-3** ada
   - Câblage `main.py`/`settings.py` fait à la convergence (montage OpenAI + settings quotas), zéro conflit.
   - **Correction (best practice, zéro réinvention)** : **L1.5 (volant de données/COMMONS) était DÉJÀ implémenté**
     (2026-07-07, `src/zolaos/commons/`, 13 tests verts) — la roadmap/mémoire le disaient « à coder » à tort. Corrigé.
-  - **L2.4 — éval africaine** *(en cours)* : harnais chrF (FLORES-200) pour mesurer un modèle sur les langues
-    africaines — le mètre-étalon À BÂTIR AVANT l'entraînement (éval-driven).
+  - **L2.4 — éval africaine** — *fait* (`fbf5e2a`) : harnais **chrF** ; FLORES-200 gated → repli **UDHR Art. 1**
+    (domaine public), 15 paires FR↔{sw,ln,wo,ha,am}, 19 tests, live gated. Le mètre-étalon AVANT l'entraînement.
   - **Reste réel** : couche 1 — L1.4 (packs pays) ; couche 2 — L2.3 (SFT/LoRA), L2.5 (registre+service),
     L2.6 (fermer le volant vers l'entraînement). **Long-pole = collecte corpus bantou (partenariats).**
 
