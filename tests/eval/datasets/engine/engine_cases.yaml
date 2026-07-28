@@ -1,0 +1,155 @@
+# Jeu de cas d'évaluation MOTEUR (L1.6) — routage + ancrage/abstention.
+#
+# Contrairement aux datasets `tests/eval/datasets/{dummy,verified}/*.yaml` qui
+# évaluent la QUALITÉ d'un agent RAG précis (mots-clés, citations exactes,
+# contamination), ce jeu évalue le MOTEUR dans son ensemble :
+#   - `pole_attendu`      : le routeur (`Router.classify`) doit envoyer la
+#     requête vers ce pôle métier.
+#   - `grounding_attendu` : ce que l'orchestrateur (`Orchestrator.handle`) doit
+#     produire comme statut d'ancrage — "sourced" (réponse citant le corpus),
+#     "abstained" (refus explicite, pôle réglementé sans corpus pertinent) ou
+#     "unsourced" (réponse libre légitime, pôle sans prétention réglementaire).
+#     `null` = non vérifié pour ce cas (on ne teste QUE le routage).
+#
+# Réalisme : requêtes en français, contexte Congo-Brazzaville (CEMAC/OHADA/
+# droit national), cohérent avec le corpus RAG ingéré (cf.
+# project_rag_corpus_status : OHADA, fiscal/travail CG, ERP, santé,
+# microfinance COBAC 2017 ; LBC-FT 2024 bloqué — OCR corrompu, volontairement
+# utilisé ci-dessous comme cas d'abstention).
+#
+# NB : certaines requêtes sont à la frontière de deux pôles (ex. congés payés
+# ERP/legal) — comportement documenté dans `notes`, comme pour
+# `tests/integration/test_orchestrator_e2e.py::test_simple_erp_query_routes_to_erp`.
+
+version: "1.0"
+notes: >
+  Jeu de cas gelé au 2026-07 pour surveiller la qualité de routage/ancrage à
+  l'échelle. À enrichir au fil des pôles/modules ajoutés (cf. L1.6).
+
+cases:
+  - id: eng_001
+    query: "Quelle est la posologie du paracétamol pour un enfant de 6 ans à Brazzaville ?"
+    pole_attendu: health
+    grounding_attendu: null
+    notes: "Routage santé simple."
+
+  - id: eng_002
+    query: "Quelles sont les conditions de constitution d'une société à responsabilité limitée (SARL) selon l'Acte uniforme OHADA ?"
+    pole_attendu: legal
+    grounding_attendu: sourced
+    notes: "Corpus OHADA ingéré — doit citer l'Acte uniforme."
+
+  - id: eng_003
+    query: "Quelle est la durée légale de la période d'essai pour un contrat à durée indéterminée au Congo-Brazzaville ?"
+    pole_attendu: legal
+    grounding_attendu: sourced
+    notes: "Corpus droit du travail CG ingéré."
+
+  - id: eng_004
+    query: "Quel est le taux normal de TVA applicable au Congo-Brazzaville ?"
+    pole_attendu: legal
+    grounding_attendu: sourced
+    notes: "Corpus fiscal CG ingéré."
+
+  - id: eng_005
+    query: "Comment enregistrer une écriture d'amortissement linéaire d'une immobilisation selon le plan comptable SYSCOHADA ?"
+    pole_attendu: erp
+    grounding_attendu: sourced
+    notes: "Corpus ERP/compta SYSCOHADA ingéré."
+
+  - id: eng_006
+    query: "Quelles sont les étapes clés d'un audit de conformité institutionnelle pour une ONG financée par un bailleur international au Congo ?"
+    pole_attendu: grc
+    grounding_attendu: null
+    notes: "Routage GRC — ancrage non vérifié (corpus partagé avec legal)."
+
+  - id: eng_007
+    query: "Quelles pièces d'identification sont exigées pour l'ouverture d'un compte dans un établissement de microfinance au Congo ?"
+    pole_attendu: fintech
+    grounding_attendu: null
+    notes: "Routage KYC/fintech."
+
+  - id: eng_008
+    query: "Quel est le capital social minimum exigé pour agréer un établissement de microfinance selon la réglementation COBAC ?"
+    pole_attendu: fintech
+    grounding_attendu: sourced
+    notes: "Corpus microfinance COBAC 2017 ingéré."
+
+  - id: eng_009
+    query: "Quelles sont les bonnes pratiques pour durcir la configuration d'un serveur Windows exposé à internet ?"
+    pole_attendu: cyber
+    grounding_attendu: null
+    notes: "Pôle sans corpus RAG maison — pas d'ancrage attendu, réponse libre légitime."
+
+  - id: eng_010
+    query: "Écris une fonction Python qui calcule la factorielle d'un entier positif."
+    pole_attendu: engineering
+    grounding_attendu: null
+    notes: "Pôle sans corpus RAG — réponse générative libre légitime."
+
+  - id: eng_011
+    query: "Bonjour"
+    pole_attendu: general
+    grounding_attendu: abstained
+    notes: >
+      Salutation pure — court-circuitée par smalltalk_reply (étape 0 de
+      l'orchestrateur) AVANT tout routage LLM. grounding volontairement
+      "abstained" côté orchestrateur pour ne pas afficher le badge
+      "sans source" sur un bonjour (cf. core/orchestrator.py::handle).
+
+  - id: eng_012
+    query: "Peux-tu m'expliquer en une phrase ce que tu sais faire ?"
+    pole_attendu: general
+    grounding_attendu: unsourced
+    notes: "Question générique réelle (pas une salutation exacte) — passe par le routeur."
+
+  - id: eng_013
+    query: "Quels sont les nouveaux seuils de déclaration de soupçon LBC-FT applicables en zone CEMAC en 2024 ?"
+    pole_attendu: fintech
+    grounding_attendu: abstained
+    notes: >
+      Cas d'abstention volontaire : corpus LBC-FT 2024 bloqué à l'ingestion
+      (OCR corrompu, seuils détruits — cf. project_rag_corpus_status). Le
+      moteur doit s'abstenir plutôt qu'inventer un seuil.
+
+  - id: eng_014
+    query: "Quelle est la teneur exacte de l'arrêt de la Cour Commune de Justice et d'Arbitrage n°047/2019 du 12 mars 2019 sur la responsabilité du gérant de SARL ?"
+    pole_attendu: legal
+    grounding_attendu: abstained
+    notes: "Référence de jurisprudence fictive/hors corpus — doit s'abstenir, pas inventer."
+
+  - id: eng_015
+    query: "Quel est le protocole thérapeutique national congolais pour la prise en charge de la maladie de Creutzfeldt-Jakob ?"
+    pole_attendu: health
+    grounding_attendu: abstained
+    notes: "Pathologie rare hors du corpus pharmacologie ingéré — doit s'abstenir."
+
+  - id: eng_016
+    query: "Quelles sont les cotisations sociales obligatoires dues à la CNSS pour un salarié au Congo-Brazzaville ?"
+    pole_attendu: legal
+    grounding_attendu: null
+    notes: "Routage droit social/travail CG."
+
+  - id: eng_017
+    query: "Comment calculer les congés payés annuels d'un salarié congolais en contrat à durée indéterminée ?"
+    pole_attendu: erp
+    grounding_attendu: null
+    notes: "Frontière ERP/legal acceptable (paie), comme test_simple_erp_query_routes_to_erp."
+
+  - id: eng_018
+    query: "Quelles sont les démarches pour déposer une marque auprès de l'OAPI depuis le Congo ?"
+    pole_attendu: legal
+    grounding_attendu: null
+    notes: "Routage propriété intellectuelle OAPI."
+
+  - id: eng_019
+    query: "Comment fonctionne le scoring de crédit pour l'octroi d'un microcrédit ?"
+    pole_attendu: fintech
+    grounding_attendu: null
+    notes: "Routage scoring fintech."
+
+  - id: eng_020
+    query: "Comment produire un rapport de conformité destiné à un bailleur de fonds international ?"
+    pole_attendu: grc
+    grounding_attendu: null
+    notes: "Routage reporting bailleurs GRC."
