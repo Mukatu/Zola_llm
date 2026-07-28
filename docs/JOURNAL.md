@@ -15,19 +15,26 @@ Verdict d'archi : **ne pas réécrire** le moteur (déjà découplé) ; ajouter 
 Cadrage acté : portée **continentale** (français CG, lingala, kituba, swahili, wolof,
 haoussa, amharique…) ; sourcing **ouvert depuis zéro** ; base **Llama-3** adaptée (LoRA).
 
-- **L1.1 — Profil `engine` headless** — *fait, à committer*. Nouveau
+- **L1.1 — Profil `engine` headless** — *fait* (`b88015c`). Nouveau
   `ZOLAOS_PROFILE="engine"` exposant la surface générique seule
   (`/v1/query`, `/query/stream`, `/agents` + auth + health) ; les routers verticaux/UI
   (config, feedback, kb, legal, commons) et les blocs box/cortex sont gatés hors `engine`.
   Box/cortex inchangés. `tests/test_engine_profile.py` (3 tests, isolation de surface).
-- **L2.1 — Sourcing corpus langues africaines** — *fait, à committer*. `docs/sourcing/african_languages.md`.
+- **L2.1 — Sourcing corpus langues africaines** — *fait* (`2724879`). `docs/sourcing/african_languages.md`.
   **Fait stratégique** : swahili/haoussa/amharique ont du volume ouvert commercial-clean ;
   **lingala/wolof très pauvres**, **kituba = désert total** (zéro corpus ouvert) → pour ces
   langues, **partenariats + collecte primaire** obligatoires (pas d'ouvert à ingérer).
   Pièges honnêtes : jw.org interdit le TDM ; PII sans NER bantou ; langid via GlotLID/AfroLID
   (fastText ne couvre pas lingala/kituba). Design pipeline + `training_manifest.yml` + réfs tokenizer.
-- **Sprint parallèle en cours** : L1.2 (adaptateur OpenAI-compatible), L1.3 (metering/quotas par clé),
-  L1.6 (harnais d'éval moteur), L2.2 (analyse tokenizer bantou). Fichiers disjoints ; câblage à la convergence.
+- **Sprint parallèle — LIVRÉ** (6 agents simultanés, suite **681 passed**) :
+  - **L1.2** (`0c4f8e0`) adaptateur **OpenAI-compatible** `/v1/chat/completions` (drop-in), tous profils.
+  - **L1.3** (`0c4f8e0`) **metering + quotas/jour par clé** (Redis), `require_quota` sur query/stream/chat, **fail-open**.
+  - **L1.6** (`973583a`) **harnais d'éval moteur** (routage/ancrage/abstention, 20 cas, gated LLM).
+  - **L2.2** (`4d28ea1`) **tokenizer bantou** : fertility Llama-3 fr 1.67 / sw 2.60 / wo·ln 2.71 / kituba 3.00
+    (+60-80 % tokens) → **garder Llama-3, différer l'extension de vocab** (corpus absent). Réf. InkubaLM/Lelapa.
+  - Câblage `main.py`/`settings.py` fait à la convergence (montage OpenAI + settings quotas), zéro conflit.
+  - **Reste couche 2** : L2.3 (pipeline SFT/LoRA), L2.4 (éval africaine), L2.5 (registre+service), L2.6 (volant) ;
+    couche 1 : L1.4 (packs pays), L1.5 (volant commons). Long-pole = collecte corpus bantou (partenariats).
 
 ## 2026-07-28 — Assistant code souverain (produit client tech, profil box)
 
