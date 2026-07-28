@@ -160,6 +160,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     app.include_router(openai_compat_router, dependencies=[Depends(require_quota)])
 
+    # Packs juridiction (multi-pays) : « ajouter un pays = ajouter un pack ».
+    # Surface moteur (métadonnées), montée dans tous les profils.
+    from zolaos.api.v1.jurisdictions import router as jurisdictions_router
+
+    app.include_router(jurisdictions_router)
+
     # Authentification de production : login email + mot de passe, cookies
     # httpOnly + refresh + CSRF. Montée dans tous les environnements (le
     # moteur générique a besoin d'une identité, même en profil `engine`).
