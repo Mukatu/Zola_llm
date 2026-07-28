@@ -148,46 +148,55 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         """Expose les métriques au format Prometheus."""
         return Response(content=generate_latest(), media_type=CONTENT_TYPE_LATEST)
 
+    # Cœur moteur (souverain, générique) : /v1/query, /v1/query/stream,
+    # /v1/agents. Monté dans TOUS les profils (y compris `engine` headless).
     app.include_router(v1_router)
 
-    # Configuration / personnalisation : montée dans les deux profils.
-    # box → config client personnalisée ; cortex → config consultant uniforme.
-    from zolaos.api.v1.config import router as config_router
-
-    app.include_router(config_router)
-
-    # Feedback agents (transverse box + cortex) : capture du retour utilisateur
-    # (verdict ✓/✗ + correction experte) — socle de l'auto-amélioration.
-    from zolaos.api.v1.feedback import router as feedback_router
-
-    app.include_router(feedback_router)
-
-    # Bibliothèque documentaire (transverse) : consultation directe des corpus
-    # RAG (Actes uniformes, conventions, CGI, LNME…), lecture seule.
-    from zolaos.api.v1.kb import router as kb_router
-
-    app.include_router(kb_router)
-
-    # Pôle juridique — outils (traduction de contrats étrangers).
-    from zolaos.api.v1.legal import router as legal_router
-
-    app.include_router(legal_router)
-
-    # Communs de connaissance (niveau 3) : consentement opt-in + extraction.
-    from zolaos.api.v1.commons import router as commons_router
-
-    app.include_router(commons_router)
-
     # Authentification de production : login email + mot de passe, cookies
-    # httpOnly + refresh + CSRF. Montée dans tous les environnements.
+    # httpOnly + refresh + CSRF. Montée dans tous les environnements (le
+    # moteur générique a besoin d'une identité, même en profil `engine`).
     from zolaos.api.v1.auth import router as auth_router
 
     app.include_router(auth_router)
 
-    # Auto-login de développement (jeton local, 404 hors dev).
+    # Auto-login de développement (jeton local, 404 hors dev). Universel lui
+    # aussi (comportement inchangé : le router s'auto-neutralise hors dev).
     from zolaos.api.v1.auth_dev import router as auth_dev_router
 
     app.include_router(auth_dev_router)
+
+    # Ce qui suit est une préoccupation applicative box/cortex (config
+    # personnalisée, feedback, bibliothèque documentaire, outils juridiques,
+    # communs de connaissance) — PAS le moteur générique. Absent en profil
+    # `engine` (headless).
+    if settings.ZOLAOS_PROFILE in ("box", "cortex"):
+        # Configuration / personnalisation : montée dans les deux profils.
+        # box → config client personnalisée ; cortex → config consultant uniforme.
+        from zolaos.api.v1.config import router as config_router
+
+        app.include_router(config_router)
+
+        # Feedback agents (transverse box + cortex) : capture du retour utilisateur
+        # (verdict ✓/✗ + correction experte) — socle de l'auto-amélioration.
+        from zolaos.api.v1.feedback import router as feedback_router
+
+        app.include_router(feedback_router)
+
+        # Bibliothèque documentaire (transverse) : consultation directe des corpus
+        # RAG (Actes uniformes, conventions, CGI, LNME…), lecture seule.
+        from zolaos.api.v1.kb import router as kb_router
+
+        app.include_router(kb_router)
+
+        # Pôle juridique — outils (traduction de contrats étrangers).
+        from zolaos.api.v1.legal import router as legal_router
+
+        app.include_router(legal_router)
+
+        # Communs de connaissance (niveau 3) : consentement opt-in + extraction.
+        from zolaos.api.v1.commons import router as commons_router
+
+        app.include_router(commons_router)
 
     # Routes Zolabox (Polaris-8) : exposées uniquement en profil `box`. En
     # profil `cortex`, le router n'est pas monté → 404 sur /v1/box/* (préférable

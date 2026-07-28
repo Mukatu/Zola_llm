@@ -29,8 +29,10 @@ class Settings(BaseSettings):
     # Profil de déploiement (Polaris addendum V3) :
     #   - "box"   : déploiement chez le client (Zolabox) — restreint
     #   - "cortex": déploiement chez le cabinet conseil (Zolacortex) — élargi
+    #   - "engine": moteur souverain headless — surface générique uniquement
+    #     (v1_router + auth), sans les modules verticaux ni le frontend.
     # Défaut "box" = principe du moindre privilège.
-    ZOLAOS_PROFILE: Literal["box", "cortex"] = "box"
+    ZOLAOS_PROFILE: Literal["box", "cortex", "engine"] = "box"
     APP_HOST: str = "0.0.0.0"  # noqa: S104  (bind sur toutes interfaces volontaire en conteneur)
     APP_PORT: int = 8000
     LOG_LEVEL: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO"
