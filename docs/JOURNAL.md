@@ -6,6 +6,29 @@ les messages de commit.
 
 ---
 
+## 2026-07-29 — Journal d'audit du cabinet
+
+Trace horodatée des actions **sensibles** de l'exploitant cortex. **Zéro
+réinvention** : au lieu d'une table parallèle, on écrit dans le journal **canonique
+`audit.log`** (schéma `audit`, chaîne de hachage `payload_hash`/`prev_hash`/`row_hash`
++ triggers d'immuabilité, cf. `infra/postgres/02_audit_log.sql`) — déjà utilisé pour
+les accès RAG et les missions.
+
+- **Enregistreur** (`zolaos/audit/recorder.py`, `record_audit`) : insert dans
+  `audit.log` (catégorie `security`, event=verbe, actor=principal, tenant=cible si
+  tenant, payload=summary+détail) dans la **même transaction** que l'action.
+- **Instrumentation** des endpoints cortex sensibles : licences (émission/révocation),
+  comptes (création/màj/reset mdp — jamais le mot de passe), credential de box
+  (émission/révocation), création de client. Les missions écrivaient déjà nativement.
+- **Consultation** (`GET /v1/cortex/audit`, cortex+admin, lecture seule) : lit
+  `audit.log`, catégories **gouvernance** par défaut (security/config/auth, écarte le
+  bruit RAG), filtres event/acteur/tenant + `category=all`. `GET .../actions` = catalogue.
+- **Accès lecture** : `zolaos_app` n'avait qu'INSERT sur `audit.log` ; migration `0062`
+  = `GRANT SELECT` (l'immuabilité reste garantie par les triggers, pas par le refus de
+  lecture — lire n'altère rien).
+- **Front** : écran `/cortex/audit` (filtres + liste anté-chrono, résumé + détail
+  repliable) + `lib/cortex-audit.ts` + entrée Sidebar « Journal d'audit ».
+
 ## 2026-07-29 — Cockpit de supervision (fleet)
 
 La page « exploitation » qui manquait à cortex : vue d'ensemble des boxes clientes.

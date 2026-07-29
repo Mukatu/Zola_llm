@@ -14,13 +14,14 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
 from pydantic import BaseModel, Field
 from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from zolaos.api.auth import require_admin
+from zolaos.api.auth import Principal, require_admin
 from zolaos.api.v1.auth import require_csrf
+from zolaos.audit import record_audit
 from zolaos.core.logging import get_logger
 from zolaos.core.profiles import require_cortex
 from zolaos.core.security import generate_box_credential
@@ -96,6 +97,8 @@ class CreateClientRequest(BaseModel):
 @router.post("", response_model=TenantOut, status_code=status.HTTP_201_CREATED)
 async def create_client(
     payload: CreateClientRequest,
+    request: Request,
+    principal: Principal = Depends(require_admin),
     session: AsyncSession = Depends(get_session),
     _csrf: None = Depends(require_csrf),
 ) -> TenantOut:
@@ -119,6 +122,17 @@ async def create_client(
         box_url=payload.box_url,
     )
     session.add(tenant)
+    await session.flush()  # matérialise tenant.id pour l'audit
+    await record_audit(
+        session,
+        actor=principal,
+        action="client.created",
+        summary=f"Client « {tenant.name} » créé ({tenant.tenant_type})",
+        target_type="tenant",
+        target_id=tenant.id,
+        extra={"name": tenant.name, "tenant_type": tenant.tenant_type, "country": tenant.country},
+        request=request,
+    )
     await session.commit()
     await session.refresh(tenant)
     _log.info(
@@ -227,6 +241,8 @@ class BoxCredentialResponse(BaseModel):
 @router.post("/{tenant_id}/box-credential", response_model=BoxCredentialResponse)
 async def issue_box_credential(
     tenant_id: uuid.UUID,
+    request: Request,
+    principal: Principal = Depends(require_admin),
     session: AsyncSession = Depends(get_session),
     settings: Settings = Depends(get_settings),
     _csrf: None = Depends(require_csrf),
@@ -242,6 +258,16 @@ async def issue_box_credential(
     plain, prefix, cred_hash = generate_box_credential(pepper=pepper)
     tenant.box_credential_hash = cred_hash
     tenant.box_credential_prefix = prefix
+    await record_audit(
+        session,
+        actor=principal,
+        action="box_credential.issued",
+        summary=f"Credential de box (ré)émis pour « {tenant.name} »",
+        target_type="tenant",
+        target_id=tenant.id,
+        extra={"prefix": prefix},
+        request=request,
+    )
     await session.commit()
     _log.info("cortex.box_credential.issued", extra={"tenant_id": str(tenant.id), "prefix": prefix})
     return BoxCredentialResponse(tenant_id=tenant.id, credential=plain, prefix=prefix)
@@ -250,6 +276,8 @@ async def issue_box_credential(
 @router.delete("/{tenant_id}/box-credential", status_code=status.HTTP_204_NO_CONTENT)
 async def revoke_box_credential(
     tenant_id: uuid.UUID,
+    request: Request,
+    principal: Principal = Depends(require_admin),
     session: AsyncSession = Depends(get_session),
     _csrf: None = Depends(require_csrf),
 ) -> Response:
@@ -259,6 +287,15 @@ async def revoke_box_credential(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="tenant_not_found")
     tenant.box_credential_hash = None
     tenant.box_credential_prefix = None
+    await record_audit(
+        session,
+        actor=principal,
+        action="box_credential.revoked",
+        summary=f"Credential de box révoqué pour « {tenant.name} »",
+        target_type="tenant",
+        target_id=tenant.id,
+        request=request,
+    )
     await session.commit()
     # Révocation immédiate : coupe aussi la connexion vivante éventuelle.
     await disconnect_tenant(str(tenant.id))

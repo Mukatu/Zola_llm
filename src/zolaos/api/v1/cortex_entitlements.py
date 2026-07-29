@@ -24,13 +24,14 @@ from __future__ import annotations
 import uuid
 from datetime import UTC, datetime, timedelta
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from zolaos.api.auth import Principal, require_admin
 from zolaos.api.v1.auth import require_csrf
+from zolaos.audit import record_audit
 from zolaos.core.logging import get_logger
 from zolaos.core.profiles import require_cortex
 from zolaos.core.settings import Settings, get_settings
@@ -164,6 +165,7 @@ class IssueRequest(BaseModel):
 @router.post("", response_model=GrantWithToken, status_code=status.HTTP_201_CREATED)
 async def issue_grant(
     payload: IssueRequest,
+    request: Request,
     principal: Principal = Depends(require_admin),
     session: AsyncSession = Depends(get_session),
     settings: Settings = Depends(get_settings),
@@ -244,6 +246,22 @@ async def issue_grant(
         issued_by_user_id=principal.user_id,
     )
     session.add(grant)
+    await record_audit(
+        session,
+        actor=principal,
+        action="license.issued",
+        summary=f"Licence {payload.tier} émise pour le tenant {payload.tenant_id}",
+        target_type="tenant",
+        target_id=payload.tenant_id,
+        extra={
+            "license_id": license_id,
+            "tier": payload.tier,
+            "modules": options,
+            "days": payload.days,
+            "superseded": len(prior),
+        },
+        request=request,
+    )
     await session.commit()
     await session.refresh(grant)
     _log.info(
@@ -317,6 +335,8 @@ async def get_active_for_tenant(
 @router.post("/{grant_id}/revoke", response_model=GrantOut)
 async def revoke_grant(
     grant_id: uuid.UUID,
+    request: Request,
+    principal: Principal = Depends(require_admin),
     session: AsyncSession = Depends(get_session),
     _csrf: None = Depends(require_csrf),
 ) -> GrantOut:
@@ -327,6 +347,16 @@ async def revoke_grant(
     if grant.revoked_at is not None:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="already_revoked")
     grant.revoked_at = now
+    await record_audit(
+        session,
+        actor=principal,
+        action="license.revoked",
+        summary=f"Licence {grant.license_id} révoquée",
+        target_type="tenant",
+        target_id=grant.tenant_id,
+        extra={"license_id": grant.license_id, "grant_id": str(grant.id)},
+        request=request,
+    )
     await session.commit()
     await session.refresh(grant)
     _log.info(

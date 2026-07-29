@@ -16,13 +16,14 @@ import secrets
 import uuid
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from zolaos.api.auth import Principal, require_admin
 from zolaos.api.v1.auth import require_csrf
+from zolaos.audit import record_audit
 from zolaos.core.logging import get_logger
 from zolaos.core.profiles import require_cortex
 from zolaos.core.rbac import ROLE_ADMIN, ROLES, is_valid_role
@@ -97,6 +98,8 @@ class CreateAccountResponse(BaseModel):
 @router.post("", response_model=CreateAccountResponse, status_code=status.HTTP_201_CREATED)
 async def create_account(
     payload: CreateAccountRequest,
+    request: Request,
+    principal: Principal = Depends(require_admin),
     session: AsyncSession = Depends(get_session),
     _csrf: None = Depends(require_csrf),
 ) -> CreateAccountResponse:
@@ -120,6 +123,17 @@ async def create_account(
         tenant_id=payload.tenant_id,
     )
     session.add(user)
+    await session.flush()  # matérialise user.id pour l'audit
+    await record_audit(
+        session,
+        actor=principal,
+        action="account.created",
+        summary=f"Compte {email} créé (rôle {user.role})",
+        target_type="user",
+        target_id=user.id,
+        extra={"email": email, "role": user.role},
+        request=request,
+    )
     await session.commit()
     await session.refresh(user)
     _log.info("cortex.account.created", extra={"user_id": str(user.id), "role": user.role})
@@ -147,6 +161,7 @@ async def _get_or_404(session: AsyncSession, account_id: uuid.UUID) -> User:
 async def update_account(
     account_id: uuid.UUID,
     payload: UpdateAccountRequest,
+    request: Request,
     principal: Principal = Depends(require_admin),
     session: AsyncSession = Depends(get_session),
     _csrf: None = Depends(require_csrf),
@@ -171,6 +186,17 @@ async def update_account(
     if payload.is_active is not None:
         user.is_active = payload.is_active
 
+    changes = payload.model_dump(exclude_none=True)
+    await record_audit(
+        session,
+        actor=principal,
+        action="account.updated",
+        summary=f"Compte {user.email} modifié",
+        target_type="user",
+        target_id=user.id,
+        extra={"email": user.email, "changes": changes},
+        request=request,
+    )
     await session.commit()
     await session.refresh(user)
     _log.info("cortex.account.updated", extra={"user_id": str(user.id)})
@@ -184,12 +210,25 @@ class ResetPasswordResponse(BaseModel):
 @router.post("/{account_id}/reset-password", response_model=ResetPasswordResponse)
 async def reset_password(
     account_id: uuid.UUID,
+    request: Request,
+    principal: Principal = Depends(require_admin),
     session: AsyncSession = Depends(get_session),
     _csrf: None = Depends(require_csrf),
 ) -> ResetPasswordResponse:
     user = await _get_or_404(session, account_id)
     new_password = _generate_temp_password()
     user.password_hash = hash_password(new_password)
+    # On audite l'ACTE, jamais le mot de passe.
+    await record_audit(
+        session,
+        actor=principal,
+        action="account.password_reset",
+        summary=f"Mot de passe réinitialisé pour {user.email}",
+        target_type="user",
+        target_id=user.id,
+        extra={"email": user.email},
+        request=request,
+    )
     await session.commit()
     _log.info("cortex.account.password_reset", extra={"user_id": str(user.id)})
     return ResetPasswordResponse(password=new_password)

@@ -297,6 +297,12 @@ class LicenseGrant(Base):
     tenant: Mapped[Tenant] = relationship(foreign_keys=[tenant_id])
 
 
+# NB : le journal d'audit du cabinet n'a PAS de modèle ORM ici — il est écrit dans
+# la table canonique `audit.log` (schéma `audit`, chaîne de hachage + triggers
+# d'immuabilité, cf. `infra/postgres/02_audit_log.sql`) via `zolaos.audit.recorder`,
+# et lu en SQL par `api/v1/cortex_audit.py`. On NE réinvente PAS une table parallèle.
+
+
 # =============================================================================
 # memory schema
 # =============================================================================
