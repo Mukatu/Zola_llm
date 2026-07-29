@@ -27,8 +27,14 @@ révoque et (re)livre** les licences de modules par tenant, depuis un cockpit mo
 - **Tests** : `tests/test_cortex_entitlements.py` — émission **vérifiable par la clé
   publique** (chaîne de confiance de bout en bout : cortex signe → box vérifie),
   renouvellement, rejets 422/503, garde admin+CSRF, révocation + livraison, 404 en box.
-- **Suivis** : job de refresh par tunnel (tirer `/tenant/{id}/active` côté box) ; écran
-  React du cockpit dans la face cabinet ; synchro `GET /v1/config`.
+- **Front** (`frontend/`) : section **Licence de modules** sur la fiche client
+  (`/cortex/clients/[id]`, à côté du provisioning Zolabox — la licence est par client).
+  Client typé `lib/cortex-entitlements.ts` + composant `EntitlementCard` : statut/badge,
+  formulaire tier (select) + modules (cases, celles du tier verrouillées) + jours,
+  aperçu des modules effectifs, émission → jeton copiable, livraison du jeton vivant,
+  révocation, historique. `tsc`/lint/build/vitest verts (test 404→null du client).
+- **Suivis** : job de refresh par tunnel (tirer `/tenant/{id}/active` côté box) ;
+  synchro `GET /v1/config` ; RBAC sur `PUT /v1/config`.
 
 ## 2026-07-29 — Licence commerciale & distribution des modules (entitlement)
 

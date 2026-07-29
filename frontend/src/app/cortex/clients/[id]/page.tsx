@@ -14,6 +14,7 @@ import {
   revokeBoxCredential,
   type ClientDetail,
 } from "@/lib/cortex-clients";
+import EntitlementCard from "./EntitlementCard";
 
 // Couleurs alignées sur /cortex/missions (même vocabulaire de statut).
 const STATUS: Record<string, string> = {
@@ -226,6 +227,9 @@ export default function ClientDetailPage() {
               </div>
             )}
           </Card>
+
+          {/* Licence de modules — uniquement pour un tenant client (pas un cabinet). */}
+          {detail.tenant.tenant_type === "client" && <EntitlementCard tenantId={id} />}
 
           <Card>
             <h2 className="mb-2 text-sm font-semibold">Missions liées</h2>
