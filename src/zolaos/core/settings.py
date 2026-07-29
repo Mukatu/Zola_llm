@@ -123,6 +123,10 @@ class Settings(BaseSettings):
     ENTITLEMENT_PUBLIC_KEY: SecretStr = SecretStr("")  # PEM, clé publique de Polaris
     ENTITLEMENT_LICENSE_JWT: SecretStr = SecretStr("")  # jeton inline (prioritaire)
     ENTITLEMENT_LICENSE_FILE: str = ""  # chemin d'un fichier de licence signé
+    # Côté CORTEX UNIQUEMENT : clé PRIVÉE d'émission (signe les entitlements dans
+    # le cockpit). Ne doit JAMAIS être déployée sur une box (une box vérifie, ne
+    # signe pas). Absente → le cockpit refuse d'émettre (503).
+    ENTITLEMENT_PRIVATE_KEY: SecretStr = SecretStr("")  # PEM, clé privée de Polaris
 
     # ===== Fallback API externe (DÉSACTIVÉ par défaut) =====
     ENABLE_EXTERNAL_FALLBACK: bool = False

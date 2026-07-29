@@ -245,6 +245,58 @@ class Mission(Base):
     client: Mapped[Tenant] = relationship(foreign_keys=[client_tenant_id])
 
 
+class LicenseGrant(Base):
+    """Entitlement de modules émis par Polaris pour un tenant client (cockpit cortex).
+
+    Persiste la licence **signée** (JWT RS256) et ses métadonnées, pour la gérer
+    dans la durée : émettre, lister, révoquer, (re)livrer à la box. La box ne voit
+    JAMAIS cette table — elle reçoit seulement le `token` (fichier ou tunnel) et le
+    vérifie avec la clé publique. `license_id` = claim `jti` du jeton (unicité).
+
+    Cycle de vie **dérivé** (pas une colonne d'état à maintenir) : `revoked`
+    (revoked_at non nul) > `expired` (>= expires_at) > `active`. À l'émission d'une
+    nouvelle licence pour un tenant, les précédentes actives sont révoquées : une
+    seule licence vivante par tenant (modèle « renouvellement remplace »).
+    """
+
+    __tablename__ = "license_grants"
+    __table_args__ = (
+        CheckConstraint("expires_at > issued_at", name="ck_license_grants_window"),
+        Index("ix_license_grants_tenant", "tenant_id", "revoked_at"),
+        {"schema": "core"},
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("core.tenants.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    # `jti` du jeton — identifiant humain/uuid unique de la licence.
+    license_id: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
+    tier: Mapped[str] = mapped_column(String(20), nullable=False)
+    # Options à la carte EN PLUS du tier (cf. modèle hybride). Modules effectifs
+    # = tier ∪ options, recalculés à la lecture (jamais dénormalisés).
+    modules: Mapped[list[str]] = mapped_column(ARRAY(String), default=list, nullable=False)
+    # Jeton JWT signé (RS256) — le livrable déposé sur la box. Pas un secret au
+    # sens strict (la box le vérifie avec la clé publique) mais réservé cortex+admin.
+    token: Mapped[str] = mapped_column(Text, nullable=False)
+    issued_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # Consultant/admin qui a émis la licence (traçabilité). SET NULL si le compte part.
+    issued_by_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("core.users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+    tenant: Mapped[Tenant] = relationship(foreign_keys=[tenant_id])
+
+
 # =============================================================================
 # memory schema
 # =============================================================================

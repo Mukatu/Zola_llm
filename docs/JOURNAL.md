@@ -6,6 +6,30 @@ les messages de commit.
 
 ---
 
+## 2026-07-29 — Cockpit cortex de gestion des entitlements
+
+Pendant **cabinet** de l'entitlement vérifié côté box : Polaris **émet, liste,
+révoque et (re)livre** les licences de modules par tenant, depuis un cockpit monté
+**profil cortex uniquement**, rôle **admin**. Détail : `docs/LICENSING.md`.
+
+- **API** (`api/v1/cortex_entitlements.py`, `/v1/cortex/entitlements`) : `GET /catalogue`
+  (tiers+modules pour le formulaire), `GET ""` (liste + statut dérivé), `POST ""`
+  (émet = signe RS256 + persiste), `GET /{id}` (détail + jeton), `GET /tenant/{id}/active`
+  (jeton vivant = socle du refresh tunnel), `POST /{id}/revoke`.
+- **Persistance** (`core.license_grants`, migration `0061`) : métadonnées + jeton signé,
+  **côté cortex uniquement** (la box ne voit jamais cette table). Statut **dérivé**
+  (revoked > expired > active), jamais dénormalisé. **Renouvellement remplace** : émettre
+  révoque les licences actives antérieures du tenant → une seule vivante.
+- **Clé privée d'émission** (`ENTITLEMENT_PRIVATE_KEY`, cortex only, jamais sur une box) :
+  le cockpit est le seul détenteur ; absente → `503` (pas d'émission non signée).
+- **Sécurité** : profil cortex + scope `admin:users` + CSRF sur mutations ; validation
+  stricte (tier/catalogue, modules ∈ MODULES, tenant type client).
+- **Tests** : `tests/test_cortex_entitlements.py` — émission **vérifiable par la clé
+  publique** (chaîne de confiance de bout en bout : cortex signe → box vérifie),
+  renouvellement, rejets 422/503, garde admin+CSRF, révocation + livraison, 404 en box.
+- **Suivis** : job de refresh par tunnel (tirer `/tenant/{id}/active` côté box) ; écran
+  React du cockpit dans la face cabinet ; synchro `GET /v1/config`.
+
 ## 2026-07-29 — Licence commerciale & distribution des modules (entitlement)
 
 Correction d'un défaut **critique** (signalé « lamentable ») : `modules_actifs` était

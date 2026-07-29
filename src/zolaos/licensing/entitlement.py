@@ -49,6 +49,16 @@ TIERS: dict[str, frozenset[str]] = {
 }
 
 
+def effective_modules_for(tier: str, modules: object) -> frozenset[str]:
+    """Modules effectifs pour un couple (tier, options) — même règle que
+    `Entitlement.effective_modules`, exposée sans instancier un `Entitlement`
+    complet (utile au cockpit d'émission cortex, qui n'a pas de dates au moment
+    de valider un formulaire). Un tier inconnu → aucun module de base ; une
+    option hors catalogue est ignorée."""
+    base = TIERS.get(tier, frozenset())
+    return frozenset(base | set(modules or ())) & MODULES
+
+
 class EntitlementError(Exception):
     """Erreur d'entitlement (base)."""
 
@@ -76,8 +86,7 @@ class Entitlement(BaseModel):
 
         Un tier inconnu → aucun module de base (dégradation sûre) ; une option
         hors catalogue est ignorée (jamais d'élévation par un module fantôme)."""
-        base = TIERS.get(self.tier, frozenset())
-        return frozenset(base | set(self.modules)) & MODULES
+        return effective_modules_for(self.tier, self.modules)
 
     def is_expired(self, *, now: datetime | None = None) -> bool:
         return (now or datetime.now(UTC)) >= self.expires_at

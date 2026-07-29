@@ -116,6 +116,44 @@ Deux mécanismes, non exclusifs (le jeton inline est prioritaire) :
 Dans les deux cas, `ENTITLEMENT_PUBLIC_KEY` (PEM de la clé publique Polaris) doit
 être présent pour que la vérification soit possible.
 
+## Cockpit cortex — gestion des entitlements dans la durée
+
+`scripts/issue_license.py` reste l'outil d'amorçage en ligne de commande. Pour la
+gestion courante (émission, suivi, révocation, re-livraison), le **cockpit cortex**
+expose une API dédiée, montée **uniquement en profil `cortex`** et réservée au rôle
+**admin** (`api/v1/cortex_entitlements.py`, préfixe `/v1/cortex/entitlements`). C'est
+le **seul** service qui détient la clé privée d'émission (`ENTITLEMENT_PRIVATE_KEY`,
+jamais sur une box).
+
+| Méthode & route | Rôle |
+|---|---|
+| `GET /catalogue` | Tiers et modules vendables (peuple le formulaire d'émission) |
+| `GET ""` (`?tenant_id=`, `?active_only=`) | Liste les licences émises + leur statut dérivé |
+| `POST ""` | **Émet** (signe + persiste) une licence pour un tenant client |
+| `GET /{grant_id}` | Détail d'une licence, jeton inclus (re-livraison) |
+| `GET /tenant/{tenant_id}/active` | La licence **vivante** d'un tenant + son jeton (livraison / socle du refresh tunnel) |
+| `POST /{grant_id}/revoke` | **Révoque** immédiatement une licence |
+
+Points de conception :
+
+- **Persistance** : chaque émission crée une ligne `core.license_grants` (métadonnées
+  + le jeton signé). La table vit **uniquement côté cortex** — une box ne la voit
+  jamais, elle ne reçoit que le jeton.
+- **Statut dérivé, jamais dénormalisé** : `revoked` (révoquée) > `expired`
+  (`>= expires_at`) > `active`. Recalculé à la lecture.
+- **Renouvellement remplace** : émettre une nouvelle licence pour un tenant **révoque
+  les précédentes actives** → une seule licence vivante par tenant.
+- **Validation stricte à l'émission** : `tier` dans le catalogue (`422 invalid_tier`),
+  options dans `MODULES` (`422 unknown_modules`), tenant existant et de type `client`
+  (`422 tenant_must_be_client`), durée `> 0`. Clé privée absente → `503`
+  (jamais d'émission silencieuse non signée).
+- **Sécurité** : profil cortex + scope `admin:users` + CSRF (double-submit) sur les
+  mutations. Le jeton n'est renvoyé qu'aux vues admin (émission, détail, livraison).
+
+Tests : `tests/test_cortex_entitlements.py` (émission vérifiable par la clé publique,
+renouvellement, rejets 422/503, garde admin+CSRF, révocation + livraison, 404 en
+profil box).
+
 ## Mode opératoire
 
 ### 1. Générer la paire de clés (une fois, côté Polaris)
@@ -160,14 +198,15 @@ démarrage.
 
 ## Suivis (hors périmètre de cette livraison)
 
-- **Refresh/révocation via le tunnel cortex** : aujourd'hui la licence est un fichier
-  ou une variable d'environnement statique déposée manuellement. À terme, le tunnel
-  Zolabox → Zolacortex (déjà utilisé pour le RAG distant Zero Trust) devrait pouvoir
-  pousser un renouvellement de licence (et une révocation immédiate) sans intervention
-  manuelle sur la box.
-- **Cockpit cortex pour gérer les entitlements par tenant** : `scripts/issue_license.py`
-  est un outil de ligne de commande pour l'amorçage ; une UI cortex (liste des
-  tenants, tiers/options, dates d'expiration, ré-émission) manque encore.
+- **Refresh/révocation via le tunnel cortex** : l'API du cockpit expose déjà
+  `GET /tenant/{id}/active` (le jeton vivant, socle de la livraison). Reste à câbler
+  un job qui, via le tunnel Zolabox → Zolacortex (déjà utilisé pour le RAG distant
+  Zero Trust), **tire** ce jeton périodiquement côté box (renouvellement + prise en
+  compte immédiate d'une révocation) sans dépôt manuel de fichier/variable.
+- **Front cockpit** : l'API `/v1/cortex/entitlements` est livrée ; l'écran React
+  (liste des tenants, formulaire tier/options alimenté par `/catalogue`, badge de
+  statut, bouton révoquer/ré-émettre, copie du jeton) reste à construire dans la face
+  cabinet Zolacortex.
 - **Synchroniser l'affichage de `GET /v1/config` sur l'entitlement réel** : le champ
   `modules_actifs` existant dans la config reste aujourd'hui déclaratif côté box ; il
   faudrait le faire refléter `resolve_box_modules(settings)` pour que l'UI n'affiche

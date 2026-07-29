@@ -295,6 +295,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
         app.include_router(cortex_clients_router)
 
+        # Cockpit cabinet — gestion des entitlements de modules (réservé rôle
+        # admin). Émet/liste/révoque/livre les licences signées par tenant. Seul
+        # endroit détenant la clé privée d'émission (jamais sur une box).
+        from zolaos.api.v1.cortex_entitlements import router as cortex_entitlements_router
+
+        app.include_router(cortex_entitlements_router)
+
         # Point d'entrée du tunnel inverse : les Zolabox s'y connectent (sortant).
         from zolaos.api.v1.tunnel import router as tunnel_router
 
