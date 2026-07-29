@@ -6,6 +6,22 @@ les messages de commit.
 
 ---
 
+## 2026-07-29 — Cockpit de supervision (fleet)
+
+La page « exploitation » qui manquait à cortex : vue d'ensemble des boxes clientes.
+Agrège ce qui était éparpillé — connexion du **tunnel** (`REGISTRY`), **licence** +
+expiration (`license_grants`), provisioning de box, **missions** actives.
+
+- **Backend** (`api/v1/cortex_fleet.py`, `GET /v1/cortex/fleet`, cortex+admin, lecture
+  seule) : par tenant client → statut licence dérivé (active/expired/revoked/none) +
+  `days_left`, `box_connected` (`str(id) in REGISTRY`), `box_provisioned`, missions
+  actives ; **résumé** (clients, en ligne, actives, expirant bientôt, expirées/révoquées,
+  sans licence). Requêtes bornées : DISTINCT ON pour la licence la plus récente, count
+  groupé pour les missions (pas de N+1). Param `expiring_days` (défaut 30).
+- **Front** : écran `/cortex/supervision` (bandeau de résumé + tableau des boxes,
+  badges de statut, alerte « expire bientôt ») + `lib/cortex-fleet.ts` + entrée Sidebar
+  « Supervision » (admin).
+
 ## 2026-07-29 — Cockpit cortex de gestion des entitlements
 
 Pendant **cabinet** de l'entitlement vérifié côté box : Polaris **émet, liste,

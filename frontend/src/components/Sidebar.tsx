@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import clsx from "clsx";
-import { LayoutDashboard, MessagesSquare, FolderOpen, BookOpen, Settings, Briefcase, FileSpreadsheet, Users, Building2 } from "lucide-react";
+import { LayoutDashboard, MessagesSquare, FolderOpen, BookOpen, Settings, Briefcase, FileSpreadsheet, Users, Building2, Radar } from "lucide-react";
 import { useZola, hasScope } from "./ConfigProvider";
 import { navGroupsFromModules } from "@/lib/capabilities";
 
@@ -57,6 +57,7 @@ export function Sidebar() {
       <aside className="hidden w-64 shrink-0 flex-col gap-2 overflow-y-auto bg-navy px-3 py-4 text-white md:flex">
         <nav className="flex flex-col gap-1">
           {item("/", "Tableau de bord", LayoutDashboard)}
+          {hasScope(user, "admin:users") && item("/cortex/supervision", "Supervision", Radar)}
           {item("/cortex/missions", "Missions", Briefcase)}
           {hasScope(user, "admin:users") && item("/cortex/clients", "Clients", Building2)}
           {hasScope(user, "admin:users") && item("/cortex/comptes", "Comptes", Users)}

@@ -321,6 +321,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
         app.include_router(cortex_entitlements_router)
 
+        # Cockpit cabinet — supervision (fleet) : vue d'ensemble des boxes clientes
+        # (connexion tunnel, licence + expiration, missions actives). Réservé admin.
+        from zolaos.api.v1.cortex_fleet import router as cortex_fleet_router
+
+        app.include_router(cortex_fleet_router)
+
         # Point d'entrée du tunnel inverse : les Zolabox s'y connectent (sortant).
         from zolaos.api.v1.tunnel import router as tunnel_router
 
