@@ -1,0 +1,46 @@
+# Registre déclaratif des packs juridiction (L1.4 — moteur continental).
+#
+# Un pack = { country, label, corpus_country_tags, enabled_poles }.
+# Ajouter un pays = ajouter une entrée ici, PAS du code : ce fichier est
+# chargé par `zolaos.core.jurisdictions.load_packs()`. Le moteur générique
+# (agents, orchestrateur, retrieval) ne change pas ; seule la sélection du
+# pack applicable varie selon la requête / le principal / le défaut (cf.
+# `resolve_jurisdiction`).
+#
+# Emplacement PACKAGE-RELATIF (livré avec le code, toujours monté/embarqué) —
+# surchargeable par la variable d'env `ZOLAOS_JURISDICTIONS_PATH`.
+#
+# NOTE (L1.4 vs L1.4b) : ce registre déclare et permet de RÉSOUDRE le pack
+# applicable. L'injection effective de `corpus_country_tags` dans le
+# retrieval (pour que les agents filtrent/priorisent le corpus du pack
+# résolu) est un SUIVI (L1.4b), non câblé à ce stade.
+
+packs:
+  cg:
+    country: cg
+    label: "République du Congo"
+    # CEMAC/OHADA sont des corpus supranationaux qui régissent aussi le CG :
+    # un pack pays peut couvrir plusieurs tags de corpus.
+    corpus_country_tags:
+      - "country:cg"
+      - "country:cemac"
+    enabled_poles:
+      - legal
+      - erp
+      - health
+      - fintech
+      - grc
+      - cyber
+      - engineering
+      - general
+
+  cd:
+    # Exemple d'extensibilité : pack déclaré pour montrer que « ajouter un
+    # pays = ajouter un pack » — SANS prétendre à un corpus existant. Aucun
+    # document RDC n'est ingéré à ce jour (cf. docs/RAG_INGESTION.md) :
+    # corpus_country_tags et enabled_poles restent donc vides tant qu'aucun
+    # corpus/pôle n'est réellement disponible pour ce pays.
+    country: cd
+    label: "République démocratique du Congo (pack minimal — corpus non disponible)"
+    corpus_country_tags: []
+    enabled_poles: []

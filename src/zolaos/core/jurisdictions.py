@@ -4,8 +4,9 @@ Un **pack** déclare, pour un pays, le label affichable, les tags de corpus RAG
 qui le concernent (`corpus_country_tags`, ex. `country:cg` + `country:cemac`
 pour la République du Congo — CEMAC/OHADA couvrent plusieurs pays) et les
 pôles activés pour ce pays (`enabled_poles`). Le registre est déclaratif
-(YAML, cf. `config/jurisdictions.yaml`) : ajouter un pays ne touche PAS ce
-module ni l'orchestrateur, seulement le fichier.
+(YAML package-relatif `src/zolaos/core/jurisdictions.yaml`, surchargeable par
+`ZOLAOS_JURISDICTIONS_PATH`) : ajouter un pays ne touche PAS ce module ni
+l'orchestrateur, seulement le fichier.
 
 Sélection **hybride (décision produit actée)** : surcharge de requête (header
 `X-Country` ou `?country=`) > pays du principal authentifié (tenant) >
@@ -62,13 +63,15 @@ class JurisdictionPack(BaseModel):
 
 
 def _default_path() -> Path:
-    """Résout le chemin du registre : env var, sinon `config/jurisdictions.yaml`
-    à la racine du repo (déduit du layout source, comme `zolaos.agents._prompts`)."""
+    """Résout le chemin du registre : env var, sinon le YAML **package-relatif**
+    (livré avec le code, toujours monté/embarqué — comme `zolaos.agents._prompts`).
+
+    NB : le fichier vit à côté de ce module (`src/zolaos/core/jurisdictions.yaml`)
+    et NON à la racine du repo, pour rester disponible en conteneur (montage
+    sélectif de `src/`) et dans le wheel."""
     if env := os.environ.get(_ENV_VAR):
         return Path(env)
-    # src/zolaos/core/jurisdictions.py → repo_root/config/jurisdictions.yaml
-    here = Path(__file__).resolve()
-    return here.parents[3] / "config" / "jurisdictions.yaml"
+    return Path(__file__).resolve().parent / "jurisdictions.yaml"
 
 
 def _parse_packs(raw: dict) -> dict[str, JurisdictionPack]:
