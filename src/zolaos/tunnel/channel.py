@@ -55,10 +55,33 @@ class TunnelChannel:
                 msg = _loads(raw)
             except Exception:  # trame illisible : on ignore, sans casser le canal
                 continue
+            # Requête ÉMISE PAR LA BOX (pas une réponse) : rafraîchissement de licence.
+            # La box tire son entitlement courant ; on le résout et on le lui renvoie.
+            if msg.get("type") == "license_pull":
+                await self._reply_license(msg.get("req_id"))
+                continue
             rid = msg.get("req_id")
             fut = self._pending.pop(rid, None) if rid else None
             if fut is not None and not fut.done():
                 fut.set_result(msg)
+
+    async def _send(self, obj: dict[str, Any]) -> None:
+        """Envoi sérialisé (verrou partagé avec rag_search)."""
+        async with self._send_lock:
+            await self._ws.send_text(_dumps(obj))
+
+    async def _reply_license(self, req_id: Any) -> None:
+        """Répond à un `license_pull` : (statut, jeton) de la licence courante du tenant."""
+        # Import tardif : garde ce module transport léger et évite tout cycle.
+        from zolaos.licensing.delivery import active_license_for_tenant
+
+        try:
+            status, token = await active_license_for_tenant(self._tenant_id)
+        except Exception as exc:  # DB indispo : ne pas casser le canal, la box réessaiera
+            _log.warning("tunnel.license_pull_failed", tenant_id=self._tenant_id, error=str(exc))
+            return
+        _log.info("tunnel.license_delivered", tenant_id=self._tenant_id, status=status)
+        await self._send({"type": "license", "req_id": req_id, "status": status, "token": token})
 
     async def rag_search(
         self,

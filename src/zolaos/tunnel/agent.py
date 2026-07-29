@@ -14,7 +14,11 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 import ssl
+import uuid
+from contextlib import suppress
+from pathlib import Path
 from typing import Any
 
 import httpx
@@ -58,8 +62,17 @@ async def run_box_tunnel_agent(settings: Settings) -> None:
                 async with httpx.AsyncClient(
                     base_url=local_base, timeout=httpx.Timeout(30.0)
                 ) as http:
-                    async for raw in ws:
-                        await _handle_frame(ws, http, raw)
+                    # Rafraîchissement de licence : tire l'entitlement du Cortex en
+                    # continu (initial immédiat + périodique). Tâche concurrente du
+                    # service RAG, sur le MÊME WebSocket sortant.
+                    refresher = asyncio.create_task(_refresh_loop(ws, settings))
+                    try:
+                        async for raw in ws:
+                            await _handle_frame(ws, http, raw, settings)
+                    finally:
+                        refresher.cancel()
+                        with suppress(asyncio.CancelledError):
+                            await refresher
         except asyncio.CancelledError:
             _log.info("tunnel.agent.stopped")
             raise
@@ -68,11 +81,64 @@ async def run_box_tunnel_agent(settings: Settings) -> None:
             await asyncio.sleep(backoff)
 
 
-async def _handle_frame(ws: Any, http: httpx.AsyncClient, raw: str | bytes) -> None:
+async def _refresh_loop(ws: Any, settings: Settings) -> None:
+    """Tire périodiquement la licence du Cortex (pull initial immédiat, puis boucle).
+
+    Désactivé si l'intervalle est nul ou si aucun fichier cible n'est configuré
+    (rien où écrire le jeton). Une coupure du WS termine la boucle ; la boucle
+    externe de l'agent reconnecte et relance un refresh (donc re-pull immédiat)."""
+    interval = settings.ENTITLEMENT_REFRESH_SECONDS
+    if interval <= 0 or not settings.ENTITLEMENT_LICENSE_FILE:
+        _log.info("tunnel.license_refresh.disabled")
+        return
+    while True:
+        try:
+            await ws.send(json.dumps({"type": "license_pull", "req_id": uuid.uuid4().hex}))
+        except Exception:  # canal cassé : on rend la main, la reconnexion re-pull
+            return
+        await asyncio.sleep(interval)
+
+
+def _apply_license(settings: Settings, status: str, token: str | None) -> None:
+    """Applique une réponse `license` au fichier de licence local (écriture atomique).
+
+    - ``active`` + jeton : écrit le jeton s'il a changé (le montage effectif des
+      modules se met à jour au prochain (re)démarrage — enforcement au montage).
+    - ``revoked`` / ``expired`` : retire le fichier → fail-closed au redémarrage.
+    - ``none`` : no-op (ne jamais écraser un fichier existant sur un cas vide)."""
+    path = settings.ENTITLEMENT_LICENSE_FILE
+    if not path:
+        return
+    p = Path(path)
+    try:
+        if status == "active" and token:
+            current = p.read_text(encoding="utf-8").strip() if p.exists() else None
+            if current == token:
+                return  # inchangé : pas de réécriture
+            p.parent.mkdir(parents=True, exist_ok=True)
+            tmp = p.with_name(p.name + ".tmp")
+            tmp.write_text(token, encoding="utf-8")
+            os.replace(tmp, p)  # remplacement atomique
+            _log.info("tunnel.license_written", changed=True)
+        elif status in ("revoked", "expired"):
+            if p.exists():
+                p.unlink()
+                _log.warning("tunnel.license_removed", status=status)
+    except OSError as exc:
+        _log.error("tunnel.license_apply_failed", error=str(exc))
+
+
+async def _handle_frame(
+    ws: Any, http: httpx.AsyncClient, raw: str | bytes, settings: Settings
+) -> None:
     """Relaie une requête du Cortex vers l'API box locale, renvoie la réponse."""
     try:
         msg = json.loads(raw)
     except Exception:
+        return
+    # Réponse à un `license_pull` : applique la licence au fichier local.
+    if msg.get("type") == "license":
+        _apply_license(settings, str(msg.get("status") or ""), msg.get("token"))
         return
     if msg.get("type") != "rag_search":
         return

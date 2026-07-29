@@ -170,6 +170,12 @@ class Settings(BaseSettings):
     TUNNEL_RAG_TIMEOUT_SECONDS: float = 30.0
     # Délai de reconnexion de l'agent box après une coupure (secondes).
     TUNNEL_RECONNECT_SECONDS: float = 3.0
+    # Côté BOX : période de rafraîchissement de la licence via le tunnel (secondes).
+    # L'agent tire périodiquement son entitlement du Cortex et l'écrit dans
+    # ENTITLEMENT_LICENSE_FILE (plus de dépôt manuel). 0 = refresh désactivé. Le
+    # nouveau jeu de modules s'applique au prochain (re)démarrage (enforcement au
+    # montage) ; une révocation retire le fichier → fail-closed au redémarrage.
+    ENTITLEMENT_REFRESH_SECONDS: float = 3600.0
     # --- mTLS transport (prod) ---
     # Côté CORTEX : exige que le proxy (Caddy) ait terminé un mTLS et transmette le CN
     # du certificat client ; le CN doit == tenant_id de la box. Défense en profondeur

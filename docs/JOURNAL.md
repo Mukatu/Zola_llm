@@ -33,8 +33,16 @@ révoque et (re)livre** les licences de modules par tenant, depuis un cockpit mo
   formulaire tier (select) + modules (cases, celles du tier verrouillées) + jours,
   aperçu des modules effectifs, émission → jeton copiable, livraison du jeton vivant,
   révocation, historique. `tsc`/lint/build/vitest verts (test 404→null du client).
-- **Suivis** : job de refresh par tunnel (tirer `/tenant/{id}/active` côté box) ;
-  synchro `GET /v1/config` ; RBAC sur `PUT /v1/config`.
+- **Refresh par tunnel** : la box **tire** sa licence sur son WebSocket **sortant**
+  (plus de dépôt manuel). Côté cortex, `channel.serve` traite un `license_pull` →
+  résout `active_license_for_tenant` (`licensing/delivery.py`) → renvoie `(statut, jeton)`.
+  Côté box, `agent._refresh_loop` (initial + périodique, `ENTITLEMENT_REFRESH_SECONDS`,
+  0=off) reçoit la trame `license` et `_apply_license` **écrit** le jeton (atomique) sur
+  `active`, **retire** le fichier sur `revoked`/`expired` (→ fail-closed), no-op sur `none`.
+  Le jeu de modules s'applique au prochain (re)démarrage (enforcement au montage).
+  Tests `tests/test_tunnel_license.py` (14). Suite **754 passed**.
+- **Suivis** : re-montage à chaud (appliquer sans redémarrage) ; synchro `GET /v1/config` ;
+  RBAC sur `PUT /v1/config`.
 
 ## 2026-07-29 — Licence commerciale & distribution des modules (entitlement)
 

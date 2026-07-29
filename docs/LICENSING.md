@@ -196,17 +196,32 @@ ENTITLEMENT_LICENSE_JWT="eyJhbGciOiJSUzI1NiIs..."
 fichier). Redémarrer l'application : `resolve_box_modules` recalcule le montage au
 démarrage.
 
+## Refresh automatique par le tunnel (livré)
+
+Plus besoin de déposer le jeton à la main : la box le **tire** sur son WebSocket
+**sortant** (le même que le RAG distant Zero Trust), la box n'ouvre aucun port.
+
+- **Côté box** (`tunnel/agent.py`) : `_refresh_loop` envoie un `license_pull` (initial
+  dès la connexion, puis toutes les `ENTITLEMENT_REFRESH_SECONDS` — `0` désactive).
+  À la réception de la trame `license`, `_apply_license` **écrit** le jeton (écriture
+  atomique) dans `ENTITLEMENT_LICENSE_FILE` sur `active`, **retire** le fichier sur
+  `revoked`/`expired` (→ fail-closed au redémarrage), no-op sur `none` (ne jamais
+  écraser un fichier existant sur un cas vide). Réécrit seulement si le jeton a changé.
+- **Côté cortex** (`tunnel/channel.py` + `licensing/delivery.py`) : `serve` reconnaît
+  un `license_pull` émis par la box, résout `active_license_for_tenant` (la licence la
+  plus récente : `active`+jeton / `revoked` / `expired` / `none`) et renvoie la trame.
+
+Portée : le **jeu de modules effectif** se met à jour au prochain **(re)démarrage** de
+la box (l'enforcement est au montage, pas en façade). Le refresh garantit que le
+fichier de licence reste courant (renouvellement sans expiration-verrou) et propage
+une révocation (retrait du fichier). Le re-montage à chaud (appliquer sans redémarrer)
+reste un suivi. Tests : `tests/test_tunnel_license.py`.
+
 ## Suivis (hors périmètre de cette livraison)
 
-- **Refresh/révocation via le tunnel cortex** : l'API du cockpit expose déjà
-  `GET /tenant/{id}/active` (le jeton vivant, socle de la livraison). Reste à câbler
-  un job qui, via le tunnel Zolabox → Zolacortex (déjà utilisé pour le RAG distant
-  Zero Trust), **tire** ce jeton périodiquement côté box (renouvellement + prise en
-  compte immédiate d'une révocation) sans dépôt manuel de fichier/variable.
-- **Front cockpit** : l'API `/v1/cortex/entitlements` est livrée ; l'écran React
-  (liste des tenants, formulaire tier/options alimenté par `/catalogue`, badge de
-  statut, bouton révoquer/ré-émettre, copie du jeton) reste à construire dans la face
-  cabinet Zolacortex.
+- **Application à chaud** : aujourd'hui un changement de modules prend effet au
+  redémarrage de la box (montage). Un re-montage à chaud (ou un contrôle d'accès
+  runtime en défense-en-profondeur) rendrait une révocation immédiate sans restart.
 - **Synchroniser l'affichage de `GET /v1/config` sur l'entitlement réel** : le champ
   `modules_actifs` existant dans la config reste aujourd'hui déclaratif côté box ; il
   faudrait le faire refléter `resolve_box_modules(settings)` pour que l'UI n'affiche
