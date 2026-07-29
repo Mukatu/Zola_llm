@@ -51,7 +51,10 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     if settings.ZOLAOS_PROFILE == "box" and settings.TUNNEL_CORTEX_URL:
         from zolaos.tunnel.agent import run_box_tunnel_agent
 
-        tunnel_task = asyncio.create_task(run_box_tunnel_agent(settings))
+        # L'agent tourne dans CE process : on lui passe l'état d'entitlement pour
+        # qu'un refresh de licence l'applique à chaud (révocation immédiate).
+        ent_state = getattr(app.state, "entitlement_state", None)
+        tunnel_task = asyncio.create_task(run_box_tunnel_agent(settings, ent_state))
 
     yield
 
@@ -244,17 +247,33 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         # module vendable, son accès est gouverné par le JWT de mission.
         app.include_router(box_router)
 
+        # Statut & refresh de l'entitlement (observabilité + forçage à chaud) :
+        # pas un module vendable, toujours monté sous les gardes du plan de données.
+        from zolaos.api.v1.box_entitlement import router as box_entitlement_router
+
+        app.include_router(box_entitlement_router, dependencies=_box_auth)
+
         # Distribution des modules DÉCIDÉE PAR POLARIS (entitlement signé) : un
         # module non couvert n'est même PAS monté (→ 404, absent de l'OpenAPI),
-        # pas juste masqué. `entitled is None` = enforcement désactivé
+        # pas juste masqué. `allowed is None` = enforcement désactivé
         # (ENTITLEMENT_ENFORCED=False, défaut) → tous les modules montés.
-        from zolaos.licensing import resolve_box_modules
+        #
+        # Application À CHAUD : l'état vivant est posé sur `app.state` et chaque
+        # module monté porte en plus une garde runtime (`require_module`). Une
+        # révocation (refresh tunnel) réduit l'état → le module passe en 404 sans
+        # redémarrer. Au boot, l'état == le jeu monté → la garde est un no-op.
+        from zolaos.api.entitlement_gate import require_module
+        from zolaos.licensing import EntitlementState
 
-        entitled = resolve_box_modules(settings)
+        ent_state = EntitlementState.from_settings(settings)
+        app.state.entitlement_state = ent_state
+        entitled = ent_state.allowed
 
         def _mount_module(router, module):  # type: ignore[no-untyped-def]
             if entitled is None or module in entitled:
-                app.include_router(router, dependencies=_box_auth)
+                app.include_router(
+                    router, dependencies=[*_box_auth, Depends(require_module(module))]
+                )
 
         # (router box, module vendable) — cf. catalogue `zolaos.licensing.MODULES`.
         for _router, _module in (

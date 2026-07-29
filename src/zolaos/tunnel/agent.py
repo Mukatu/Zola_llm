@@ -30,8 +30,12 @@ from zolaos.core.settings import Settings
 _log = get_logger("zolaos.tunnel.agent")
 
 
-async def run_box_tunnel_agent(settings: Settings) -> None:
-    """Boucle de vie de l'agent : connexion, service, reconnexion sur coupure."""
+async def run_box_tunnel_agent(settings: Settings, entitlement_state: Any = None) -> None:
+    """Boucle de vie de l'agent : connexion, service, reconnexion sur coupure.
+
+    `entitlement_state` (optionnel) : l'`EntitlementState` de l'app. Fourni, un
+    refresh de licence reçu par le tunnel est appliqué À CHAUD (les modules retirés
+    passent en 404 sans redémarrer)."""
     url = settings.TUNNEL_CORTEX_URL
     tenant_id = settings.ZOLAOS_BOX_TENANT_ID
     credential = settings.ZOLAOS_BOX_CREDENTIAL.get_secret_value()
@@ -68,7 +72,7 @@ async def run_box_tunnel_agent(settings: Settings) -> None:
                     refresher = asyncio.create_task(_refresh_loop(ws, settings))
                     try:
                         async for raw in ws:
-                            await _handle_frame(ws, http, raw, settings)
+                            await _handle_frame(ws, http, raw, settings, entitlement_state)
                     finally:
                         refresher.cancel()
                         with suppress(asyncio.CancelledError):
@@ -129,16 +133,23 @@ def _apply_license(settings: Settings, status: str, token: str | None) -> None:
 
 
 async def _handle_frame(
-    ws: Any, http: httpx.AsyncClient, raw: str | bytes, settings: Settings
+    ws: Any,
+    http: httpx.AsyncClient,
+    raw: str | bytes,
+    settings: Settings,
+    entitlement_state: Any = None,
 ) -> None:
     """Relaie une requête du Cortex vers l'API box locale, renvoie la réponse."""
     try:
         msg = json.loads(raw)
     except Exception:
         return
-    # Réponse à un `license_pull` : applique la licence au fichier local.
+    # Réponse à un `license_pull` : applique la licence au fichier local, puis
+    # RECALCULE l'état à chaud (une révocation prend effet sans redémarrer).
     if msg.get("type") == "license":
         _apply_license(settings, str(msg.get("status") or ""), msg.get("token"))
+        if entitlement_state is not None and entitlement_state.refresh():
+            _log.info("tunnel.entitlement_hot_applied")
         return
     if msg.get("type") != "rag_search":
         return

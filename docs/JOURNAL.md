@@ -39,10 +39,16 @@ révoque et (re)livre** les licences de modules par tenant, depuis un cockpit mo
   Côté box, `agent._refresh_loop` (initial + périodique, `ENTITLEMENT_REFRESH_SECONDS`,
   0=off) reçoit la trame `license` et `_apply_license` **écrit** le jeton (atomique) sur
   `active`, **retire** le fichier sur `revoked`/`expired` (→ fail-closed), no-op sur `none`.
-  Le jeu de modules s'applique au prochain (re)démarrage (enforcement au montage).
   Tests `tests/test_tunnel_license.py` (14). Suite **754 passed**.
-- **Suivis** : re-montage à chaud (appliquer sans redémarrage) ; synchro `GET /v1/config` ;
-  RBAC sur `PUT /v1/config`.
+- **Application à chaud** — *révocation immédiate sans redémarrage* : au montage figé
+  s'ajoute un état vivant (`licensing/state.py`, `EntitlementState` sur `app.state`) +
+  une **garde runtime** (`api/entitlement_gate.py`, `require_module`) posée sur chaque
+  module monté → **404** dès qu'un module quitte le jeu courant. L'agent tunnel (même
+  process) appelle `refresh()` après une trame `license` → effet immédiat. Endpoint
+  `GET`/`POST /v1/box/entitlement[/refresh]` (statut + forçage ops). Sens sûr :
+  **réduction/révocation = immédiat** ; **extension** (module neuf) = au redémarrage.
+  Tests `tests/test_entitlement_hot.py` (7). Suite **761 passed**.
+- **Suivis** : synchro `GET /v1/config` sur l'entitlement ; RBAC sur `PUT /v1/config`.
 
 ## 2026-07-29 — Licence commerciale & distribution des modules (entitlement)
 

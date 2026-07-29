@@ -211,17 +211,39 @@ Plus besoin de déposer le jeton à la main : la box le **tire** sur son WebSock
   un `license_pull` émis par la box, résout `active_license_for_tenant` (la licence la
   plus récente : `active`+jeton / `revoked` / `expired` / `none`) et renvoie la trame.
 
-Portée : le **jeu de modules effectif** se met à jour au prochain **(re)démarrage** de
-la box (l'enforcement est au montage, pas en façade). Le refresh garantit que le
-fichier de licence reste courant (renouvellement sans expiration-verrou) et propage
-une révocation (retrait du fichier). Le re-montage à chaud (appliquer sans redémarrer)
-reste un suivi. Tests : `tests/test_tunnel_license.py`.
+Le fichier de licence reste ainsi toujours courant (renouvellement sans
+expiration-verrou) et une révocation est propagée (retrait du fichier). L'effet sur
+les modules montés est **immédiat** grâce à l'application à chaud ci-dessous.
+Tests : `tests/test_tunnel_license.py`.
+
+## Application à chaud — révocation immédiate sans redémarrage (livré)
+
+Le montage décide au démarrage *quels modules existent* (absence OpenAPI pour un
+module non couvert), mais ce montage est figé pour la vie du process. Pour qu'une
+**révocation** prenne effet **sans redémarrer**, on ajoute un second étage :
+
+- **État vivant** (`licensing/state.py`, `EntitlementState`) : le jeu de modules
+  autorisés *courant*, posé sur `app.state` à la construction. `refresh()` relit la
+  licence (via les settings mémorisés) et recalcule le jeu.
+- **Garde runtime** (`api/entitlement_gate.py`, `require_module`) : ajoutée en
+  dépendance sur chaque module monté, elle **404** à la requête si le module n'est
+  plus dans l'état courant. Au démarrage, état == jeu monté → la garde est un no-op ;
+  elle ne mord qu'après une réduction.
+- **Déclenchement** : l'agent du tunnel tourne dans le **même process** que l'app ;
+  après avoir appliqué une trame `license`, il appelle `EntitlementState.refresh()`
+  → la garde reflète aussitôt le nouveau jeu. Un endpoint `POST /v1/box/entitlement/refresh`
+  (+ `GET /v1/box/entitlement` pour l'état) permet aussi un forçage/observabilité ops.
+
+Sens de l'application à chaud (choix de sécurité) :
+
+- **Réduction / révocation** : effet **immédiat** (le module retiré passe en 404). ✅
+- **Extension** (module *neuf*, jamais monté au boot) : sa route n'existe pas → prise
+  en compte au **prochain redémarrage**. Sens sûr (fail-open = redémarrage), documenté.
+
+Tests : `tests/test_entitlement_hot.py` (état, garde 404, révocation à chaud e2e).
 
 ## Suivis (hors périmètre de cette livraison)
 
-- **Application à chaud** : aujourd'hui un changement de modules prend effet au
-  redémarrage de la box (montage). Un re-montage à chaud (ou un contrôle d'accès
-  runtime en défense-en-profondeur) rendrait une révocation immédiate sans restart.
 - **Synchroniser l'affichage de `GET /v1/config` sur l'entitlement réel** : le champ
   `modules_actifs` existant dans la config reste aujourd'hui déclaratif côté box ; il
   faudrait le faire refléter `resolve_box_modules(settings)` pour que l'UI n'affiche

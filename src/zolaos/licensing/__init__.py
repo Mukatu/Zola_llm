@@ -18,6 +18,7 @@ from zolaos.licensing.entitlement import (
     sign_entitlement,
     verify_entitlement,
 )
+from zolaos.licensing.state import EntitlementState
 
 __all__ = [
     "MODULES",
@@ -26,6 +27,7 @@ __all__ = [
     "EntitlementError",
     "EntitlementExpired",
     "EntitlementInvalid",
+    "EntitlementState",
     "effective_modules_for",
     "load_box_entitlement",
     "resolve_box_modules",
