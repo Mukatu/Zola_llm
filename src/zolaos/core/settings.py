@@ -112,6 +112,18 @@ class Settings(BaseSettings):
     ENGINE_METERING_ENABLED: bool = True
     ENGINE_DAILY_REQUEST_QUOTA: int = 0
 
+    # ===== Licence commerciale / entitlement de modules (distribution vendeur) =====
+    # La distribution des modules est décidée par POLARIS, pas par le client.
+    # Un entitlement est un grant SIGNÉ (RS256) : la box a seulement la clé
+    # PUBLIQUE (vérifie, ne forge pas). Enforcement OPT-IN (défaut False → tous
+    # les modules montés, comportement dev/actuel). En prod box : activer +
+    # fournir la clé publique + la licence (fichier signé et/ou refresh tunnel).
+    # La clé PRIVÉE d'émission ne doit JAMAIS être sur une box.
+    ENTITLEMENT_ENFORCED: bool = False
+    ENTITLEMENT_PUBLIC_KEY: SecretStr = SecretStr("")  # PEM, clé publique de Polaris
+    ENTITLEMENT_LICENSE_JWT: SecretStr = SecretStr("")  # jeton inline (prioritaire)
+    ENTITLEMENT_LICENSE_FILE: str = ""  # chemin d'un fichier de licence signé
+
     # ===== Fallback API externe (DÉSACTIVÉ par défaut) =====
     ENABLE_EXTERNAL_FALLBACK: bool = False
     ANTHROPIC_API_KEY: SecretStr = SecretStr("")

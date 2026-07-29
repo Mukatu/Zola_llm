@@ -6,6 +6,30 @@ les messages de commit.
 
 ---
 
+## 2026-07-29 — Licence commerciale & distribution des modules (entitlement)
+
+Correction d'un défaut **critique** (signalé « lamentable ») : `modules_actifs` était
+(1) **cosmétique** (endpoints ouverts quoi qu'il arrive), (2) **éditable par le client**
+(`PUT /v1/config`, aucun RBAC), (3) non persisté, (4) hors contrôle vendeur. Un client
+« Compta » avait en réalité toute la box.
+
+- **Entitlement signé Polaris** (`src/zolaos/licensing/`) : grant **RS256 asymétrique** —
+  Polaris signe (clé privée), la box **vérifie** (clé publique), **ne peut pas forger**
+  (prouvé en test). Modèle **HYBRIDE** : `tier` (starter/business/full) + `modules` à la
+  carte. `effective_modules = tier ∪ options`, borné au catalogue.
+- **Application AU MONTAGE** (`main.py`) : un module non couvert n'est **même pas monté**
+  (404, absent de l'OpenAPI) — pas juste masqué. Enforcement **opt-in**
+  (`ENTITLEMENT_ENFORCED`, défaut False → tout monté, dev/tests inchangés) ; **fail-closed**
+  si licence absente/expirée en mode enforcé. Livraison **fichier signé et/ou refresh tunnel**.
+- **Config verrouillée** (`config.py`) : `modules_actifs` **retiré** de `ConfigUpdate` — le
+  client ne peut plus s'octroyer de modules ; il ne garde que la vraie personnalisation.
+- **Outillage vendeur** : `scripts/gen_entitlement_keys.py` (paire RSA), `scripts/issue_license.py`
+  (Polaris émet une licence signée). Runbook `docs/LICENSING.md`. Tests : infalsifiabilité,
+  expiration, altération, fail-closed, montage réel (starter → seul erp monté). 17 + config réécrit.
+- **Décisions actées** : packaging hybride, livraison fichier+tunnel, enforcement au montage.
+- **Suivis** : refresh/révocation via tunnel cortex ; cockpit cortex pour gérer les entitlements
+  par tenant ; synchro affichage `GET /v1/config` sur l'entitlement ; RBAC sur `PUT /v1/config`.
+
 ## 2026-07-28 — Champion souverain : premier sprint (couches 1 & 2)
 
 Décision : bâtir le **champion IA souverain africain** (cf. `docs/CHAMPION_ROADMAP.md`).

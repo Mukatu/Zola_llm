@@ -240,37 +240,43 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
         _box_auth = [Depends(require_box_auth), Depends(require_box_csrf)]
 
+        # Plan de mission (tunnel Zero Trust) : toujours monté — ce n'est pas un
+        # module vendable, son accès est gouverné par le JWT de mission.
         app.include_router(box_router)
-        # Moteurs déterministes (ERP/ops, CRM, BI, Marketing) exposés au frontend client.
-        app.include_router(erp_router, dependencies=_box_auth)
-        app.include_router(categorisation_router, dependencies=_box_auth)
-        app.include_router(crm_router, dependencies=_box_auth)
-        app.include_router(bi_router, dependencies=_box_auth)
-        app.include_router(mkt_router, dependencies=_box_auth)
-        # Système de référence léger (persistance Factures + clôture continue).
-        app.include_router(store_router, dependencies=_box_auth)
-        # SIRH — Core HR & pilotage (registres + tableau de bord + échéancier).
-        app.include_router(hr_router, dependencies=_box_auth)
-        # SIRH — Référentiels (RME/RMC) + matrice de compétences + écarts GPEC.
-        app.include_router(gpec_router, dependencies=_box_auth)
-        # SIRH — Recrutement (vacances, candidats, pipeline, indicateurs).
-        app.include_router(recrutement_router, dependencies=_box_auth)
-        # Documents (artefacts générés, transverse) + génération RH.
-        app.include_router(documents_router, dependencies=_box_auth)
-        # SIRH — Formation (catalogue, sessions, inscriptions, indicateurs).
-        app.include_router(formation_router, dependencies=_box_auth)
-        # SIRH — Évaluations (9-box) + GPEC avancé (plan formation, risques/opportunités).
-        app.include_router(evaluation_router, dependencies=_box_auth)
-        # Import/Export Excel (alimentation des tables store_*).
-        app.include_router(imports_router, dependencies=_box_auth)
-        # Fintech — scoring de crédit (EMF) + KYC/AML (déterministe, indicatif).
-        app.include_router(fintech_router, dependencies=_box_auth)
-        # Cyber — audit de durcissement défensif (déterministe, indicatif).
-        app.include_router(cyber_router, dependencies=_box_auth)
-        # GRC — registre de conformité (obligations/contrôles/constats) + plan de contrôle.
-        app.include_router(grc_router, dependencies=_box_auth)
-        # Assistant code souverain — ancré sur le dépôt du client (rag_code, on-box).
-        app.include_router(code_router, dependencies=_box_auth)
+
+        # Distribution des modules DÉCIDÉE PAR POLARIS (entitlement signé) : un
+        # module non couvert n'est même PAS monté (→ 404, absent de l'OpenAPI),
+        # pas juste masqué. `entitled is None` = enforcement désactivé
+        # (ENTITLEMENT_ENFORCED=False, défaut) → tous les modules montés.
+        from zolaos.licensing import resolve_box_modules
+
+        entitled = resolve_box_modules(settings)
+
+        def _mount_module(router, module):  # type: ignore[no-untyped-def]
+            if entitled is None or module in entitled:
+                app.include_router(router, dependencies=_box_auth)
+
+        # (router box, module vendable) — cf. catalogue `zolaos.licensing.MODULES`.
+        for _router, _module in (
+            (erp_router, "erp"),
+            (categorisation_router, "erp"),
+            (store_router, "erp"),
+            (imports_router, "erp"),
+            (documents_router, "erp"),
+            (crm_router, "crm"),
+            (bi_router, "bi"),
+            (mkt_router, "marketing"),
+            (hr_router, "sirh"),
+            (gpec_router, "sirh"),
+            (recrutement_router, "sirh"),
+            (formation_router, "sirh"),
+            (evaluation_router, "sirh"),
+            (fintech_router, "fintech"),
+            (cyber_router, "cyber"),
+            (grc_router, "grc"),
+            (code_router, "code"),
+        ):
+            _mount_module(_router, _module)
 
     # Routes Zolacortex (gestion missions) : exposées uniquement en profil `cortex`.
     # Inversement, en profil `box`, 404 sur /v1/cortex/*.

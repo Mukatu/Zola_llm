@@ -25,10 +25,16 @@ def get_config_service() -> TenantConfigService:
 
 
 class ConfigUpdate(BaseModel):
-    """Personnalisation partielle d'un tenant (box uniquement)."""
+    """Personnalisation partielle d'un tenant (box uniquement).
+
+    NB : `modules_actifs` a été RETIRÉ délibérément — la distribution des modules
+    est un ENTITLEMENT signé par Polaris (cf. `zolaos.licensing`), appliqué au
+    montage des routers, JAMAIS réglable par le client. Ce endpoint ne gère plus
+    que la vraie personnalisation (branding, langue, champs, connecteurs) ; il ne
+    peut plus octroyer de modules. Un `modules_actifs` envoyé par un client est
+    ignoré (hors du modèle)."""
 
     tenant_id: str = Field(default="local")
-    modules_actifs: list[str] | None = None
     branding: dict[str, Any] | None = None
     locale: str | None = None
     champs_personnalises: dict[str, str] | None = None
