@@ -38,6 +38,7 @@ ACTIONS: tuple[str, ...] = (
     "invoice.issued",
     "invoice.paid",
     "invoice.cancelled",
+    "opportunity.converted",
 )
 
 # Catégorie `audit.log` des actions de gouvernance cabinet (parmi le jeu fermé

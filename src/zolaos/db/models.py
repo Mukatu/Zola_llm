@@ -433,6 +433,58 @@ class Invoice(Base):
     )
 
 
+class Opportunity(Base):
+    """Opportunité commerciale — amont du cabinet (CRM / pipeline).
+
+    Le haut de la chaîne : prospect → opportunité → proposition → **gagné → mission**.
+    Une opportunité gagnée peut être **convertie** en `Mission` (`mission_id`), ce qui
+    referme la boucle avec la production (temps) et la facturation (honoraires). Le
+    client peut être un tenant existant (`client_tenant_id`) OU un prospect libre
+    (`client_name`). `probability` alimente le pipeline **pondéré**.
+
+    Étapes : lead → qualified → proposal → won | lost.
+    """
+
+    __tablename__ = "opportunities"
+    __table_args__ = (
+        CheckConstraint(
+            "stage IN ('lead', 'qualified', 'proposal', 'won', 'lost')",
+            name="ck_opportunities_stage",
+        ),
+        CheckConstraint("probability BETWEEN 0 AND 100", name="ck_opportunities_probability"),
+        Index("ix_opportunities_stage", "stage"),
+        Index("ix_opportunities_owner", "owner_user_id"),
+        {"schema": "core"},
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    title: Mapped[str] = mapped_column(String(200), nullable=False)
+    client_tenant_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("core.tenants.id", ondelete="SET NULL"), nullable=True
+    )
+    client_name: Mapped[str | None] = mapped_column(String(200), nullable=True)  # prospect libre
+    offre: Mapped[str] = mapped_column(String(64), nullable=False)
+    amount_estimate: Mapped[int] = mapped_column(BigInteger, default=0, nullable=False)  # XAF
+    currency: Mapped[str] = mapped_column(String(8), default="XAF", nullable=False)
+    stage: Mapped[str] = mapped_column(String(16), default="lead", nullable=False)
+    probability: Mapped[int] = mapped_column(Integer, default=10, nullable=False)  # 0..100
+    expected_close_date: Mapped[datetime | None] = mapped_column(Date, nullable=True)
+    owner_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("core.users.id", ondelete="SET NULL"), nullable=True
+    )
+    # Mission créée à la conversion (opportunité gagnée → production). NULL = non convertie.
+    mission_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("core.missions.id", ondelete="SET NULL"), nullable=True
+    )
+    notes: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
+    )
+
+
 # =============================================================================
 # memory schema
 # =============================================================================

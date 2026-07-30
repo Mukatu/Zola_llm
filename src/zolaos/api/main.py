@@ -351,6 +351,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
         app.include_router(cortex_invoices_router)
 
+        # Cockpit cabinet — CRM / pipeline commercial (amont) : opportunités →
+        # conversion en mission. Saisie consultant, synthèse & conversion admin.
+        from zolaos.api.v1.cortex_pipeline import router as cortex_pipeline_router
+
+        app.include_router(cortex_pipeline_router)
+
         # Point d'entrée du tunnel inverse : les Zolabox s'y connectent (sortant).
         from zolaos.api.v1.tunnel import router as tunnel_router
 

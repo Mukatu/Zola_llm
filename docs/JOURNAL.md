@@ -6,6 +6,25 @@ les messages de commit.
 
 ---
 
+## 2026-07-30 — CRM : pipeline commercial (amont du cabinet)
+
+L'amont de la chaîne : prospect → opportunité → proposition → **gagné → mission**.
+Complète le front, et **referme la boucle** avec la production (temps) et la
+facturation (honoraires).
+
+- **Modèle** `core.opportunities` (client tenant OU prospect libre `client_name`, offre,
+  montant estimé, étape lead→qualified→proposal→won|lost, probabilité, `mission_id` à la
+  conversion). Migration `0066`.
+- **Endpoints** `/v1/cortex/pipeline` (cortex) : créer/lister/faire avancer une
+  opportunité (propriétaire ou admin ; changer d'étape applique la probabilité par
+  défaut) ; `GET /summary` = **pipeline pondéré** (montant × probabilité, par étape +
+  prévision + taux de conversion) ; `POST /{id}/convert` = convertit une opportunité
+  **gagnée** en `Mission` (le pont CRM → production), **audité** (`opportunity.converted`).
+- **Moteur** `crm/pipeline.py` : probabilités par étape + synthèse pondérée déterministe.
+- **Front** : écran `/cortex/pipeline` (synthèse + création + pipeline par étape +
+  conversion) + `lib/cortex-pipeline.ts` + entrée Sidebar « Pipeline ».
+- Orienté par 2 sous-agents (tests + front).
+
 ## 2026-07-30 — PSA : facturation d'honoraires (aval du temps)
 
 L'aval direct du PSA : le cabinet **facture son client** à partir des temps
