@@ -111,6 +111,15 @@ class Settings(BaseSettings):
     # jamais le moteur). Quota par-clé fin = plus tard.
     ENGINE_METERING_ENABLED: bool = True
     ENGINE_DAILY_REQUEST_QUOTA: int = 0
+    # Grand livre d'usage DURABLE (par tenant/jour) pour la facturation, EN PLUS des
+    # compteurs Redis éphémères. Opt-in (défaut False → chemin metering inchangé) :
+    # activé, `require_quota` upserte au mieux `core.usage_daily` (fail-open).
+    BILLING_LEDGER_ENABLED: bool = False
+    # Barème de facturation par tier, en JSON (mécanisme ; les PRIX restent une
+    # décision commerciale). Ex. : {"business":{"monthly_base":150000,
+    # "included_requests":50000,"overage_per_1k":500,"currency":"XAF"}}. Vide → tarifs
+    # à zéro (la vue montre l'usage réel, coût 0 tant que le barème n'est pas défini).
+    BILLING_PRICING_JSON: str = ""
 
     # ===== Licence commerciale / entitlement de modules (distribution vendeur) =====
     # La distribution des modules est décidée par POLARIS, pas par le client.

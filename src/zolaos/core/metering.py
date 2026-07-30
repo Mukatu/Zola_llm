@@ -173,4 +173,23 @@ async def require_quota(
         await record_usage(redis, key_id=key_id)
     except Exception as exc:  # idem : la panne du compteur ne doit pas 500 une requête admise
         _log.warning("metering.record_unavailable", error=str(exc))
+
+    # Grand livre d'usage DURABLE (facturation) — opt-in, au mieux, fail-open. Sa
+    # propre session (fire-and-forget) : ne touche ni la signature de la dépendance
+    # ni le chemin metering existant (BILLING_LEDGER_ENABLED défaut False).
+    if getattr(settings, "BILLING_LEDGER_ENABLED", False):
+        try:
+            from zolaos.billing.ledger import record_usage_durable
+            from zolaos.db.session import get_session_factory
+
+            tenant = principal.tenant_id or (
+                str(principal.tenant_uuid) if principal.tenant_uuid else "local"
+            )
+            async with get_session_factory()() as billing_session:
+                await record_usage_durable(
+                    billing_session, tenant_id=tenant, day=datetime.now(UTC).date()
+                )
+                await billing_session.commit()
+        except Exception as exc:  # DB indispo : la facturation ne bloque jamais le moteur
+            _log.warning("billing.ledger_unavailable", error=str(exc))
     return principal

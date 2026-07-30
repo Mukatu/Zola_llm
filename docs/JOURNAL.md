@@ -6,6 +6,28 @@ les messages de commit.
 
 ---
 
+## 2026-07-30 — Usage & facturation par tenant
+
+Base de facturation cabinet. Le metering existant (`core/metering.py`) est **Redis,
+éphémère (TTL 40 j), par user_id** → inadapté à la facturation. On ajoute donc du
+**durable, par tenant**, sans toucher au chemin chaud du quota.
+
+- **Grand livre durable** `core.usage_daily` (tenant_id, day, requests, tokens ;
+  migration `0063`) : upsert `INSERT … ON CONFLICT` (`billing/ledger.py`). Alimenté
+  **au mieux** par `require_quota` — hook **opt-in** (`BILLING_LEDGER_ENABLED`, défaut
+  False), **session propre**, **fail-open** (signature de la dépendance inchangée, chemin
+  metering existant intact).
+- **Moteur de tarification** (`billing/pricing.py`) : **mécanisme, pas de prix inventés**.
+  Barème par tier (forfait `monthly_base` + `included_requests`, dépassement par tranche
+  de 1000) via `BILLING_PRICING_JSON` (défaut = zéros → coût 0). Devise défaut XAF (CEMAC).
+- **Vue cortex** `GET /v1/cortex/billing?period=YYYY-MM` (cortex+admin, lecture seule) :
+  agrège l'usage du mois par tenant, résout nom+tier (`core.tenants` + licence récente),
+  applique le barème, trie par coût ; `GET .../pricing` = barème courant.
+- **Front** : écran `/cortex/facturation` (sélecteur de mois, résumé, tableau par tenant +
+  détail du coût) + `lib/cortex-billing.ts` + entrée Sidebar « Facturation ».
+- **Portée** : couvre l'usage enregistré contre la base de ce déploiement ; la collecte
+  inter-box (box → cortex par tunnel) reste un suivi.
+
 ## 2026-07-29 — Journal d'audit du cabinet
 
 Trace horodatée des actions **sensibles** de l'exploitant cortex. **Zéro

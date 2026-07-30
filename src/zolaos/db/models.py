@@ -22,6 +22,7 @@ from sqlalchemy import (
     BigInteger,
     Boolean,
     CheckConstraint,
+    Date,
     DateTime,
     ForeignKey,
     Index,
@@ -301,6 +302,33 @@ class LicenseGrant(Base):
 # la table canonique `audit.log` (schéma `audit`, chaîne de hachage + triggers
 # d'immuabilité, cf. `infra/postgres/02_audit_log.sql`) via `zolaos.audit.recorder`,
 # et lu en SQL par `api/v1/cortex_audit.py`. On NE réinvente PAS une table parallèle.
+
+
+class UsageDaily(Base):
+    """Grand livre d'usage **durable** par tenant et par jour (base de facturation).
+
+    Les compteurs Redis (`zolaos.core.metering`) sont éphémères (TTL ~40 j) et
+    servent au quota temps-réel ; cette table **persiste** l'usage pour la
+    facturation (agrégats mensuels par tenant). Alimentée au mieux par
+    `require_quota` quand `BILLING_LEDGER_ENABLED` (upsert +1 requête / +tokens).
+
+    `tenant_id` est le tag d'isolation du principal (souvent l'UUID du tenant, ou
+    `local` en mono-tenant box) — la vue cortex le rapproche de `core.tenants`.
+    """
+
+    __tablename__ = "usage_daily"
+    __table_args__ = (
+        Index("ix_usage_daily_day", "day"),
+        {"schema": "core"},
+    )
+
+    tenant_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    day: Mapped[datetime] = mapped_column(Date, primary_key=True)
+    requests: Mapped[int] = mapped_column(BigInteger, default=0, nullable=False)
+    tokens: Mapped[int] = mapped_column(BigInteger, default=0, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
+    )
 
 
 # =============================================================================

@@ -333,6 +333,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
         app.include_router(cortex_audit_router)
 
+        # Cockpit cabinet — usage & facturation par tenant (agrège le grand livre
+        # d'usage durable + barème par tier). Réservé admin, lecture seule.
+        from zolaos.api.v1.cortex_billing import router as cortex_billing_router
+
+        app.include_router(cortex_billing_router)
+
         # Point d'entrée du tunnel inverse : les Zolabox s'y connectent (sortant).
         from zolaos.api.v1.tunnel import router as tunnel_router
 
