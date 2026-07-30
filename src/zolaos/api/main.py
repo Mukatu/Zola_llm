@@ -357,6 +357,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
         app.include_router(cortex_pipeline_router)
 
+        # Cockpit cabinet — tableau de bord de pilotage (KPI transverses : commercial
+        # + production + finance). Synthèse en lecture seule. Réservé admin.
+        from zolaos.api.v1.cortex_dashboard import router as cortex_dashboard_router
+
+        app.include_router(cortex_dashboard_router)
+
         # Point d'entrée du tunnel inverse : les Zolabox s'y connectent (sortant).
         from zolaos.api.v1.tunnel import router as tunnel_router
 

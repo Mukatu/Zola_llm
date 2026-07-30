@@ -6,6 +6,24 @@ les messages de commit.
 
 ---
 
+## 2026-07-30 — Pilotage : tableau de bord KPI cabinet (capstone)
+
+Le **capstone** de la chaîne cabinet : une synthèse **transverse en lecture** sur tous
+les sous-systèmes. Ne crée rien (pas de modèle/migration) ; agrège sur un mois en
+réutilisant les moteurs déterministes déjà éprouvés (`crm`, `psa`).
+
+- **Endpoint** `GET /v1/cortex/dashboard?period=YYYY-MM` (cortex+admin, lecture seule) :
+  - **Commercial** : pipeline ouvert (nombre/montant), **prévision pondérée**, taux de conversion.
+  - **Production** : missions actives, consultants actifs, heures travaillées/facturables,
+    **taux d'occupation**.
+  - **Finance** : honoraires du mois, coût, **marge** (+%), **WIP** (approuvé non facturé),
+    facturé, encaissé, **créances en cours**.
+  Métriques bornées au mois (temps/factures par date) vs snapshots globaux (missions
+  actives, WIP, créances, pipeline).
+- **Front** : écran `/cortex/pilotage` (3 blocs KPI commercial/production/finance,
+  sélecteur de mois) + `lib/cortex-dashboard.ts` + entrée Sidebar « Pilotage ».
+- Orienté par 2 sous-agents (test + front).
+
 ## 2026-07-30 — CRM : pipeline commercial (amont du cabinet)
 
 L'amont de la chaîne : prospect → opportunité → proposition → **gagné → mission**.
