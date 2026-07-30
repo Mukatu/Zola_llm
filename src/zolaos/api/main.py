@@ -345,6 +345,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
         app.include_router(cortex_psa_router)
 
+        # Cockpit cabinet — facturation d'honoraires (aval du PSA) : factures depuis
+        # les temps approuvés + échéancier/relances. Réservé admin, actes audités.
+        from zolaos.api.v1.cortex_invoices import router as cortex_invoices_router
+
+        app.include_router(cortex_invoices_router)
+
         # Point d'entrée du tunnel inverse : les Zolabox s'y connectent (sortant).
         from zolaos.api.v1.tunnel import router as tunnel_router
 

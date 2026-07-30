@@ -353,6 +353,7 @@ class TimeEntry(Base):
         ),
         Index("ix_time_entries_mission", "mission_id"),
         Index("ix_time_entries_consultant_date", "consultant_user_id", "entry_date"),
+        Index("ix_time_entries_invoice", "invoice_id"),
         {"schema": "core"},
     )
 
@@ -371,6 +372,59 @@ class TimeEntry(Base):
     # Taux HORAIRES figés à la saisie (XAF entiers). honoraires = minutes/60 * bill_rate.
     bill_rate: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     cost_rate: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    # Facture d'honoraires qui a consommé cette saisie (NULL = pas encore facturée).
+    # Rattachée à l'émission d'une facture ; libérée si la facture est annulée.
+    invoice_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("core.invoices.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
+    )
+
+
+class Invoice(Base):
+    """Facture d'honoraires — aval du PSA (le cabinet facture son client).
+
+    Regroupe les feuilles de temps **facturables approuvées** d'une mission (encore
+    non facturées) : à l'émission, ces saisies sont rattachées (`TimeEntry.invoice_id`)
+    et le total figé (`amount`). Cycle : draft → issued (date d'échéance) → paid, ou
+    cancelled (libère les saisies rattachées). Distincte de la facturation d'**usage**
+    plateforme (`billing/`, éditeur→client) : ici c'est le **cabinet → son client**.
+    """
+
+    __tablename__ = "invoices"
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('draft', 'issued', 'paid', 'cancelled')", name="ck_invoices_status"
+        ),
+        Index("ix_invoices_client", "client_tenant_id", "status"),
+        Index("ix_invoices_mission", "mission_id"),
+        {"schema": "core"},
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    mission_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("core.missions.id", ondelete="RESTRICT"), nullable=False
+    )
+    client_tenant_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("core.tenants.id", ondelete="RESTRICT"), nullable=False
+    )
+    number: Mapped[str] = mapped_column(String(32), unique=True, nullable=False)
+    status: Mapped[str] = mapped_column(String(16), default="draft", nullable=False)
+    amount: Mapped[int] = mapped_column(BigInteger, default=0, nullable=False)  # total XAF
+    currency: Mapped[str] = mapped_column(String(8), default="XAF", nullable=False)
+    issued_date: Mapped[datetime | None] = mapped_column(Date, nullable=True)
+    due_date: Mapped[datetime | None] = mapped_column(Date, nullable=True)
+    paid_date: Mapped[datetime | None] = mapped_column(Date, nullable=True)
+    notes: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    created_by_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("core.users.id", ondelete="SET NULL"), nullable=True
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )

@@ -6,6 +6,26 @@ les messages de commit.
 
 ---
 
+## 2026-07-30 — PSA : facturation d'honoraires (aval du temps)
+
+L'aval direct du PSA : le cabinet **facture son client** à partir des temps
+**approuvés**. Distincte de la facturation d'**usage** plateforme (`billing/`,
+éditeur→client) — ici c'est **cabinet → son client**, en honoraires.
+
+- **Modèle** `core.invoices` (mission, client, numéro `FACT-YYYY-NNNN`, statut
+  draft→issued→paid/cancelled, montant figé) + `time_entries.invoice_id` (rattachement).
+  Migration `0065`.
+- **Endpoints** `/v1/cortex/invoices` (cortex+admin, mutations CSRF) : création depuis
+  les feuilles de temps **facturables approuvées non facturées** d'une mission (les
+  regroupe, fige le total, les rattache) ; `issue` (échéance), `pay`, `cancel` (libère
+  les saisies) ; `GET /aging` = **échéancier** ventilé par ancienneté (base des
+  relances) ; détail avec saisies rattachées. Émission/encaissement/annulation
+  **audités** (`audit.log`, verbes `invoice.issued/paid/cancelled`).
+- **Helpers** `psa/invoicing.py` : numérotation séquentielle + tranches d'âge de créance.
+- **Front** : écran `/cortex/honoraires` (échéancier + création + liste + cycle) +
+  `lib/cortex-invoices.ts` + entrée Sidebar « Honoraires ».
+- Orienté par 2 sous-agents (tests + front).
+
 ## 2026-07-30 — PSA : socle de l'outillage cabinet (feuilles de temps)
 
 Nouvelle brique : l'**outillage métier interne du cabinet** (ce que tout cabinet de
