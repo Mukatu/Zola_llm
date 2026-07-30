@@ -185,6 +185,11 @@ class Settings(BaseSettings):
     # nouveau jeu de modules s'applique au prochain (re)démarrage (enforcement au
     # montage) ; une révocation retire le fichier → fail-closed au redémarrage.
     ENTITLEMENT_REFRESH_SECONDS: float = 3600.0
+    # Côté BOX : période de remontée de l'usage au Cortex par le tunnel (secondes),
+    # pour la facturation inter-box. La box agrège son `core.usage_daily` local et
+    # pousse les totaux du jour ; le Cortex les persiste sous l'identité AUTHENTIFIÉE
+    # de la box (jamais celle du payload). 0 = désactivé (opt-in).
+    USAGE_REPORT_SECONDS: float = 0.0
     # --- mTLS transport (prod) ---
     # Côté CORTEX : exige que le proxy (Caddy) ait terminé un mTLS et transmette le CN
     # du certificat client ; le CN doit == tenant_id de la box. Défense en profondeur

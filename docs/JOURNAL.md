@@ -39,7 +39,24 @@ Base de facturation cabinet. Le metering existant (`core/metering.py`) est **Red
 - **Front** : écran `/cortex/facturation` (sélecteur de mois, résumé, tableau par tenant +
   détail du coût) + `lib/cortex-billing.ts` + entrée Sidebar « Facturation ».
 - **Portée** : couvre l'usage enregistré contre la base de ce déploiement ; la collecte
-  inter-box (box → cortex par tunnel) reste un suivi.
+  inter-box (box → cortex par tunnel) est désormais implémentée (ci-dessous).
+
+### Collecte d'usage inter-box par le tunnel
+
+La box **remonte** son usage local au Cortex par le tunnel (comme le refresh de licence,
+sens inverse), pour la facturation des déploiements hybrides.
+
+- **Box** (`tunnel/agent.py`, `_usage_report_loop`, opt-in `USAGE_REPORT_SECONDS`, 0=off) :
+  `billing/collector.collect_local_usage` agrège `core.usage_daily` local (totaux du jour +
+  veille) et pousse des trames `usage_report` (fire-and-forget). Erreur DB → on saute le
+  tour ; WS cassé → la reconnexion relance.
+- **Cortex** (`tunnel/channel.py` + `billing/collector.ingest_reported_usage`) : `serve`
+  reconnaît `usage_report` et persiste **sous l'identité AUTHENTIFIÉE de la box**
+  (`self._tenant_id`, jamais le tenant du payload) via `set_usage_durable` (**écrase** les
+  totaux du jour = idempotent, pas de double-comptage sur ré-rapport).
+- La vue `/cortex/billing` agrège alors l'usage réel des boxes clientes.
+- Tests `tests/test_usage_collection.py` (SET vs ADD, collecte, ingestion + jour invalide,
+  canal, boucle désactivée).
 
 ## 2026-07-29 — Journal d'audit du cabinet
 

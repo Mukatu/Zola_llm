@@ -60,6 +60,11 @@ class TunnelChannel:
             if msg.get("type") == "license_pull":
                 await self._reply_license(msg.get("req_id"))
                 continue
+            # Rapport d'usage poussé par la box (facturation) : on le persiste sous
+            # l'identité AUTHENTIFIÉE de la box (jamais le tenant du payload). Sans réponse.
+            if msg.get("type") == "usage_report":
+                await self._ingest_usage(msg)
+                continue
             rid = msg.get("req_id")
             fut = self._pending.pop(rid, None) if rid else None
             if fut is not None and not fut.done():
@@ -82,6 +87,20 @@ class TunnelChannel:
             return
         _log.info("tunnel.license_delivered", tenant_id=self._tenant_id, status=status)
         await self._send({"type": "license", "req_id": req_id, "status": status, "token": token})
+
+    async def _ingest_usage(self, msg: dict[str, Any]) -> None:
+        """Persiste un rapport d'usage de la box sous son identité authentifiée."""
+        from zolaos.billing.collector import ingest_reported_usage
+
+        try:
+            await ingest_reported_usage(
+                self._tenant_id,
+                day=str(msg.get("day", "")),
+                requests=int(msg.get("requests", 0) or 0),
+                tokens=int(msg.get("tokens", 0) or 0),
+            )
+        except Exception as exc:  # DB indispo / trame invalide : ne casse pas le canal
+            _log.warning("tunnel.usage_ingest_failed", tenant_id=self._tenant_id, error=str(exc))
 
     async def rag_search(
         self,

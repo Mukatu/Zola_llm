@@ -70,13 +70,15 @@ async def run_box_tunnel_agent(settings: Settings, entitlement_state: Any = None
                     # continu (initial immédiat + périodique). Tâche concurrente du
                     # service RAG, sur le MÊME WebSocket sortant.
                     refresher = asyncio.create_task(_refresh_loop(ws, settings))
+                    reporter = asyncio.create_task(_usage_report_loop(ws, settings))
                     try:
                         async for raw in ws:
                             await _handle_frame(ws, http, raw, settings, entitlement_state)
                     finally:
-                        refresher.cancel()
-                        with suppress(asyncio.CancelledError):
-                            await refresher
+                        for task in (refresher, reporter):
+                            task.cancel()
+                            with suppress(asyncio.CancelledError):
+                                await task
         except asyncio.CancelledError:
             _log.info("tunnel.agent.stopped")
             raise
@@ -100,6 +102,32 @@ async def _refresh_loop(ws: Any, settings: Settings) -> None:
             await ws.send(json.dumps({"type": "license_pull", "req_id": uuid.uuid4().hex}))
         except Exception:  # canal cassé : on rend la main, la reconnexion re-pull
             return
+        await asyncio.sleep(interval)
+
+
+async def _usage_report_loop(ws: Any, settings: Settings) -> None:
+    """Remonte périodiquement l'usage local au Cortex (facturation inter-box).
+
+    Désactivé si `USAGE_REPORT_SECONDS <= 0`. Agrège `core.usage_daily` local et
+    pousse les totaux du jour (fire-and-forget). Une erreur DB ne tue pas la boucle
+    (on réessaiera) ; une coupure du WS la termine (la reconnexion relancera)."""
+    interval = settings.USAGE_REPORT_SECONDS
+    if interval <= 0:
+        _log.info("tunnel.usage_report.disabled")
+        return
+    from zolaos.billing.collector import collect_local_usage
+
+    while True:
+        try:
+            reports = await collect_local_usage()
+        except Exception as exc:  # DB indispo : on saute ce tour, sans tuer la boucle
+            _log.warning("tunnel.usage_collect_failed", error=str(exc))
+            reports = []
+        for rep in reports:
+            try:
+                await ws.send(json.dumps({"type": "usage_report", **rep}))
+            except Exception:  # WS cassé : on rend la main, la reconnexion relancera
+                return
         await asyncio.sleep(interval)
 
 

@@ -39,3 +39,26 @@ async def record_usage_durable(
         },
     )
     await session.execute(stmt)
+
+
+async def set_usage_durable(
+    session: AsyncSession,
+    *,
+    tenant_id: str,
+    day: date,
+    requests: int,
+    tokens: int,
+) -> None:
+    """**Écrase** (SET) l'usage du jour pour `tenant_id` avec des totaux rapportés.
+
+    Contrairement à `record_usage_durable` (incrément), on remplace : le Cortex
+    reçoit d'une box les **totaux cumulés** de son jour ; ré-appliquer un rapport ne
+    doit pas double-compter (idempotent). Utilisé par la collecte inter-box (tunnel)."""
+    stmt = pg_insert(UsageDaily).values(
+        tenant_id=tenant_id, day=day, requests=requests, tokens=tokens
+    )
+    stmt = stmt.on_conflict_do_update(
+        index_elements=[UsageDaily.tenant_id, UsageDaily.day],
+        set_={"requests": requests, "tokens": tokens},
+    )
+    await session.execute(stmt)
