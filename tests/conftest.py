@@ -37,6 +37,11 @@ def _create_app_test_authed(*args, **kwargs):  # type: ignore[no-untyped-def]
     # propre override AVANT, ou retirer celui-ci (cf. `tests/test_box_auth.py`).
     app.dependency_overrides.setdefault(_auth.require_box_auth, lambda: _TEST_PRINCIPAL)
     app.dependency_overrides.setdefault(_auth.require_box_csrf, lambda: None)
+    # Édition de la personnalisation (PUT /v1/config) : réservée à un rôle privilégié.
+    # _TEST_PRINCIPAL est admin → autorisé ; un test dédié vérifie le rejet client.
+    from zolaos.api.v1.config import require_config_editor as _require_config_editor
+
+    app.dependency_overrides.setdefault(_require_config_editor, lambda: _TEST_PRINCIPAL)
     return app
 
 

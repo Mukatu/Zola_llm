@@ -63,6 +63,59 @@ def all_module_codes() -> frozenset[str]:
     return frozenset(f"{pole}.{m}" for pole, mods in MODULE_CATALOGUE.items() for m in mods)
 
 
+# Rattachement d'un code de personnalisation `pole.module` au **module vendable**
+# (entitlement) qui le couvre, cf. le montage des routers dans `api/main.py` et le
+# catalogue `zolaos.licensing.MODULES`. Un code ABSENT de ce mapping n'est PAS soumis
+# à entitlement (corpus de référence — santé, droit — toujours disponibles ; le plan
+# de mission n'est pas un module vendable). Sert à masquer côté UI un module que la
+# licence ne couvre pas (le serveur ne l'exposant pas, cf. `resolve_box_modules`).
+CODE_TO_ENTITLEMENT: dict[str, str] = {
+    # ERP back-office (module vendable « erp »).
+    "erp.referentiels": "erp",
+    "erp.finance": "erp",
+    "erp.compta": "erp",
+    "erp.registre": "erp",
+    "erp.projets_ong": "erp",
+    "erp.supply_chain": "erp",
+    "erp.achats": "erp",
+    "erp.moyens_generaux": "erp",
+    "erp.secretariat_societaire": "erp",
+    "erp.hse": "erp",
+    # SIRH (module vendable « sirh ») — sous le pôle erp côté catalogue.
+    "erp.rh": "sirh",
+    "erp.recrutement": "sirh",
+    "erp.developpement": "sirh",
+    "erp.paie": "sirh",
+    # Autres modules vendables.
+    "bi.pilotage": "bi",
+    "commercial.crm": "crm",
+    "marketing.campagnes": "marketing",
+    "grc.conformite": "grc",
+    "grc.audit_institutionnel": "grc",
+    "grc.reporting_bailleurs": "grc",
+    "fintech.scoring": "fintech",
+    "fintech.kyc": "fintech",
+    "cyber.defense": "cyber",
+    "engineering.code": "code",
+}
+
+
+def filter_codes_by_entitlement(
+    codes: list[str], allowed_modules: frozenset[str] | None
+) -> list[str]:
+    """Retire les codes dont le module vendable n'est pas couvert par l'entitlement.
+
+    `allowed_modules is None` (enforcement désactivé) → aucun filtrage (tout gardé).
+    Un code non rattaché (santé/droit) est toujours conservé."""
+    if allowed_modules is None:
+        return codes
+    return [
+        code
+        for code in codes
+        if CODE_TO_ENTITLEMENT.get(code) is None or CODE_TO_ENTITLEMENT[code] in allowed_modules
+    ]
+
+
 # Config uniforme du consultant Polaris (cortex) — outils de mission.
 CORTEX_MODULES: tuple[str, ...] = (
     "polaris.missions",

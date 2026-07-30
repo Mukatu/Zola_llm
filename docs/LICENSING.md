@@ -244,12 +244,10 @@ Tests : `tests/test_entitlement_hot.py` (état, garde 404, révocation à chaud 
 
 ## Suivis (hors périmètre de cette livraison)
 
-- **Synchroniser l'affichage de `GET /v1/config` sur l'entitlement réel** : le champ
-  `modules_actifs` existant dans la config reste aujourd'hui déclaratif côté box ; il
-  faudrait le faire refléter `resolve_box_modules(settings)` pour que l'UI n'affiche
-  jamais un module que le serveur n'expose pas.
-- **RBAC sur `PUT /v1/config`** : `modules_actifs` a déjà été retiré du modèle
-  `ConfigUpdate` (un client ne peut plus se l'auto-octroyer, cf. `api/v1/config.py`) ;
-  il reste que l'édition des autres champs de personnalisation (branding, langue,
-  connecteurs actifs, champs personnalisés) n'est aujourd'hui restreinte par aucun
-  rôle RBAC — à réserver à un rôle admin/consultant.
+- **Synchro `GET /v1/config` sur l'entitlement** — *fait* : `GET /v1/config` (box)
+  filtre `modules_actifs` via `resolve_box_modules` (mapping `pole.module` → module
+  vendable dans `personalization.CODE_TO_ENTITLEMENT`). L'UI ne montre plus un module
+  non exposé.
+- **RBAC sur `PUT /v1/config`** — *fait* : garde `require_config_editor` (admin/
+  consultant ; 401 anonyme, 403 client). L'édition de la personnalisation est réservée
+  à un rôle privilégié.

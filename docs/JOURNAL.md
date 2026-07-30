@@ -6,6 +6,19 @@ les messages de commit.
 
 ---
 
+## 2026-07-30 — Durcissement config box (synchro entitlement + RBAC)
+
+Deux suivis résiduels de l'entitlement, réglés (`api/v1/config.py`) :
+
+- **Synchro affichage** : `GET /v1/config` (profil box) filtre désormais `modules_actifs`
+  par l'entitlement réel (`resolve_box_modules`) — l'UI n'affiche jamais un module que le
+  serveur n'expose pas. Mapping code fin `pole.module` → module vendable dans
+  `personalization.CODE_TO_ENTITLEMENT` (santé/droit non soumis = toujours gardés) ;
+  enforcement off → aucun filtrage.
+- **RBAC sur `PUT /v1/config`** : garde `require_config_editor` (rôle admin/consultant ;
+  401 anonyme, 403 client). L'édition de la personnalisation n'est plus ouverte. Override
+  de test par défaut dans conftest (admin), + tests dédiés du rejet client/anonyme.
+
 ## 2026-07-30 — Usage & facturation par tenant
 
 Base de facturation cabinet. Le metering existant (`core/metering.py`) est **Redis,
