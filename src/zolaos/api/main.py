@@ -339,6 +339,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
         app.include_router(cortex_billing_router)
 
+        # Cockpit cabinet — PSA : feuilles de temps → économie de mission →
+        # taux d'occupation (outillage cabinet). Saisie consultant, agrégats admin.
+        from zolaos.api.v1.cortex_psa import router as cortex_psa_router
+
+        app.include_router(cortex_psa_router)
+
         # Point d'entrée du tunnel inverse : les Zolabox s'y connectent (sortant).
         from zolaos.api.v1.tunnel import router as tunnel_router
 

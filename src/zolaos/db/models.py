@@ -102,6 +102,9 @@ class User(Base):
     # Rôle RBAC : admin | consultant | client. Le login en dérive les scopes JWT
     # (cf. zolaos.core.rbac). Défaut `consultant` (rattachement cabinet).
     role: Mapped[str] = mapped_column(String(20), default="consultant", nullable=False)
+    # Grade cabinet (PSA) : junior/senior/manager/partner… → barème d'honoraires
+    # (cf. PSA_RATE_CARD_JSON). NULL = pas de grade (taux résolus à zéro).
+    grade: Mapped[str | None] = mapped_column(String(20), nullable=True)
     country: Mapped[str] = mapped_column(String(2), default="cg", nullable=False)
     # `tenant_id` legacy : tag string libre. Conservé pour compatibilité ascendante
     # avec les RBAC tags existants. Le rattachement structuré passe par
@@ -326,6 +329,51 @@ class UsageDaily(Base):
     day: Mapped[datetime] = mapped_column(Date, primary_key=True)
     requests: Mapped[int] = mapped_column(BigInteger, default=0, nullable=False)
     tokens: Mapped[int] = mapped_column(BigInteger, default=0, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
+    )
+
+
+class TimeEntry(Base):
+    """Feuille de temps — brique de base du PSA (outillage cabinet).
+
+    Une saisie = un consultant, une mission, un jour, une durée. Le **cœur** de tout
+    cabinet : c'est d'ici que découlent honoraires, rentabilité de mission et taux
+    d'occupation. Les taux (`bill_rate`/`cost_rate`, HORAIRES en XAF) sont **figés à
+    la saisie** (snapshot) : un changement de barème ultérieur ne réécrit pas
+    l'historique facturable. Cycle : draft → submitted → approved (ou rejected).
+    """
+
+    __tablename__ = "time_entries"
+    __table_args__ = (
+        CheckConstraint("minutes > 0", name="ck_time_entries_minutes_positive"),
+        CheckConstraint(
+            "status IN ('draft', 'submitted', 'approved', 'rejected')",
+            name="ck_time_entries_status",
+        ),
+        Index("ix_time_entries_mission", "mission_id"),
+        Index("ix_time_entries_consultant_date", "consultant_user_id", "entry_date"),
+        {"schema": "core"},
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    consultant_user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("core.users.id", ondelete="RESTRICT"), nullable=False
+    )
+    mission_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("core.missions.id", ondelete="RESTRICT"), nullable=False
+    )
+    entry_date: Mapped[datetime] = mapped_column(Date, nullable=False)
+    minutes: Mapped[int] = mapped_column(Integer, nullable=False)
+    billable: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    activity: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    status: Mapped[str] = mapped_column(String(16), default="draft", nullable=False)
+    # Taux HORAIRES figés à la saisie (XAF entiers). honoraires = minutes/60 * bill_rate.
+    bill_rate: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    cost_rate: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
     )

@@ -6,6 +6,28 @@ les messages de commit.
 
 ---
 
+## 2026-07-30 — PSA : socle de l'outillage cabinet (feuilles de temps)
+
+Nouvelle brique : l'**outillage métier interne du cabinet** (ce que tout cabinet de
+conseil/audit/expertise utilise), distinct des modules client. On pose le **backbone
+PSA** (Professional Services Automation) : feuilles de temps → économie de mission →
+taux d'occupation. S'ancre sur les missions/consultants existants.
+
+- **Modèle** `core.time_entries` (consultant × mission × jour × durée, statut
+  draft→submitted→approved/rejected, **taux figés à la saisie**) + `users.grade`
+  (rattachement au barème). Migration `0064`.
+- **Moteur déterministe** (`zolaos/psa/`) : barème d'honoraires par grade (`rates.py`,
+  config `PSA_RATE_CARD_JSON`, **prix jamais inventés** — défauts à zéro) ; économie de
+  mission (`economics.py` : honoraires/coût/**marge**/WIP, `rejected` exclus) ; taux
+  d'occupation (facturable/capacité). Tout en entiers (XAF sans sous-unité).
+- **Endpoints** `/v1/cortex/psa/*` (profil cortex) : saisie/liste/submit des feuilles de
+  temps (consultant) ; approve/reject + économie de mission + taux d'occupation + barème
+  (admin). Le taux est résolu du grade du consultant et **snapshoté** à la saisie.
+- **Front** : écran `/cortex/temps` (ma feuille de temps + vue cabinet économie/occupation)
+  + `lib/cortex-psa.ts` + entrée Sidebar « Feuilles de temps ».
+- **Doctrine** : le moteur calcule (honoraires, marge, occupation), le LLM narrera ;
+  barème = décision du cabinet (config). Orienté par 2 sous-agents (tests + front).
+
 ## 2026-07-30 — Durcissement config box (synchro entitlement + RBAC)
 
 Deux suivis résiduels de l'entitlement, réglés (`api/v1/config.py`) :

@@ -121,6 +121,15 @@ class Settings(BaseSettings):
     # à zéro (la vue montre l'usage réel, coût 0 tant que le barème n'est pas défini).
     BILLING_PRICING_JSON: str = ""
 
+    # ===== PSA (outillage cabinet) : barème d'honoraires par grade =====
+    # Mécanisme ; les TARIFS restent une décision du cabinet. JSON grade → taux
+    # HORAIRES (facturé + coût) en XAF, ex. : {"senior":{"bill_rate":45000,
+    # "cost_rate":18000,"currency":"XAF"}}. Vide → taux à zéro (le PSA mesure le
+    # temps, honoraires/marge à 0 tant que le barème n'est pas défini).
+    PSA_RATE_CARD_JSON: str = ""
+    # Heures ouvrées par jour (conversion TJM ↔ horaire, base du taux d'occupation).
+    PSA_HOURS_PER_DAY: float = 8.0
+
     # ===== Licence commerciale / entitlement de modules (distribution vendeur) =====
     # La distribution des modules est décidée par POLARIS, pas par le client.
     # Un entitlement est un grant SIGNÉ (RS256) : la box a seulement la clé
