@@ -23,13 +23,23 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from zolaos.agents.rag_agent import InsufficientContextError
 from zolaos.api.auth import Principal, authenticate, require_admin
 from zolaos.api.v1.auth import require_csrf
 from zolaos.core.logging import get_logger
 from zolaos.core.profiles import require_cortex
+from zolaos.core.settings import Settings, get_settings
 from zolaos.db.models import Deliverable, DeliverableTemplate, Mission
 from zolaos.db.session import get_session
 from zolaos.ged import build_skeleton
+from zolaos.ged.drafting import (
+    DeliverableDraftAgent,
+    assemble_draft,
+    build_draft_query,
+    pole_from_offre,
+    schema_for,
+)
+from zolaos.llm.factory import make_router_client
 
 _log = get_logger("zolaos.api.v1.cortex_ged")
 
@@ -287,3 +297,109 @@ async def update_deliverable(
     await session.commit()
     await session.refresh(d)
     return _full(d)
+
+
+# ===========================================================================
+# Rédaction assistée (IA) — ancrée sur le corpus, avec abstention
+# ===========================================================================
+class DraftRequest(BaseModel):
+    pole: str | None = Field(
+        default=None, description="Corpus visé (droit/erp/sante/cyber/fintech)"
+    )
+    apply: bool = Field(default=False, description="Écrire le projet dans le livrable (version++)")
+
+
+class CitationOut(BaseModel):
+    index: int
+    source_uri: str
+    source_id: str | None
+    chunk_index: int
+    similarity: float
+
+
+class DraftResponse(BaseModel):
+    status: str  # generated | abstained | unavailable
+    pole: str
+    content: str  # projet rédigé (markdown) si generated, sinon vide
+    citations: list[CitationOut]
+    applied: bool
+
+
+def _citations(cits: list[Any]) -> list[CitationOut]:
+    return [
+        CitationOut(
+            index=c.index,
+            source_uri=c.source_uri,
+            source_id=c.source_id,
+            chunk_index=c.chunk_index,
+            similarity=c.similarity,
+        )
+        for c in cits
+    ]
+
+
+@router.post("/deliverables/{deliverable_id}/draft", response_model=DraftResponse)
+async def draft_deliverable(
+    deliverable_id: uuid.UUID,
+    payload: DraftRequest,
+    _principal: Principal = Depends(authenticate),
+    session: AsyncSession = Depends(get_session),
+    settings: Settings = Depends(get_settings),
+    _csrf: None = Depends(require_csrf),
+) -> DraftResponse:
+    """Génère un **projet** de livrable ancré sur le corpus (le LLM narre et cite).
+
+    `status` : `generated` (projet + citations), `abstained` (corpus insuffisant → rien
+    d'inventé), `unavailable` (retrieval/LLM indisponible). Le projet n'est écrit dans
+    le livrable que si `apply=true` (relecture humaine par défaut)."""
+    d = await session.get(Deliverable, deliverable_id)
+    if d is None:
+        raise HTTPException(status_code=404, detail="deliverable_not_found")
+    mission = await session.get(Mission, d.mission_id)
+    offre = mission.offre if mission is not None else None
+    pole = payload.pole or pole_from_offre(offre)
+    schema, tags = schema_for(pole)
+
+    agent = DeliverableDraftAgent(make_router_client(settings), settings, schema=schema, tags=tags)
+    query = build_draft_query(d.title, d.content, offre)
+
+    # 1. Retrieve + garde-fous : l'abstention tombe AVANT toute génération.
+    try:
+        prepared = await agent.prepare(query, k=8)
+    except InsufficientContextError:
+        return DraftResponse(status="abstained", pole=pole, content="", citations=[], applied=False)
+    except Exception as exc:  # embeddings/DB de retrieval indisponibles
+        _log.warning("ged.draft.retrieve_unavailable", extra={"error": str(exc)})
+        return DraftResponse(
+            status="unavailable", pole=pole, content="", citations=[], applied=False
+        )
+
+    # 2. Génération (LLM local). Indispo → statut unavailable (jamais de 500).
+    try:
+        result = await agent.answer_prepared(prepared)
+    except Exception as exc:
+        _log.warning("ged.draft.llm_unavailable", extra={"error": str(exc)})
+        return DraftResponse(
+            status="unavailable",
+            pole=pole,
+            content="",
+            citations=_citations(prepared.citations),
+            applied=False,
+        )
+
+    content = assemble_draft(result.content, result.citations)
+    applied = False
+    if payload.apply:
+        d.content = content
+        d.version += 1
+        await session.commit()
+        await session.refresh(d)
+        applied = True
+    _log.info("ged.deliverable.drafted", extra={"deliverable_id": str(d.id), "pole": pole})
+    return DraftResponse(
+        status="generated",
+        pole=pole,
+        content=content,
+        citations=_citations(result.citations),
+        applied=applied,
+    )

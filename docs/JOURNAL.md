@@ -20,8 +20,24 @@ Le dernier classique : bibliothèque de **modèles de livrables** (squelettes) +
   édition (version++ au changement de contenu) + transitions de statut. Mutations CSRF.
 - **Front** : écran `/cortex/livrables` (bibliothèque de modèles + éditeur de livrables
   par mission) + `lib/cortex-ged.ts` + entrée Sidebar « Livrables ».
-- Le « + » IA (rédaction assistée par le corpus) se branchera sur le contenu — ici on
-  pose la bibliothèque + les documents versionnés. Orienté par 2 sous-agents.
+- Orienté par 2 sous-agents.
+
+### Rédaction assistée par IA (le « + », branché)
+
+Le contenu d'un livrable peut être **rédigé par l'IA, ancré sur le corpus** — dans le
+respect de la doctrine (le LLM narre et **cite**, **abstention** si le corpus ne couvre
+pas, **jamais** d'invention de valeurs). Servi **localement**.
+
+- **Agent** `ged/drafting.py` (`DeliverableDraftAgent`) : réutilise le `RAGAgent` public
+  (retrieve + garde-fous + citations) avec un prompt de rédaction inline ;
+  `requires_citation=True` → l'abstention tombe AVANT toute génération. Pôle → corpus
+  (`POLE_SCHEMAS`, heuristique `pole_from_offre`).
+- **Endpoint** `POST /v1/cortex/ged/deliverables/{id}/draft` `{pole?, apply?}` → `status`
+  ∈ `generated` (projet + citations) / `abstained` (corpus insuffisant → rien) /
+  `unavailable` (retrieval/LLM indispo, jamais de 500). Écrit dans le livrable (version++)
+  seulement si `apply=true` — **relecture humaine par défaut** (« je cite, je ne tranche pas »).
+- **Front** : bouton « Générer un projet (IA) » dans l'éditeur de livrable.
+- Validé en conteneur : 8 extraits `rag_legal` → projet rédigé et cité par le LLM local.
 
 ## 2026-07-31 — Staffing / plan de charge (prospectif)
 

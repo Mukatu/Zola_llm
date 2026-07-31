@@ -3,7 +3,7 @@
 // Cockpit cabinet (Zolacortex) : GED — bibliothèque de modèles de livrables
 // (admin:users) et livrables versionnés par mission (tout consultant).
 import { useEffect, useState } from "react";
-import { Files, FileText, Plus, Save, Trash2 } from "lucide-react";
+import { Files, FileText, Plus, Save, Sparkles, Trash2 } from "lucide-react";
 import { Card, Button, Badge, Skeleton, type BadgeTone } from "@/components/ui";
 import { ApiError } from "@/lib/api";
 import { useZola, hasScope } from "@/components/ConfigProvider";
@@ -16,6 +16,7 @@ import {
   getDeliverable,
   createDeliverable,
   updateDeliverable,
+  draftDeliverable,
   type Template,
   type Section,
   type DeliverableBrief,
@@ -168,6 +169,8 @@ export default function LivrablesPage() {
   const [editContent, setEditContent] = useState("");
   const [savingContent, setSavingContent] = useState(false);
   const [changingStatus, setChangingStatus] = useState(false);
+  const [drafting, setDrafting] = useState(false);
+  const [draftMsg, setDraftMsg] = useState<{ tone: "amber" | "success"; text: string } | null>(null);
 
   useEffect(() => {
     if (!missionId && missions.length > 0) setMissionId(missions[0].mission_id);
@@ -237,6 +240,7 @@ export default function LivrablesPage() {
     setSelectedId(id);
     setSelectedLoading(true);
     setSelectedErr(null);
+    setDraftMsg(null);
     try {
       const d = await getDeliverable(id);
       setSelected(d);
@@ -276,6 +280,33 @@ export default function LivrablesPage() {
       setSelectedErr(messageFromError(e, "Échec du changement de statut."));
     } finally {
       setChangingStatus(false);
+    }
+  }
+
+  async function draftWithAI() {
+    if (!selected) return;
+    setDrafting(true);
+    setDraftMsg(null);
+    try {
+      const result = await draftDeliverable(selected.id, { apply: true });
+      if (result.status === "generated") {
+        const d = await getDeliverable(selected.id);
+        setSelected(d);
+        setEditContent(d.content);
+        await reloadDeliverables();
+        setDraftMsg({ tone: "success", text: "Projet généré et cité — à relire." });
+      } else if (result.status === "abstained") {
+        setDraftMsg({
+          tone: "amber",
+          text: "Le corpus ne couvre pas ce sujet — rien n'a été rédigé (aucune invention).",
+        });
+      } else {
+        setDraftMsg({ tone: "amber", text: "Assistant IA momentanément indisponible." });
+      }
+    } catch (e) {
+      setDraftMsg({ tone: "amber", text: messageFromError(e, "Assistant IA momentanément indisponible.") });
+    } finally {
+      setDrafting(false);
     }
   }
 
@@ -588,11 +619,23 @@ export default function LivrablesPage() {
                   className="w-full rounded-lg border border-black/10 bg-white px-3 py-2 font-mono text-xs"
                 />
 
-                <div>
+                {draftMsg && (
+                  <p className={"text-sm " + (draftMsg.tone === "success" ? "text-forest" : "text-amber-700")}>
+                    {draftMsg.text}
+                  </p>
+                )}
+
+                <div className="flex flex-wrap items-center gap-3">
                   <Button onClick={saveContent} disabled={savingContent}>
                     <Save className="h-4 w-4" /> Enregistrer
                   </Button>
+                  <Button variant="ghost" onClick={draftWithAI} disabled={drafting}>
+                    <Sparkles className="h-4 w-4" /> {drafting ? "Rédaction en cours…" : "Générer un projet (IA)"}
+                  </Button>
                 </div>
+                <p className="text-xs text-muted">
+                  Projet ancré sur le corpus, cité, à relire (le moteur ne tranche pas).
+                </p>
               </div>
             )}
           </div>

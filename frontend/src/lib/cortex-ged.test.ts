@@ -17,8 +17,10 @@ import {
   createDeliverable,
   updateDeliverable,
   getDeliverable,
+  draftDeliverable,
   type Template,
   type Deliverable,
+  type DraftResult,
 } from "./cortex-ged";
 
 const TEMPLATE: Template = {
@@ -82,5 +84,22 @@ describe("cortex-ged", () => {
     const result = await getDeliverable("id");
     expect(apiMock).toHaveBeenCalledWith("/v1/cortex/ged/deliverables/id");
     expect(result).toEqual(DELIVERABLE);
+  });
+
+  it("draftDeliverable poste sur /deliverables/{id}/draft", async () => {
+    const DRAFT: DraftResult = {
+      status: "generated",
+      pole: "droit",
+      content: "Projet rédigé…",
+      citations: [{ index: 1, source_uri: "uri", source_id: "s1", chunk_index: 0, similarity: 0.9 }],
+      applied: true,
+    };
+    apiMock.mockResolvedValueOnce(DRAFT);
+    const result = await draftDeliverable("id", { apply: true });
+    expect(apiMock).toHaveBeenCalledWith("/v1/cortex/ged/deliverables/id/draft", {
+      method: "POST",
+      body: { apply: true },
+    });
+    expect(result).toEqual(DRAFT);
   });
 });

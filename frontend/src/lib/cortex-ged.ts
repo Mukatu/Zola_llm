@@ -105,3 +105,30 @@ export function createDeliverable(input: CreateDeliverableInput): Promise<Delive
 export function updateDeliverable(id: string, patch: UpdateDeliverablePatch): Promise<Deliverable> {
   return api<Deliverable>("/v1/cortex/ged/deliverables/" + id, { method: "PATCH", body: patch });
 }
+
+export type DraftStatus = "generated" | "abstained" | "unavailable";
+
+export interface DraftCitation {
+  index: number;
+  source_uri: string;
+  source_id: string | null;
+  chunk_index: number;
+  similarity: number;
+}
+
+export interface DraftResult {
+  status: DraftStatus;
+  pole: string;
+  content: string;
+  citations: DraftCitation[];
+  applied: boolean;
+}
+
+export interface DraftDeliverableInput {
+  pole?: string;
+  apply?: boolean;
+}
+
+export function draftDeliverable(id: string, body: DraftDeliverableInput = {}): Promise<DraftResult> {
+  return api<DraftResult>(`/v1/cortex/ged/deliverables/${id}/draft`, { method: "POST", body });
+}
