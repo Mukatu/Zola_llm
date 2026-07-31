@@ -6,6 +6,28 @@ les messages de commit.
 
 ---
 
+## 2026-07-31 — IA : alertes marge & sous-facturation (moteur détecte, IA narre)
+
+6ᵉ surface IA, l'illustration la plus pure de la doctrine « le moteur calcule, le LLM
+narre » : le **moteur détecte** (déterministe) les missions à risque économique ; l'IA
+ne fait que **reformuler/prioriser** en une note de pilotage, sans jamais inventer de
+chiffre (elle ne cite que ceux calculés).
+
+- **Module** `zolaos/psa/alerts.py` (déterministe) : `scan_alerts()` émet des alertes
+  typées — `marge_negative` (coût > honoraires, high), `marge_faible` (marge % < seuil
+  sur mission non naissante, medium), `sous_facturation` (encours approuvé **non facturé**
+  ≥ seuil ; high si ≥ 2×). Tri sévérité puis impact. Seuils **gouvernables** :
+  `PSA_MARGIN_LOW_PCT` (20), `PSA_WIP_ALERT_XAF` (500 000), `PSA_MIN_HONORAIRES_XAF`
+  (100 000). `narrate_alerts()` = note de pilotage (LLM local, contraint aux chiffres).
+- **Endpoints** : `GET /v1/cortex/psa/alerts` (admin, déterministe) → alertes + seuils ;
+  `POST /v1/cortex/psa/alerts/brief` (admin, CSRF) → `status` (generated/empty/unavailable)
+  + `brief`. Encours non facturé = temps `approved`+`billable`+`invoice_id IS NULL`.
+- **Front** : page `/cortex/alertes` (tableau trié + seuils actifs + bouton « Note de
+  pilotage (IA) »), entrée Sidebar « Alertes marge ».
+- **Validé** en conteneur : 4 missions → 3 alertes (petite mission < plancher supprimée,
+  WIP 300k < seuil ignoré, marge 13% signalée) ; note IA n'emploie que 1 400 000/-150 000,
+  priorise les « high », propose des actions concrètes. Aucun chiffre inventé.
+
 ## 2026-07-31 — IA : saisie de temps assistée (récit → lignes proposées)
 
 5ᵉ surface IA, une **capacité nouvelle** (extraction structurée, hors-RAG) : le

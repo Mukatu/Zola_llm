@@ -125,3 +125,46 @@ export interface AssistTimeInput {
 export function assistTimeEntries(input: AssistTimeInput): Promise<AssistTimeResult> {
   return api<AssistTimeResult>("/v1/cortex/psa/time-entries/assist", { method: "POST", body: input });
 }
+
+// --- Alertes marge — détection déterministe (marge négative/faible, sous-
+// facturation) sur les missions actives, avec note de pilotage rédigée par
+// l'IA à partir des alertes. Réservé admin:users. ------------------------
+
+export type MarginAlertType = "marge_negative" | "marge_faible" | "sous_facturation";
+export type MarginAlertSeverity = "high" | "medium" | "low";
+
+export interface MarginAlert {
+  type: MarginAlertType;
+  severity: MarginAlertSeverity;
+  mission_id: string;
+  offre: string | null;
+  message: string;
+  impact: number;
+  metrics: Record<string, number | null>;
+}
+
+export interface AlertsThresholds {
+  margin_low_pct: number;
+  wip_alert_xaf: number;
+  min_honoraires_xaf: number;
+}
+
+export interface AlertsResult {
+  count: number;
+  thresholds: AlertsThresholds;
+  alerts: MarginAlert[];
+}
+
+export interface AlertsBriefResult {
+  status: "generated" | "unavailable" | "empty";
+  brief: string;
+  count: number;
+}
+
+export function getMarginAlerts(): Promise<AlertsResult> {
+  return api<AlertsResult>("/v1/cortex/psa/alerts");
+}
+
+export function getAlertsBrief(): Promise<AlertsBriefResult> {
+  return api<AlertsBriefResult>("/v1/cortex/psa/alerts/brief", { method: "POST", body: {} });
+}

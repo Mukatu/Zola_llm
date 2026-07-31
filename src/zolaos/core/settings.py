@@ -129,6 +129,14 @@ class Settings(BaseSettings):
     PSA_RATE_CARD_JSON: str = ""
     # Heures ouvrées par jour (conversion TJM ↔ horaire, base du taux d'occupation).
     PSA_HOURS_PER_DAY: float = 8.0
+    # Seuils des alertes marge/sous-facturation (le moteur détecte, l'IA narre).
+    # Marge faible : taux de marge (%) en-deçà duquel une mission est signalée.
+    PSA_MARGIN_LOW_PCT: int = 20
+    # Encours non facturé (XAF) au-delà duquel on signale une sous-facturation.
+    PSA_WIP_ALERT_XAF: int = 500_000
+    # Honoraires plancher (XAF) : en-deçà, une mission est trop petite pour alerter
+    # sur la marge (évite le bruit sur les missions naissantes).
+    PSA_MIN_HONORAIRES_XAF: int = 100_000
 
     # ===== Licence commerciale / entitlement de modules (distribution vendeur) =====
     # La distribution des modules est décidée par POLARIS, pas par le client.

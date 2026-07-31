@@ -35,6 +35,7 @@ from zolaos.psa import (
     load_rate_card,
     resolve_rates,
 )
+from zolaos.psa.alerts import Alert, Thresholds, narrate_alerts, scan_alerts
 from zolaos.psa.time_assist import suggest_time_entries
 
 _log = get_logger("zolaos.api.v1.cortex_psa")
@@ -391,3 +392,131 @@ async def rate_card(
     settings: Settings = Depends(get_settings),
 ) -> dict[str, dict[str, Any]]:
     return load_rate_card(settings)
+
+
+# ---------------------------------------------------------------------------
+# Alertes marge & sous-facturation — le moteur détecte, l'IA narre (réservé admin)
+# ---------------------------------------------------------------------------
+async def _scan_all(session: AsyncSession, settings: Settings) -> tuple[list[Alert], Thresholds]:
+    """Calcule (déterministe) les alertes de toutes les missions ayant du temps.
+
+    Économie par mission via `compute_engagement_economics` ; encours non facturé =
+    temps **approuvé, facturable, sans facture** (`invoice_id IS NULL`)."""
+    thresholds = Thresholds(
+        margin_low_pct=settings.PSA_MARGIN_LOW_PCT,
+        wip_alert_xaf=settings.PSA_WIP_ALERT_XAF,
+        min_honoraires_xaf=settings.PSA_MIN_HONORAIRES_XAF,
+    )
+    rows = (
+        await session.execute(
+            select(TimeEntry, Mission.offre)
+            .join(Mission, Mission.id == TimeEntry.mission_id)
+            .where(TimeEntry.status != "rejected")
+        )
+    ).all()
+
+    by_mission: dict[uuid.UUID, dict[str, Any]] = {}
+    for e, offre in rows:
+        bucket = by_mission.setdefault(
+            e.mission_id, {"offre": offre, "entries": [], "unbilled_wip": 0}
+        )
+        bucket["entries"].append(
+            {
+                "minutes": e.minutes,
+                "bill_rate": e.bill_rate,
+                "cost_rate": e.cost_rate,
+                "billable": e.billable,
+                "status": e.status,
+            }
+        )
+        if e.status == "approved" and e.billable and e.invoice_id is None:
+            bucket["unbilled_wip"] += entry_amounts(
+                minutes=e.minutes,
+                bill_rate=e.bill_rate,
+                cost_rate=e.cost_rate,
+                billable=True,
+            )["honoraires"]
+
+    missions = [
+        {
+            "mission_id": mid,
+            "offre": b["offre"],
+            "econ": compute_engagement_economics(b["entries"]),
+            "unbilled_wip": b["unbilled_wip"],
+        }
+        for mid, b in by_mission.items()
+    ]
+    return scan_alerts(missions, thresholds=thresholds), thresholds
+
+
+class AlertOut(BaseModel):
+    type: str
+    severity: str
+    mission_id: uuid.UUID
+    offre: str | None
+    message: str
+    impact: int
+    metrics: dict[str, int | None]
+
+
+class AlertsResponse(BaseModel):
+    count: int
+    thresholds: dict[str, int]
+    alerts: list[AlertOut]
+
+
+@router.get("/alerts", response_model=AlertsResponse, summary="Alertes marge & sous-facturation")
+async def list_alerts(
+    _admin: Principal = Depends(require_admin),
+    session: AsyncSession = Depends(get_session),
+    settings: Settings = Depends(get_settings),
+) -> AlertsResponse:
+    """Signale (déterministe) les missions à **marge négative/faible** et les
+    **sous-facturations** (encours approuvé non facturé), plus graves d'abord. Les
+    seuils sont gouvernables (`PSA_MARGIN_LOW_PCT`, `PSA_WIP_ALERT_XAF`,
+    `PSA_MIN_HONORAIRES_XAF`)."""
+    alerts, thresholds = await _scan_all(session, settings)
+    return AlertsResponse(
+        count=len(alerts),
+        thresholds={
+            "margin_low_pct": thresholds.margin_low_pct,
+            "wip_alert_xaf": thresholds.wip_alert_xaf,
+            "min_honoraires_xaf": thresholds.min_honoraires_xaf,
+        },
+        alerts=[
+            AlertOut(
+                type=a.type,
+                severity=a.severity,
+                mission_id=uuid.UUID(a.mission_id),
+                offre=a.offre,
+                message=a.message,
+                impact=a.impact,
+                metrics=a.metrics,
+            )
+            for a in alerts
+        ],
+    )
+
+
+class AlertBriefResponse(BaseModel):
+    status: str  # generated | unavailable | empty
+    brief: str
+    count: int
+
+
+@router.post(
+    "/alerts/brief", response_model=AlertBriefResponse, summary="Note de pilotage (IA) des alertes"
+)
+async def alerts_brief(
+    _admin: Principal = Depends(require_admin),
+    session: AsyncSession = Depends(get_session),
+    settings: Settings = Depends(get_settings),
+    _csrf: None = Depends(require_csrf),
+) -> AlertBriefResponse:
+    """Reformule les alertes en **note de pilotage** (l'IA priorise et explique, sans
+    inventer de chiffre : elle ne cite que ceux calculés). `status` : `generated`,
+    `empty` (aucune alerte) ou `unavailable` (LLM indisponible)."""
+    alerts, _ = await _scan_all(session, settings)
+    outcome = await narrate_alerts(settings, alerts)
+    _log.info("psa.alerts.brief", extra={"status": outcome.status, "count": len(alerts)})
+    return AlertBriefResponse(status=outcome.status, brief=outcome.brief, count=len(alerts))
