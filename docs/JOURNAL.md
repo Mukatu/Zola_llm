@@ -6,6 +6,24 @@ les messages de commit.
 
 ---
 
+## 2026-07-31 — Notes de frais (avec les feuilles de temps)
+
+L'autre engagement du consultant sur une mission : le frais. Miroir des feuilles de
+temps, **intégré à la facturation** (débours refacturés) et à la rentabilité (coût).
+
+- **Modèle** `core.expenses` (consultant × mission × jour × montant, catégorie, statut
+  draft→submitted→approved/rejected, `invoice_id` de rattachement). Migration `0067`.
+- **Endpoints** `/v1/cortex/expenses` (cortex) : saisie/liste/submit (consultant) ;
+  approve/reject + synthèse par mission (admin). Catégories fermées
+  (transport/hébergement/repas/fournitures/honoraires_tiers/autre).
+- **Intégration facturation** : `POST /v1/cortex/invoices` regroupe désormais les temps
+  facturables approuvés **ET** les frais facturables approuvés (débours). `amount` =
+  honoraires + débours ; le détail liste `entries` **et** `expenses` ; l'annulation
+  libère les deux. Les frais non facturables restent un coût, jamais refacturés.
+- **Moteur** `psa/expenses.py` (catégories + synthèse : total/facturable/refacturable approuvé).
+- **Front** : écran `/cortex/frais` (miroir de `/cortex/temps`) + `lib/cortex-expenses.ts`
+  + entrée Sidebar « Notes de frais ». Orienté par 2 sous-agents.
+
 ## 2026-07-30 — Pilotage : tableau de bord KPI cabinet (capstone)
 
 Le **capstone** de la chaîne cabinet : une synthèse **transverse en lecture** sur tous

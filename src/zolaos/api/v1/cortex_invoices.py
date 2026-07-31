@@ -26,7 +26,7 @@ from zolaos.api.v1.auth import require_csrf
 from zolaos.audit import record_audit
 from zolaos.core.logging import get_logger
 from zolaos.core.profiles import require_cortex
-from zolaos.db.models import Invoice, Mission, TimeEntry
+from zolaos.db.models import Expense, Invoice, Mission, TimeEntry
 from zolaos.db.session import get_session
 from zolaos.psa import entry_amounts
 from zolaos.psa.invoicing import aging_bucket, next_invoice_number
@@ -114,15 +114,32 @@ async def create_invoice(
         .scalars()
         .all()
     )
-    if not entries:
+    # Débours refacturables : frais facturables approuvés non encore facturés.
+    expenses = (
+        (
+            await session.execute(
+                select(Expense).where(
+                    Expense.mission_id == payload.mission_id,
+                    Expense.status == "approved",
+                    Expense.billable.is_(True),
+                    Expense.invoice_id.is_(None),
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
+    if not entries and not expenses:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="nothing_to_invoice")
 
-    amount = sum(
+    honoraires_amount = sum(
         entry_amounts(
             minutes=e.minutes, bill_rate=e.bill_rate, cost_rate=e.cost_rate, billable=True
         )["honoraires"]
         for e in entries
     )
+    expenses_amount = sum(x.amount for x in expenses)
+    amount = honoraires_amount + expenses_amount
 
     year = datetime.now(UTC).year
     count = (
@@ -148,11 +165,18 @@ async def create_invoice(
     await session.flush()
     for e in entries:
         e.invoice_id = invoice.id
+    for x in expenses:
+        x.invoice_id = invoice.id
     await session.commit()
     await session.refresh(invoice)
     _log.info(
         "invoice.created",
-        extra={"invoice_id": str(invoice.id), "number": number, "entries": len(entries)},
+        extra={
+            "invoice_id": str(invoice.id),
+            "number": number,
+            "entries": len(entries),
+            "expenses": len(expenses),
+        },
     )
     return _to_out(invoice)
 
@@ -247,8 +271,18 @@ class EntryBrief(BaseModel):
     honoraires: int
 
 
+class ExpenseBrief(BaseModel):
+    id: uuid.UUID
+    consultant_user_id: uuid.UUID
+    expense_date: date
+    category: str
+    amount: int
+    description: str
+
+
 class InvoiceDetail(InvoiceOut):
-    entries: list[EntryBrief]
+    entries: list[EntryBrief]  # débours honoraires (temps)
+    expenses: list[ExpenseBrief]  # débours refacturés (frais)
 
 
 @router.get("/{invoice_id}", response_model=InvoiceDetail)
@@ -275,7 +309,23 @@ async def get_invoice(
         )
         for e in rows
     ]
-    return InvoiceDetail(**_to_out(inv).model_dump(), entries=entries)
+    exp_rows = (
+        (await session.execute(select(Expense).where(Expense.invoice_id == invoice_id)))
+        .scalars()
+        .all()
+    )
+    expenses = [
+        ExpenseBrief(
+            id=x.id,
+            consultant_user_id=x.consultant_user_id,
+            expense_date=x.expense_date,
+            category=x.category,
+            amount=x.amount,
+            description=x.description,
+        )
+        for x in exp_rows
+    ]
+    return InvoiceDetail(**_to_out(inv).model_dump(), entries=entries, expenses=expenses)
 
 
 # ---------------------------------------------------------------------------
@@ -359,7 +409,7 @@ async def cancel_invoice(
     inv = await _get_or_404(session, invoice_id)
     if inv.status not in ("draft", "issued"):
         raise HTTPException(status_code=409, detail=f"cannot_cancel (status={inv.status})")
-    # Libère les feuilles de temps rattachées.
+    # Libère les feuilles de temps ET les frais rattachés (redeviennent facturables).
     rows = (
         (await session.execute(select(TimeEntry).where(TimeEntry.invoice_id == invoice_id)))
         .scalars()
@@ -367,6 +417,13 @@ async def cancel_invoice(
     )
     for e in rows:
         e.invoice_id = None
+    exp_rows = (
+        (await session.execute(select(Expense).where(Expense.invoice_id == invoice_id)))
+        .scalars()
+        .all()
+    )
+    for x in exp_rows:
+        x.invoice_id = None
     inv.status = "cancelled"
     await record_audit(
         session,

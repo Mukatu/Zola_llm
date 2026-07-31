@@ -485,6 +485,53 @@ class Opportunity(Base):
     )
 
 
+class Expense(Base):
+    """Note de frais — l'autre engagement du consultant sur une mission (avec le temps).
+
+    Un frais = un consultant, une mission, une date, un montant, une catégorie. S'il
+    est **facturable** (refacturable au client), il rejoint la facture d'honoraires
+    comme **débours** (`invoice_id`) ; qu'il soit facturable ou non, un frais approuvé
+    est un **coût** du cabinet (rentabilité). Cycle : draft → submitted → approved
+    (ou rejected) — même gouvernance que les feuilles de temps.
+    """
+
+    __tablename__ = "expenses"
+    __table_args__ = (
+        CheckConstraint("amount > 0", name="ck_expenses_amount_positive"),
+        CheckConstraint(
+            "status IN ('draft', 'submitted', 'approved', 'rejected')", name="ck_expenses_status"
+        ),
+        Index("ix_expenses_mission", "mission_id"),
+        Index("ix_expenses_consultant_date", "consultant_user_id", "expense_date"),
+        Index("ix_expenses_invoice", "invoice_id"),
+        {"schema": "core"},
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    consultant_user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("core.users.id", ondelete="RESTRICT"), nullable=False
+    )
+    mission_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("core.missions.id", ondelete="RESTRICT"), nullable=False
+    )
+    expense_date: Mapped[datetime] = mapped_column(Date, nullable=False)
+    category: Mapped[str] = mapped_column(String(24), nullable=False)
+    amount: Mapped[int] = mapped_column(BigInteger, nullable=False)  # XAF
+    billable: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)  # refacturable
+    description: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    status: Mapped[str] = mapped_column(String(16), default="draft", nullable=False)
+    # Facture (débours refacturés) qui a consommé ce frais. NULL = pas encore facturé.
+    invoice_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("core.invoices.id", ondelete="SET NULL"), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
+    )
+
+
 # =============================================================================
 # memory schema
 # =============================================================================

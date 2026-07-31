@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import clsx from "clsx";
-import { LayoutDashboard, MessagesSquare, FolderOpen, BookOpen, Settings, Briefcase, FileSpreadsheet, Users, Building2, Radar, ScrollText, Receipt, Clock, FileText, Target, Gauge } from "lucide-react";
+import { LayoutDashboard, MessagesSquare, FolderOpen, BookOpen, Settings, Briefcase, FileSpreadsheet, Users, Building2, Radar, ScrollText, Receipt, Clock, FileText, Target, Gauge, Wallet } from "lucide-react";
 import { useZola, hasScope } from "./ConfigProvider";
 import { navGroupsFromModules } from "@/lib/capabilities";
 
@@ -62,6 +62,7 @@ export function Sidebar() {
           {item("/cortex/pipeline", "Pipeline", Target)}
           {item("/cortex/missions", "Missions", Briefcase)}
           {item("/cortex/temps", "Feuilles de temps", Clock)}
+          {item("/cortex/frais", "Notes de frais", Wallet)}
           {hasScope(user, "admin:users") && item("/cortex/honoraires", "Honoraires", FileText)}
           {hasScope(user, "admin:users") && item("/cortex/clients", "Clients", Building2)}
           {hasScope(user, "admin:users") && item("/cortex/comptes", "Comptes", Users)}

@@ -363,6 +363,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
         app.include_router(cortex_dashboard_router)
 
+        # Cockpit cabinet — notes de frais (avec les feuilles de temps) : coût +
+        # débours refacturables (repris dans la facture d'honoraires). Saisie consultant.
+        from zolaos.api.v1.cortex_expenses import router as cortex_expenses_router
+
+        app.include_router(cortex_expenses_router)
+
         # Point d'entrée du tunnel inverse : les Zolabox s'y connectent (sortant).
         from zolaos.api.v1.tunnel import router as tunnel_router
 
