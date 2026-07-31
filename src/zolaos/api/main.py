@@ -375,6 +375,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
         app.include_router(cortex_staffing_router)
 
+        # Cockpit cabinet — GED : modèles de livrables (biblio, admin) + documents
+        # produits par mission (versionnés, statut). Production consultant.
+        from zolaos.api.v1.cortex_ged import router as cortex_ged_router
+
+        app.include_router(cortex_ged_router)
+
         # Point d'entrée du tunnel inverse : les Zolabox s'y connectent (sortant).
         from zolaos.api.v1.tunnel import router as tunnel_router
 

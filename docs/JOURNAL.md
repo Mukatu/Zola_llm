@@ -6,6 +6,23 @@ les messages de commit.
 
 ---
 
+## 2026-07-31 — GED : modèles de livrables & documents produits
+
+Le dernier classique : bibliothèque de **modèles de livrables** (squelettes) + les
+**documents** produits par mission (versionnés, à statut). Complète la face production.
+
+- **Modèles** `core.deliverable_templates` (nom, offre, sections `[{title, guidance}]`,
+  actif). **Livrables** `core.deliverables` (mission, template optionnel, contenu markdown,
+  statut draft→review→final, **version** incrémentée à chaque modif). Migration `0069`.
+- **Endpoints** `/v1/cortex/ged` (cortex) : `/templates` (CRUD, mutations **admin**) ;
+  `/deliverables` (produits par tout consultant) — création **semée** du squelette du
+  modèle (`ged/skeleton.py`, markdown déterministe), liste (sans contenu) / détail (avec),
+  édition (version++ au changement de contenu) + transitions de statut. Mutations CSRF.
+- **Front** : écran `/cortex/livrables` (bibliothèque de modèles + éditeur de livrables
+  par mission) + `lib/cortex-ged.ts` + entrée Sidebar « Livrables ».
+- Le « + » IA (rédaction assistée par le corpus) se branchera sur le contenu — ici on
+  pose la bibliothèque + les documents versionnés. Orienté par 2 sous-agents.
+
 ## 2026-07-31 — Staffing / plan de charge (prospectif)
 
 La pièce **prévisionnelle** qui manquait : planifier qui travaille sur quoi, quand,

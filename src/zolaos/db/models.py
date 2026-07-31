@@ -575,6 +575,77 @@ class Assignment(Base):
     )
 
 
+class DeliverableTemplate(Base):
+    """Modèle de livrable — bibliothèque de squelettes (GED).
+
+    Un modèle structure un livrable type du cabinet (rapport d'audit, note fiscale,
+    lettre de mission…) : une liste de **sections** (titre + consigne) qui sert de
+    squelette à la production. `offre` le rattache éventuellement à un type de mission.
+    Géré par le rôle admin ; les consultants en instancient des livrables.
+    """
+
+    __tablename__ = "deliverable_templates"
+    __table_args__ = ({"schema": "core"},)
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    name: Mapped[str] = mapped_column(String(200), nullable=False)
+    offre: Mapped[str | None] = mapped_column(
+        String(64), nullable=True
+    )  # type de mission (ou générique)
+    description: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    # Liste de sections : [{"title": ..., "guidance": ...}] — le squelette du livrable.
+    sections: Mapped[list[dict[str, Any]]] = mapped_column(JSONB, default=list, nullable=False)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    created_by_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("core.users.id", ondelete="SET NULL"), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
+    )
+
+
+class Deliverable(Base):
+    """Livrable — document produit pour une mission (GED).
+
+    Instancié depuis un modèle (`template_id`, qui sème le squelette) ou vierge. Porte
+    un contenu (markdown), un statut (draft → review → final) et un numéro de version
+    incrémenté à chaque modification du contenu. Rattaché à la mission.
+    """
+
+    __tablename__ = "deliverables"
+    __table_args__ = (
+        CheckConstraint("status IN ('draft', 'review', 'final')", name="ck_deliverables_status"),
+        Index("ix_deliverables_mission", "mission_id"),
+        {"schema": "core"},
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    mission_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("core.missions.id", ondelete="RESTRICT"), nullable=False
+    )
+    template_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("core.deliverable_templates.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    title: Mapped[str] = mapped_column(String(200), nullable=False)
+    content: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    status: Mapped[str] = mapped_column(String(16), default="draft", nullable=False)
+    version: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
+    created_by_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("core.users.id", ondelete="SET NULL"), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
+    )
+
+
 # =============================================================================
 # memory schema
 # =============================================================================
