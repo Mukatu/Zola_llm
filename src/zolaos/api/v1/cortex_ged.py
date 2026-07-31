@@ -41,6 +41,7 @@ from zolaos.ged.drafting import (
     run_draft,
     schema_for,
 )
+from zolaos.ged.synthesis import default_title, normalize_kind, run_synthesis
 
 _log = get_logger("zolaos.api.v1.cortex_ged")
 
@@ -521,3 +522,65 @@ async def memo_deliverable(
         deliverable=deliverable,
         citations=_citations(outcome.citations),
     )
+
+
+# ===========================================================================
+# Synthèse d'entretien (IA) — notes brutes → compte rendu, enregistré en livrable
+# ===========================================================================
+class SynthesisRequest(BaseModel):
+    mission_id: uuid.UUID
+    notes: str = Field(min_length=10, max_length=8000)
+    kind: str = Field(default="entretien", description="entretien | reunion | atelier | appel")
+    title: str | None = Field(default=None, max_length=200)
+
+
+class SynthesisResponse(BaseModel):
+    status: str  # generated | unavailable
+    deliverable: DeliverableOut | None  # créé (statut draft) si generated, sinon None
+
+
+@router.post("/deliverables/synthesis", response_model=SynthesisResponse)
+async def synthesize_deliverable(
+    payload: SynthesisRequest,
+    principal: Principal = Depends(authenticate),
+    session: AsyncSession = Depends(get_session),
+    settings: Settings = Depends(get_settings),
+    _csrf: None = Depends(require_csrf),
+) -> SynthesisResponse:
+    """Met au propre les **notes brutes** d'un entretien/réunion en **compte rendu**
+    structuré (contexte, points clés, décisions, prochaines étapes) et l'**enregistre
+    comme livrable** (statut draft) de la mission. L'IA structure fidèlement — elle
+    n'invente ni décision ni action absente des notes. `status` : `generated` (compte
+    rendu + livrable créé) ou `unavailable` (LLM indisponible → rien créé)."""
+    mission = await session.get(Mission, payload.mission_id)
+    if mission is None:
+        raise HTTPException(status_code=404, detail="mission_not_found")
+    kind = normalize_kind(payload.kind)
+
+    outcome = await run_synthesis(settings, notes=payload.notes, kind=kind)
+
+    deliverable: DeliverableOut | None = None
+    if outcome.status == "generated":
+        d = Deliverable(
+            mission_id=payload.mission_id,
+            template_id=None,
+            title=(payload.title or default_title(kind))[:200],
+            content=outcome.content,
+            status="draft",
+            version=1,
+            created_by_user_id=principal.user_id,
+        )
+        session.add(d)
+        await session.commit()
+        await session.refresh(d)
+        deliverable = _full(d)
+    _log.info(
+        "ged.deliverable.synthesis",
+        extra={
+            "mission_id": str(payload.mission_id),
+            "kind": kind,
+            "status": outcome.status,
+            "deliverable_id": str(deliverable.id) if deliverable else None,
+        },
+    )
+    return SynthesisResponse(status=outcome.status, deliverable=deliverable)

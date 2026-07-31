@@ -6,6 +6,25 @@ les messages de commit.
 
 ---
 
+## 2026-07-31 — IA : synthèse d'entretien (notes brutes → compte rendu savable)
+
+7ᵉ surface IA, un **3ᵉ mode** au-delà du RAG et de l'extraction : la **structuration
+fidèle** de notes fournies. Le consultant colle ses notes d'entretien/réunion ; l'IA
+en fait un **compte rendu** professionnel (contexte / points clés / décisions /
+prochaines étapes), **enregistré comme livrable** — qui entre dans le circuit GED.
+
+- **Module** `zolaos/ged/synthesis.py` (hors-RAG) : `run_synthesis()` (LLM local) met au
+  propre les notes ; garde-fou propre à la reformulation — structure UNIQUEMENT ce qui
+  figure dans les notes, n'invente aucune décision/action/date/participant (« — non
+  précisé » sinon). `kind` borné (entretien/reunion/atelier/appel) → cadrage du prompt.
+- **Endpoint** `POST /v1/cortex/ged/deliverables/synthesis {mission_id, notes, kind?, title?}`
+  → `status` (generated → livrable créé / unavailable → rien). 404 mission inconnue.
+- **Front** : section « Synthèse d'entretien (IA) » sur `/cortex/livrables` (notes + type +
+  titre) → le compte rendu apparaît dans la liste des livrables de la mission.
+- **Validé** en conteneur : notes brutes « RDV Ngoma (DAF Congo Agro), audit OHADA,
+  comptable parti, lettre de mission avant vendredi… » → CR fidèle, « Décisions : —
+  non précisé », aucun montant inventé, « budget pas encore abordé » repris tel quel.
+
 ## 2026-07-31 — IA : alertes marge & sous-facturation (moteur détecte, IA narre)
 
 6ᵉ surface IA, l'illustration la plus pure de la doctrine « le moteur calcule, le LLM

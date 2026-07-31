@@ -175,3 +175,17 @@ export interface MemoDeliverableInput {
 export function memoDeliverable(input: MemoDeliverableInput): Promise<MemoResult> {
   return api<MemoResult>("/v1/cortex/ged/deliverables/memo", { method: "POST", body: input });
 }
+
+export interface SynthesisResult {
+  status: "generated" | "unavailable";
+  deliverable: Deliverable | null;
+}
+export interface SynthesisInput {
+  mission_id: string;
+  notes: string;
+  kind?: "entretien" | "reunion" | "atelier" | "appel";
+  title?: string;
+}
+export function synthesizeDeliverable(input: SynthesisInput): Promise<SynthesisResult> {
+  return api<SynthesisResult>("/v1/cortex/ged/deliverables/synthesis", { method: "POST", body: input });
+}

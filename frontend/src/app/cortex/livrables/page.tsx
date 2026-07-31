@@ -3,7 +3,7 @@
 // Cockpit cabinet (Zolacortex) : GED — bibliothèque de modèles de livrables
 // (admin:users) et livrables versionnés par mission (tout consultant).
 import { useEffect, useState } from "react";
-import { Files, FileText, Plus, Save, ScanSearch, Search, Sparkles, Trash2, X } from "lucide-react";
+import { Files, FileText, MessagesSquare, Plus, Save, ScanSearch, Search, Sparkles, Trash2, X } from "lucide-react";
 import { Card, Button, Badge, Skeleton, type BadgeTone } from "@/components/ui";
 import { ApiError } from "@/lib/api";
 import { useZola, hasScope } from "@/components/ConfigProvider";
@@ -19,6 +19,7 @@ import {
   draftDeliverable,
   reviewDeliverable,
   memoDeliverable,
+  synthesizeDeliverable,
   type Template,
   type Section,
   type DeliverableBrief,
@@ -26,7 +27,15 @@ import {
   type DeliverableStatus,
   type ReviewResult,
   type MemoResult,
+  type SynthesisResult,
 } from "@/lib/cortex-ged";
+
+const SYNTHESIS_KINDS: { value: "entretien" | "reunion" | "atelier" | "appel"; label: string }[] = [
+  { value: "entretien", label: "Entretien client" },
+  { value: "reunion", label: "Réunion" },
+  { value: "atelier", label: "Atelier" },
+  { value: "appel", label: "Échange téléphonique" },
+];
 
 const POLES = [
   { value: "", label: "Auto (déduit de l'offre)" },
@@ -402,6 +411,49 @@ export default function LivrablesPage() {
       setMemoMsg({ tone: "amber", text: messageFromError(e, "Service de rédaction indisponible pour le moment.") });
     } finally {
       setMemoLoading(false);
+    }
+  }
+
+  // --- Synthèse d'entretien (IA) ---------------------------------------------
+  const [synthNotes, setSynthNotes] = useState("");
+  const [synthKind, setSynthKind] = useState<"entretien" | "reunion" | "atelier" | "appel">("entretien");
+  const [synthTitle, setSynthTitle] = useState("");
+  const [synthLoading, setSynthLoading] = useState(false);
+  const [synthMsg, setSynthMsg] = useState<{ tone: "amber" | "success"; text: string } | null>(null);
+  const [synthResult, setSynthResult] = useState<SynthesisResult | null>(null);
+
+  async function submitSynthesis() {
+    if (!missionId) {
+      setSynthMsg({ tone: "amber", text: "Sélectionnez une mission." });
+      return;
+    }
+    if (synthNotes.trim().length < 20) {
+      setSynthMsg({ tone: "amber", text: "Notes trop courtes — collez les notes brutes de l'entretien." });
+      return;
+    }
+    setSynthLoading(true);
+    setSynthMsg(null);
+    setSynthResult(null);
+    try {
+      const result = await synthesizeDeliverable({
+        mission_id: missionId,
+        notes: synthNotes.trim(),
+        kind: synthKind,
+        title: synthTitle.trim() || undefined,
+      });
+      if (result.status === "generated") {
+        setSynthResult(result);
+        setSynthMsg({ tone: "success", text: "Compte rendu généré — livrable ajouté (brouillon) à relire." });
+        setSynthNotes("");
+        setSynthTitle("");
+        await reloadDeliverables();
+      } else {
+        setSynthMsg({ tone: "amber", text: "Assistant indisponible pour le moment." });
+      }
+    } catch (e) {
+      setSynthMsg({ tone: "amber", text: messageFromError(e, "Assistant indisponible pour le moment.") });
+    } finally {
+      setSynthLoading(false);
     }
   }
 
@@ -837,6 +889,79 @@ export default function LivrablesPage() {
                 </ul>
               </div>
             )}
+          </div>
+        )}
+      </Card>
+
+      {/* --- Synthèse d'entretien (IA) --- */}
+      <Card className="flex flex-col gap-4">
+        <div className="flex items-center gap-2 text-sm font-semibold">
+          <MessagesSquare className="h-4 w-4" /> Synthèse d&apos;entretien (IA)
+        </div>
+        <p className="text-sm text-muted">
+          Collez les notes brutes d&apos;un entretien, d&apos;une réunion ou d&apos;un atelier ; l&apos;assistant
+          les met au propre en compte rendu structuré (contexte, points clés, décisions, prochaines étapes),
+          fidèlement, sans rien inventer, ajouté comme livrable brouillon de la mission sélectionnée ci-dessus.
+        </p>
+
+        <label className="text-sm">
+          <span className="mb-1 block font-medium">Notes brutes</span>
+          <textarea
+            value={synthNotes}
+            onChange={(e) => setSynthNotes(e.target.value)}
+            rows={8}
+            placeholder="Collez ici vos notes de réunion / d'entretien…"
+            className="w-full rounded-lg border border-black/10 bg-white px-3 py-2 text-sm"
+          />
+        </label>
+
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="text-sm">
+            <span className="mb-1 block font-medium">Type</span>
+            <select
+              value={synthKind}
+              onChange={(e) => setSynthKind(e.target.value as "entretien" | "reunion" | "atelier" | "appel")}
+              className="w-full rounded-lg border border-black/10 bg-white px-2 py-1 text-sm"
+            >
+              {SYNTHESIS_KINDS.map((k) => (
+                <option key={k.value} value={k.value}>
+                  {k.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="text-sm">
+            <span className="mb-1 block font-medium">Titre du livrable (optionnel)</span>
+            <input
+              type="text"
+              value={synthTitle}
+              onChange={(e) => setSynthTitle(e.target.value)}
+              placeholder="ex. Compte rendu — entretien client"
+              className="w-full rounded-lg border border-black/10 bg-white px-2 py-1 text-sm"
+            />
+          </label>
+        </div>
+
+        <div>
+          <Button onClick={submitSynthesis} disabled={synthLoading || !missionId}>
+            <Sparkles className="h-4 w-4" />{" "}
+            {synthLoading ? "Rédaction en cours… (peut prendre 15 à 30 s)" : "Générer le compte rendu"}
+          </Button>
+        </div>
+
+        {synthMsg && (
+          <p className={"text-sm " + (synthMsg.tone === "success" ? "text-forest" : "text-amber-700")}>
+            {synthMsg.text}
+          </p>
+        )}
+
+        {synthResult?.deliverable && (
+          <div className="rounded-xl border border-black/10 bg-black/[0.02] p-4">
+            <div className="mb-2 text-sm font-semibold">{synthResult.deliverable.title}</div>
+            <p className="whitespace-pre-wrap text-sm">{synthResult.deliverable.content}</p>
+            <p className="mt-3 border-t border-black/5 pt-2 text-xs text-muted">
+              Projet à relire — entre dans le circuit GED normal comme les autres livrables.
+            </p>
           </div>
         )}
       </Card>
