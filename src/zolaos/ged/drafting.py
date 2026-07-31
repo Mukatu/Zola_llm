@@ -60,6 +60,35 @@ _PROPOSAL_SYSTEM_PROMPT = (
 )
 
 
+_REVIEW_SYSTEM_PROMPT = (
+    "Tu es relecteur QUALITÉ pour un cabinet de conseil/audit. On te soumet un PROJET "
+    "de livrable et des TEXTES DE RÉFÉRENCE. Ta tâche : CONFRONTER le projet aux textes "
+    "— tu ne réécris PAS le livrable. Rends une revue structurée en français, en trois "
+    "rubriques markdown :\n"
+    "## Bien étayé\nLes affirmations du projet appuyées par les textes (cite [1], [2]).\n"
+    "## À vérifier / non étayé\nLes affirmations du projet qui NE figurent PAS dans les "
+    "textes (risque d'invention, notamment valeurs chiffrées et références d'articles) — "
+    "liste-les explicitement.\n"
+    "## Points manquants\nLes obligations importantes des textes absentes du projet.\n"
+    "Sois précis et sobre. Ne réécris pas le livrable. N'évoque aucun mécanisme interne."
+)
+
+# Le contenu relu est tronqué pour tenir dans le contexte du modèle (avec les extraits).
+_REVIEW_CONTENT_MAX = 4000
+
+
+def build_review_query(title: str, content: str) -> str:
+    """Requête de relecture : le projet à confronter aux textes de référence."""
+    body = (content or "").strip()
+    if len(body) > _REVIEW_CONTENT_MAX:
+        body = body[:_REVIEW_CONTENT_MAX] + "\n…(projet tronqué pour la relecture)"
+    return (
+        f"Projet à relire — « {title} » :\n\n{body}\n\n"
+        "Relis ce projet au regard des textes de référence ci-dessus : ce qui est bien "
+        "étayé, ce qui est à vérifier / non étayé, ce qui manque. Ne le réécris pas."
+    )
+
+
 def pole_from_offre(offre: str | None) -> str:
     """Devine le pôle (corpus) à partir du type de mission (heuristique ; défaut droit)."""
     o = (offre or "").lower()
@@ -188,5 +217,6 @@ async def run_draft(
     )
 
 
-# Exposé pour les endpoints (proposition commerciale).
+# Exposés pour les endpoints (proposition commerciale, relecture qualité).
 PROPOSAL_SYSTEM_PROMPT = _PROPOSAL_SYSTEM_PROMPT
+REVIEW_SYSTEM_PROMPT = _REVIEW_SYSTEM_PROMPT

@@ -6,6 +6,22 @@ les messages de commit.
 
 ---
 
+## 2026-07-31 — IA de relecture qualité des livrables (contrôle d'ancrage)
+
+3ᵉ surface IA, **distincte** de la rédaction : au lieu de produire, l'IA **confronte**
+un projet de livrable aux textes de référence et rend une revue — sans réécrire.
+
+- **Endpoint** `POST /v1/cortex/ged/deliverables/{id}/review {pole?}` (cortex, lecture
+  seule) → `status` (generated/abstained/unavailable) + `review` markdown structuré
+  (## Bien étayé [n] / ## À vérifier — non étayé / ## Points manquants) + citations.
+  422 si livrable vide. Ne modifie jamais le livrable (version inchangée).
+- Réutilise `run_draft` avec un `REVIEW_SYSTEM_PROMPT` dédié + `build_review_query`
+  (le contenu du projet est injecté dans la requête, tronqué à ~4000 c pour le contexte).
+- **Front** : bouton « Relire (IA) » dans l'éditeur → panneau de revue (lecture seule).
+- **Valeur prouvée** en conteneur : un projet affirmant « congés 30 jours » → la revue
+  relève que les textes disent « 26 jours ouvrables » [1][2] (détection d'affirmation
+  non conforme aux sources). C'est le garde-fou anti-invention côté contrôle.
+
 ## 2026-07-31 — IA sur les propositions commerciales (patron réutilisé)
 
 Le patron de rédaction ancrée (livrables) **généralisé** à l'amont : rédiger une

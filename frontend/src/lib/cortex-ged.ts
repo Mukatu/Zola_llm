@@ -132,3 +132,28 @@ export interface DraftDeliverableInput {
 export function draftDeliverable(id: string, body: DraftDeliverableInput = {}): Promise<DraftResult> {
   return api<DraftResult>(`/v1/cortex/ged/deliverables/${id}/draft`, { method: "POST", body });
 }
+
+export type ReviewStatus = "generated" | "abstained" | "unavailable";
+
+export interface ReviewCitation {
+  index: number;
+  source_uri: string;
+  source_id: string | null;
+  chunk_index: number;
+  similarity: number;
+}
+
+export interface ReviewResult {
+  status: ReviewStatus;
+  pole: string;
+  review: string;
+  citations: ReviewCitation[];
+}
+
+export interface ReviewDeliverableInput {
+  pole?: string;
+}
+
+export function reviewDeliverable(id: string, body: ReviewDeliverableInput = {}): Promise<ReviewResult> {
+  return api<ReviewResult>(`/v1/cortex/ged/deliverables/${id}/review`, { method: "POST", body });
+}

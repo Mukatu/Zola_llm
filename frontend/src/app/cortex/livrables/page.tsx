@@ -3,7 +3,7 @@
 // Cockpit cabinet (Zolacortex) : GED — bibliothèque de modèles de livrables
 // (admin:users) et livrables versionnés par mission (tout consultant).
 import { useEffect, useState } from "react";
-import { Files, FileText, Plus, Save, Sparkles, Trash2 } from "lucide-react";
+import { Files, FileText, Plus, Save, ScanSearch, Sparkles, Trash2, X } from "lucide-react";
 import { Card, Button, Badge, Skeleton, type BadgeTone } from "@/components/ui";
 import { ApiError } from "@/lib/api";
 import { useZola, hasScope } from "@/components/ConfigProvider";
@@ -17,11 +17,13 @@ import {
   createDeliverable,
   updateDeliverable,
   draftDeliverable,
+  reviewDeliverable,
   type Template,
   type Section,
   type DeliverableBrief,
   type Deliverable,
   type DeliverableStatus,
+  type ReviewResult,
 } from "@/lib/cortex-ged";
 
 const STATUS_TONE: Record<DeliverableStatus, BadgeTone> = {
@@ -171,6 +173,9 @@ export default function LivrablesPage() {
   const [changingStatus, setChangingStatus] = useState(false);
   const [drafting, setDrafting] = useState(false);
   const [draftMsg, setDraftMsg] = useState<{ tone: "amber" | "success"; text: string } | null>(null);
+  const [reviewing, setReviewing] = useState(false);
+  const [reviewMsg, setReviewMsg] = useState<{ tone: "amber" | "success"; text: string } | null>(null);
+  const [review, setReview] = useState<ReviewResult | null>(null);
 
   useEffect(() => {
     if (!missionId && missions.length > 0) setMissionId(missions[0].mission_id);
@@ -241,6 +246,8 @@ export default function LivrablesPage() {
     setSelectedLoading(true);
     setSelectedErr(null);
     setDraftMsg(null);
+    setReviewMsg(null);
+    setReview(null);
     try {
       const d = await getDeliverable(id);
       setSelected(d);
@@ -308,6 +315,35 @@ export default function LivrablesPage() {
     } finally {
       setDrafting(false);
     }
+  }
+
+  async function reviewWithAI() {
+    if (!selected) return;
+    setReviewing(true);
+    setReviewMsg(null);
+    setReview(null);
+    try {
+      const result = await reviewDeliverable(selected.id, {});
+      if (result.status === "generated") {
+        setReview(result);
+      } else if (result.status === "abstained") {
+        setReviewMsg({
+          tone: "amber",
+          text: "Le corpus ne couvre pas ce sujet — pas de relecture possible.",
+        });
+      } else {
+        setReviewMsg({ tone: "amber", text: "Assistant IA momentanément indisponible." });
+      }
+    } catch (e) {
+      setReviewMsg({ tone: "amber", text: messageFromError(e, "Assistant IA momentanément indisponible.") });
+    } finally {
+      setReviewing(false);
+    }
+  }
+
+  function closeReview() {
+    setReview(null);
+    setReviewMsg(null);
   }
 
   if (config.profil !== "cortex") {
@@ -632,10 +668,34 @@ export default function LivrablesPage() {
                   <Button variant="ghost" onClick={draftWithAI} disabled={drafting}>
                     <Sparkles className="h-4 w-4" /> {drafting ? "Rédaction en cours…" : "Générer un projet (IA)"}
                   </Button>
+                  <Button variant="ghost" onClick={reviewWithAI} disabled={reviewing}>
+                    <ScanSearch className="h-4 w-4" /> {reviewing ? "Relecture en cours…" : "Relire (IA)"}
+                  </Button>
                 </div>
                 <p className="text-xs text-muted">
                   Projet ancré sur le corpus, cité, à relire (le moteur ne tranche pas).
                 </p>
+
+                {reviewMsg && (
+                  <p className={"text-sm " + (reviewMsg.tone === "success" ? "text-forest" : "text-amber-700")}>
+                    {reviewMsg.text}
+                  </p>
+                )}
+
+                {review && (
+                  <div className="rounded-xl border border-black/10 bg-black/[0.02] p-4">
+                    <div className="mb-2 flex items-center justify-between gap-2">
+                      <div className="text-sm font-semibold">Revue qualité (IA)</div>
+                      <Button variant="ghost" onClick={closeReview}>
+                        <X className="h-3.5 w-3.5" /> Fermer
+                      </Button>
+                    </div>
+                    <p className="whitespace-pre-wrap text-sm">{review.review}</p>
+                    <p className="mt-2 text-xs text-muted">
+                      Contrôle contre le corpus — à valider par un consultant.
+                    </p>
+                  </div>
+                )}
               </div>
             )}
           </div>

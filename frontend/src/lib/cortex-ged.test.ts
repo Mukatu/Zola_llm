@@ -18,9 +18,11 @@ import {
   updateDeliverable,
   getDeliverable,
   draftDeliverable,
+  reviewDeliverable,
   type Template,
   type Deliverable,
   type DraftResult,
+  type ReviewResult,
 } from "./cortex-ged";
 
 const TEMPLATE: Template = {
@@ -101,5 +103,21 @@ describe("cortex-ged", () => {
       body: { apply: true },
     });
     expect(result).toEqual(DRAFT);
+  });
+
+  it("reviewDeliverable poste sur /deliverables/{id}/review", async () => {
+    const REVIEW: ReviewResult = {
+      status: "generated",
+      pole: "droit",
+      review: "Bien étayé : …",
+      citations: [{ index: 1, source_uri: "uri", source_id: "s1", chunk_index: 0, similarity: 0.9 }],
+    };
+    apiMock.mockResolvedValueOnce(REVIEW);
+    const result = await reviewDeliverable("id", {});
+    expect(apiMock).toHaveBeenCalledWith("/v1/cortex/ged/deliverables/id/review", {
+      method: "POST",
+      body: {},
+    });
+    expect(result).toEqual(REVIEW);
   });
 });

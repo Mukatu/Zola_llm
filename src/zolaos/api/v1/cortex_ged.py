@@ -31,7 +31,14 @@ from zolaos.core.settings import Settings, get_settings
 from zolaos.db.models import Deliverable, DeliverableTemplate, Mission
 from zolaos.db.session import get_session
 from zolaos.ged import build_skeleton
-from zolaos.ged.drafting import build_draft_query, pole_from_offre, run_draft, schema_for
+from zolaos.ged.drafting import (
+    REVIEW_SYSTEM_PROMPT,
+    build_draft_query,
+    build_review_query,
+    pole_from_offre,
+    run_draft,
+    schema_for,
+)
 
 _log = get_logger("zolaos.api.v1.cortex_ged")
 
@@ -372,4 +379,58 @@ async def draft_deliverable(
         content=outcome.content,
         citations=_citations(outcome.citations),
         applied=applied,
+    )
+
+
+# ===========================================================================
+# Relecture qualité (IA) — confronte le projet aux textes, ne réécrit pas
+# ===========================================================================
+class ReviewRequest(BaseModel):
+    pole: str | None = Field(
+        default=None, description="Corpus visé (droit/erp/sante/cyber/fintech)"
+    )
+
+
+class ReviewResponse(BaseModel):
+    status: str  # generated | abstained | unavailable
+    pole: str
+    review: str  # revue structurée (bien étayé / à vérifier / manquant)
+    citations: list[CitationOut]
+
+
+@router.post("/deliverables/{deliverable_id}/review", response_model=ReviewResponse)
+async def review_deliverable(
+    deliverable_id: uuid.UUID,
+    payload: ReviewRequest,
+    _principal: Principal = Depends(authenticate),
+    session: AsyncSession = Depends(get_session),
+    settings: Settings = Depends(get_settings),
+    _csrf: None = Depends(require_csrf),
+) -> ReviewResponse:
+    """**Relit** un livrable en le confrontant au corpus (contrôle qualité) : signale
+    les affirmations **non étayées** (risque d'invention), les points **bien fondés**
+    (cités) et les **manques**. Lecture seule — ne modifie jamais le livrable."""
+    d = await session.get(Deliverable, deliverable_id)
+    if d is None:
+        raise HTTPException(status_code=404, detail="deliverable_not_found")
+    if not (d.content or "").strip():
+        raise HTTPException(status_code=422, detail="empty_deliverable")
+    mission = await session.get(Mission, d.mission_id)
+    offre = mission.offre if mission is not None else None
+    pole = payload.pole or pole_from_offre(offre)
+    schema, tags = schema_for(pole)
+
+    query = build_review_query(d.title, d.content)
+    outcome = await run_draft(
+        settings, schema=schema, tags=tags, query=query, system_prompt=REVIEW_SYSTEM_PROMPT
+    )
+    _log.info(
+        "ged.deliverable.reviewed",
+        extra={"deliverable_id": str(d.id), "pole": pole, "status": outcome.status},
+    )
+    return ReviewResponse(
+        status=outcome.status,
+        pole=pole,
+        review=outcome.content,
+        citations=_citations(outcome.citations),
     )
