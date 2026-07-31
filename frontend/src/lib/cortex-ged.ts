@@ -157,3 +157,21 @@ export interface ReviewDeliverableInput {
 export function reviewDeliverable(id: string, body: ReviewDeliverableInput = {}): Promise<ReviewResult> {
   return api<ReviewResult>(`/v1/cortex/ged/deliverables/${id}/review`, { method: "POST", body });
 }
+
+export interface MemoResult {
+  status: DraftStatus; // "generated" | "abstained" | "unavailable"
+  pole: string;
+  deliverable: Deliverable | null;
+  citations: DraftCitation[];
+}
+
+export interface MemoDeliverableInput {
+  mission_id: string;
+  question: string;
+  pole?: string;
+  title?: string;
+}
+
+export function memoDeliverable(input: MemoDeliverableInput): Promise<MemoResult> {
+  return api<MemoResult>("/v1/cortex/ged/deliverables/memo", { method: "POST", body: input });
+}

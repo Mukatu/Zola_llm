@@ -89,6 +89,29 @@ def build_review_query(title: str, content: str) -> str:
     )
 
 
+_MEMO_SYSTEM_PROMPT = (
+    "Tu rédiges une NOTE / MÉMO réglementaire pour un cabinet de conseil/audit en "
+    "République du Congo, en réponse à une QUESTION précise, à partir des TEXTES DE "
+    "RÉFÉRENCE fournis. Structure en français, markdown :\n"
+    "## Réponse\nUne réponse synthétique et directe à la question.\n"
+    "## Fondement\nLe développement, chaque point cité [1], [2].\n"
+    "## À vérifier / limites\nLes aspects de la question NON couverts par les textes.\n"
+    "Règles : réponds UNIQUEMENT d'après les textes ci-dessus ; si la réponse n'y "
+    "figure pas, dis-le explicitement plutôt que de l'inventer. Aucune valeur chiffrée "
+    "ni référence d'article hors des textes. N'évoque aucun mécanisme interne."
+)
+
+
+def build_memo_query(question: str) -> str:
+    """Requête d'un mémo réglementaire : la question, à ancrer sur le corpus."""
+    q = (question or "").strip()
+    return (
+        f"Question : {q}\n\n"
+        "Réponds par une note réglementaire, en t'appuyant STRICTEMENT sur les textes "
+        "de référence ci-dessus, avec citations. Si la réponse n'y figure pas, indique-le."
+    )
+
+
 def pole_from_offre(offre: str | None) -> str:
     """Devine le pôle (corpus) à partir du type de mission (heuristique ; défaut droit)."""
     o = (offre or "").lower()
@@ -217,6 +240,7 @@ async def run_draft(
     )
 
 
-# Exposés pour les endpoints (proposition commerciale, relecture qualité).
+# Exposés pour les endpoints (proposition, relecture qualité, mémo réglementaire).
 PROPOSAL_SYSTEM_PROMPT = _PROPOSAL_SYSTEM_PROMPT
 REVIEW_SYSTEM_PROMPT = _REVIEW_SYSTEM_PROMPT
+MEMO_SYSTEM_PROMPT = _MEMO_SYSTEM_PROMPT

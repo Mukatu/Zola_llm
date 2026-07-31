@@ -32,8 +32,10 @@ from zolaos.db.models import Deliverable, DeliverableTemplate, Mission
 from zolaos.db.session import get_session
 from zolaos.ged import build_skeleton
 from zolaos.ged.drafting import (
+    MEMO_SYSTEM_PROMPT,
     REVIEW_SYSTEM_PROMPT,
     build_draft_query,
+    build_memo_query,
     build_review_query,
     pole_from_offre,
     run_draft,
@@ -432,5 +434,90 @@ async def review_deliverable(
         status=outcome.status,
         pole=pole,
         review=outcome.content,
+        citations=_citations(outcome.citations),
+    )
+
+
+# ===========================================================================
+# Mémo réglementaire (IA) — question → note ancrée/citée, enregistrée en livrable
+# ===========================================================================
+class MemoRequest(BaseModel):
+    mission_id: uuid.UUID
+    question: str = Field(min_length=3, max_length=1000)
+    pole: str | None = Field(
+        default=None, description="Corpus visé (droit/erp/sante/cyber/fintech)"
+    )
+    title: str | None = Field(default=None, max_length=200)
+
+
+class MemoResponse(BaseModel):
+    status: str  # generated | abstained | unavailable
+    pole: str
+    deliverable: DeliverableOut | None  # créé (statut draft) si generated, sinon None
+    citations: list[CitationOut]
+
+
+def _memo_title(question: str) -> str:
+    """Titre par défaut d'un mémo, dérivé de la question."""
+    q = " ".join(question.split())
+    if len(q) > 70:
+        q = q[:70].rstrip() + "…"
+    return f"Note : {q}"
+
+
+@router.post("/deliverables/memo", response_model=MemoResponse)
+async def memo_deliverable(
+    payload: MemoRequest,
+    principal: Principal = Depends(authenticate),
+    session: AsyncSession = Depends(get_session),
+    settings: Settings = Depends(get_settings),
+    _csrf: None = Depends(require_csrf),
+) -> MemoResponse:
+    """Répond à une **question réglementaire** par une note ancrée sur le corpus, et
+    l'**enregistre comme livrable** (statut draft) de la mission — le pont recherche →
+    production. Ancré/cité, avec **abstention** si le corpus ne couvre pas (rien inventé).
+
+    `status` : `generated` (note + livrable créé), `abstained` (corpus insuffisant → pas
+    de livrable), `unavailable` (retrieval/LLM indisponible → pas de livrable). Le livrable
+    entre ensuite dans le circuit GED normal (édition, relecture, statut)."""
+    mission = await session.get(Mission, payload.mission_id)
+    if mission is None:
+        raise HTTPException(status_code=404, detail="mission_not_found")
+    pole = payload.pole or pole_from_offre(mission.offre)
+    schema, tags = schema_for(pole)
+
+    query = build_memo_query(payload.question)
+    outcome = await run_draft(
+        settings, schema=schema, tags=tags, query=query, system_prompt=MEMO_SYSTEM_PROMPT
+    )
+
+    deliverable: DeliverableOut | None = None
+    if outcome.status == "generated":
+        d = Deliverable(
+            mission_id=payload.mission_id,
+            template_id=None,
+            title=(payload.title or _memo_title(payload.question))[:200],
+            content=outcome.content,
+            status="draft",
+            version=1,
+            created_by_user_id=principal.user_id,
+        )
+        session.add(d)
+        await session.commit()
+        await session.refresh(d)
+        deliverable = _full(d)
+    _log.info(
+        "ged.deliverable.memo",
+        extra={
+            "mission_id": str(payload.mission_id),
+            "pole": pole,
+            "status": outcome.status,
+            "deliverable_id": str(deliverable.id) if deliverable else None,
+        },
+    )
+    return MemoResponse(
+        status=outcome.status,
+        pole=pole,
+        deliverable=deliverable,
         citations=_citations(outcome.citations),
     )

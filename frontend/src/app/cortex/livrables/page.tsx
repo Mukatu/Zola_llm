@@ -3,7 +3,7 @@
 // Cockpit cabinet (Zolacortex) : GED — bibliothèque de modèles de livrables
 // (admin:users) et livrables versionnés par mission (tout consultant).
 import { useEffect, useState } from "react";
-import { Files, FileText, Plus, Save, ScanSearch, Sparkles, Trash2, X } from "lucide-react";
+import { Files, FileText, Plus, Save, ScanSearch, Search, Sparkles, Trash2, X } from "lucide-react";
 import { Card, Button, Badge, Skeleton, type BadgeTone } from "@/components/ui";
 import { ApiError } from "@/lib/api";
 import { useZola, hasScope } from "@/components/ConfigProvider";
@@ -18,13 +18,24 @@ import {
   updateDeliverable,
   draftDeliverable,
   reviewDeliverable,
+  memoDeliverable,
   type Template,
   type Section,
   type DeliverableBrief,
   type Deliverable,
   type DeliverableStatus,
   type ReviewResult,
+  type MemoResult,
 } from "@/lib/cortex-ged";
+
+const POLES = [
+  { value: "", label: "Auto (déduit de l'offre)" },
+  { value: "droit", label: "Droit" },
+  { value: "erp", label: "ERP" },
+  { value: "sante", label: "Santé" },
+  { value: "cyber", label: "Cyber" },
+  { value: "fintech", label: "Fintech" },
+];
 
 const STATUS_TONE: Record<DeliverableStatus, BadgeTone> = {
   draft: "grey",
@@ -344,6 +355,54 @@ export default function LivrablesPage() {
   function closeReview() {
     setReview(null);
     setReviewMsg(null);
+  }
+
+  // --- Note de recherche (IA) ------------------------------------------------
+  const [memoQuestion, setMemoQuestion] = useState("");
+  const [memoPole, setMemoPole] = useState("");
+  const [memoTitle, setMemoTitle] = useState("");
+  const [memoLoading, setMemoLoading] = useState(false);
+  const [memoMsg, setMemoMsg] = useState<{ tone: "amber" | "success"; text: string } | null>(null);
+  const [memoResult, setMemoResult] = useState<MemoResult | null>(null);
+
+  async function submitMemo() {
+    if (!missionId) {
+      setMemoMsg({ tone: "amber", text: "Sélectionnez une mission." });
+      return;
+    }
+    if (!memoQuestion.trim()) {
+      setMemoMsg({ tone: "amber", text: "Question requise." });
+      return;
+    }
+    setMemoLoading(true);
+    setMemoMsg(null);
+    setMemoResult(null);
+    try {
+      const result = await memoDeliverable({
+        mission_id: missionId,
+        question: memoQuestion.trim(),
+        pole: memoPole || undefined,
+        title: memoTitle.trim() || undefined,
+      });
+      if (result.status === "generated") {
+        setMemoResult(result);
+        setMemoMsg({ tone: "success", text: "Note de recherche générée et citée — livrable ajouté (brouillon)." });
+        setMemoQuestion("");
+        setMemoTitle("");
+        await reloadDeliverables();
+      } else if (result.status === "abstained") {
+        setMemoMsg({
+          tone: "amber",
+          text: "Le corpus ne couvre pas cette question — aucune note produite (rien inventé).",
+        });
+      } else {
+        setMemoMsg({ tone: "amber", text: "Service de rédaction indisponible pour le moment." });
+      }
+    } catch (e) {
+      setMemoMsg({ tone: "amber", text: messageFromError(e, "Service de rédaction indisponible pour le moment.") });
+    } finally {
+      setMemoLoading(false);
+    }
   }
 
   if (config.profil !== "cortex") {
@@ -696,6 +755,86 @@ export default function LivrablesPage() {
                     </p>
                   </div>
                 )}
+              </div>
+            )}
+          </div>
+        )}
+      </Card>
+
+      {/* --- Note de recherche (IA) --- */}
+      <Card className="flex flex-col gap-4">
+        <div className="flex items-center gap-2 text-sm font-semibold">
+          <Search className="h-4 w-4" /> Note de recherche (IA)
+        </div>
+        <p className="text-sm text-muted">
+          Posez une question de recherche ; l&apos;assistant rédige une note ancrée sur le corpus et citée,
+          ajoutée comme livrable brouillon de la mission sélectionnée ci-dessus (le moteur ne tranche pas).
+        </p>
+
+        <label className="text-sm">
+          <span className="mb-1 block font-medium">Question</span>
+          <textarea
+            value={memoQuestion}
+            onChange={(e) => setMemoQuestion(e.target.value)}
+            rows={3}
+            placeholder="ex. Quel est le régime de la garantie décennale en droit OHADA ?"
+            className="w-full rounded-lg border border-black/10 bg-white px-3 py-2 text-sm"
+          />
+        </label>
+
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="text-sm">
+            <span className="mb-1 block font-medium">Pôle (optionnel)</span>
+            <select
+              value={memoPole}
+              onChange={(e) => setMemoPole(e.target.value)}
+              className="w-full rounded-lg border border-black/10 bg-white px-2 py-1 text-sm"
+            >
+              {POLES.map((p) => (
+                <option key={p.value} value={p.value}>
+                  {p.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="text-sm">
+            <span className="mb-1 block font-medium">Titre du livrable (optionnel)</span>
+            <input
+              type="text"
+              value={memoTitle}
+              onChange={(e) => setMemoTitle(e.target.value)}
+              placeholder="ex. Note — garantie décennale OHADA"
+              className="w-full rounded-lg border border-black/10 bg-white px-2 py-1 text-sm"
+            />
+          </label>
+        </div>
+
+        <div>
+          <Button onClick={submitMemo} disabled={memoLoading || !missionId}>
+            <Sparkles className="h-4 w-4" /> {memoLoading ? "Rédaction en cours… (peut prendre 30 s)" : "Générer la note"}
+          </Button>
+        </div>
+
+        {memoMsg && (
+          <p className={"text-sm " + (memoMsg.tone === "success" ? "text-forest" : "text-amber-700")}>
+            {memoMsg.text}
+          </p>
+        )}
+
+        {memoResult?.deliverable && (
+          <div className="rounded-xl border border-black/10 bg-black/[0.02] p-4">
+            <div className="mb-2 text-sm font-semibold">{memoResult.deliverable.title}</div>
+            <p className="whitespace-pre-wrap text-sm">{memoResult.deliverable.content}</p>
+            {memoResult.citations.length > 0 && (
+              <div className="mt-3 border-t border-black/5 pt-2">
+                <div className="mb-1 text-xs font-medium text-muted">Sources citées</div>
+                <ul className="flex flex-col gap-1 text-xs text-muted">
+                  {memoResult.citations.map((c) => (
+                    <li key={c.index}>
+                      [{c.index}] {c.source_uri} (extrait {c.chunk_index}, similarité {c.similarity.toFixed(2)})
+                    </li>
+                  ))}
+                </ul>
               </div>
             )}
           </div>

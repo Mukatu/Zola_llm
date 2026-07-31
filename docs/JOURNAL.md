@@ -6,6 +6,28 @@ les messages de commit.
 
 ---
 
+## 2026-07-31 — IA : mémo réglementaire savable (recherche → production)
+
+4ᵉ surface IA, le **pont recherche → production** : un consultant pose une **question
+réglementaire** sur sa mission ; l'IA rend une **note ancrée et citée**, **enregistrée
+comme livrable** (statut draft) — qui entre alors dans le circuit GED (édition, relecture,
+statut). Distincte des surfaces de rédaction (pilotée par une question, pas un modèle).
+
+- **Endpoint** `POST /v1/cortex/ged/deliverables/memo {mission_id, question, pole?, title?}`
+  (cortex, CSRF) → `status` (generated/abstained/unavailable) + `deliverable` (créé si
+  `generated`, sinon `null`) + citations. 404 si mission inconnue. Corpus insuffisant →
+  `abstained`, **aucun livrable créé** (rien inventé).
+- Réutilise `run_draft` avec un `MEMO_SYSTEM_PROMPT` dédié (## Réponse / ## Fondement /
+  ## À vérifier / limites) + `build_memo_query` (la question devient la requête de retrieve
+  ET le message). Titre par défaut dérivé de la question (`_memo_title`).
+- **Front** : section « Note de recherche (IA) » sur `/cortex/livrables` → la note générée
+  apparaît dans la liste des livrables de la mission (rafraîchie).
+- **Valeur prouvée** en conteneur : « obligations de préavis d'un cadre en CDI ? » →
+  note `generated`, 8 citations (« préavis 3 mois [2] », convention collective [5]) —
+  question ad hoc transformée en artefact de mission durable et cité.
+- 4 surfaces IA désormais branchées, toutes via `run_draft` : rédaction de livrable,
+  rédaction de proposition, relecture qualité, **mémo réglementaire savable**.
+
 ## 2026-07-31 — IA de relecture qualité des livrables (contrôle d'ancrage)
 
 3ᵉ surface IA, **distincte** de la rédaction : au lieu de produire, l'IA **confronte**
