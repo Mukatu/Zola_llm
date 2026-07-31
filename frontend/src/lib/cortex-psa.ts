@@ -97,3 +97,31 @@ export function getUtilization(period?: string): Promise<UtilizationRow[]> {
 export function getRateCard(): Promise<RateCard> {
   return api<RateCard>("/v1/cortex/psa/rate-card");
 }
+
+// --- Saisie assistée (IA) — propositions de lignes de temps à partir d'un
+// récit libre ; rien n'est créé côté serveur, chaque ligne reste à valider
+// (via logTime) par le consultant. ---------------------------------------
+
+export interface TimeSuggestion {
+  entry_date: string | null;
+  minutes: number;
+  hours: number;
+  activity: string;
+  billable: boolean;
+  mission_id: string | null;
+  mission_label: string | null;
+}
+
+export interface AssistTimeResult {
+  status: "suggested" | "unavailable";
+  suggestions: TimeSuggestion[];
+}
+
+export interface AssistTimeInput {
+  narrative: string;
+  week_start?: string;
+}
+
+export function assistTimeEntries(input: AssistTimeInput): Promise<AssistTimeResult> {
+  return api<AssistTimeResult>("/v1/cortex/psa/time-entries/assist", { method: "POST", body: input });
+}

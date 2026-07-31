@@ -26,7 +26,7 @@ from zolaos.api.v1.auth import require_csrf
 from zolaos.core.logging import get_logger
 from zolaos.core.profiles import require_cortex
 from zolaos.core.settings import Settings, get_settings
-from zolaos.db.models import Mission, TimeEntry, User
+from zolaos.db.models import Mission, Tenant, TimeEntry, User
 from zolaos.db.session import get_session
 from zolaos.psa import (
     compute_engagement_economics,
@@ -35,6 +35,7 @@ from zolaos.psa import (
     load_rate_card,
     resolve_rates,
 )
+from zolaos.psa.time_assist import suggest_time_entries
 
 _log = get_logger("zolaos.api.v1.cortex_psa")
 
@@ -124,6 +125,86 @@ async def create_time_entry(
     await session.refresh(entry)
     _log.info("psa.time_entry.created", extra={"entry_id": str(entry.id)})
     return _to_out(entry)
+
+
+# ---------------------------------------------------------------------------
+# Saisie assistée (IA) — récit libre → propositions de lignes (rien n'est créé)
+# ---------------------------------------------------------------------------
+class AssistTimeRequest(BaseModel):
+    narrative: str = Field(min_length=3, max_length=4000)
+    week_start: date | None = Field(
+        default=None, description="Lundi de référence pour résoudre « lundi/mardi… »"
+    )
+
+
+class TimeSuggestionOut(BaseModel):
+    entry_date: date | None
+    minutes: int
+    hours: float
+    activity: str
+    billable: bool
+    mission_id: uuid.UUID | None
+    mission_label: str | None
+
+
+class AssistTimeResponse(BaseModel):
+    status: str  # suggested | unavailable
+    suggestions: list[TimeSuggestionOut]
+
+
+@router.post("/time-entries/assist", response_model=AssistTimeResponse)
+async def assist_time_entries(
+    payload: AssistTimeRequest,
+    principal: Principal = Depends(authenticate),
+    session: AsyncSession = Depends(get_session),
+    settings: Settings = Depends(get_settings),
+    _csrf: None = Depends(require_csrf),
+) -> AssistTimeResponse:
+    """Extrait des **propositions** de lignes de temps du récit libre du consultant
+    (le LLM structure, il n'invente ni durée ni activité absente du récit ; mission
+    choisie parmi celles du consultant). **Ne crée rien** : le consultant relit,
+    corrige et valide chaque ligne avant de la saisir (les taux/montants restent
+    déterministes, figés à la création réelle). `status` : `suggested` (liste éventuelle-
+    ment vide) ou `unavailable` (LLM indisponible)."""
+    rows = (
+        await session.execute(
+            select(Mission, Tenant.name)
+            .join(Tenant, Tenant.id == Mission.client_tenant_id, isouter=True)
+            .where(Mission.consultant_user_id == principal.user_id)
+            .order_by(Mission.started_at.desc())
+            .limit(50)
+        )
+    ).all()
+    missions = [
+        {"id": str(m.id), "label": f"{m.offre or 'mission'} — {name or 'client'}"}
+        for m, name in rows
+    ]
+
+    outcome = await suggest_time_entries(
+        settings,
+        narrative=payload.narrative,
+        week_start=payload.week_start,
+        missions=missions,
+    )
+    _log.info(
+        "psa.time_entry.assisted",
+        extra={"status": outcome.status, "count": len(outcome.suggestions)},
+    )
+    return AssistTimeResponse(
+        status=outcome.status,
+        suggestions=[
+            TimeSuggestionOut(
+                entry_date=date.fromisoformat(s.entry_date) if s.entry_date else None,
+                minutes=s.minutes,
+                hours=round(s.minutes / 60, 2),
+                activity=s.activity,
+                billable=s.billable,
+                mission_id=uuid.UUID(s.mission_id) if s.mission_id else None,
+                mission_label=s.mission_label,
+            )
+            for s in outcome.suggestions
+        ],
+    )
 
 
 @router.get("/time-entries", response_model=list[TimeEntryOut])

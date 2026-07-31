@@ -6,6 +6,28 @@ les messages de commit.
 
 ---
 
+## 2026-07-31 — IA : saisie de temps assistée (récit → lignes proposées)
+
+5ᵉ surface IA, une **capacité nouvelle** (extraction structurée, hors-RAG) : le
+consultant décrit sa semaine en langage libre ; l'IA en **extrait** des lignes de
+temps (date, durée, activité, mission). Ce sont des **propositions** — rien n'est créé,
+le consultant relit/corrige/valide chaque ligne (« je propose, l'humain valide »).
+L'IA structure le récit ; les taux/montants restent **déterministes** (figés à la
+création réelle selon le grade) — elle ne touche jamais à l'économie.
+
+- **Module** `zolaos/psa/time_assist.py` (hors-RAG) : `suggest_time_entries()` appelle
+  le modèle léger local en `json_mode` ; `_parse_entries` **borne/valide** chaque champ
+  (durée > 0 et ≤ 24 h, date ISO sinon null, `mission_id` retenu SEULEMENT s'il figure
+  dans les missions du consultant → anti-hallucination), cap 30 lignes. Ne lève jamais.
+- **Endpoint** `POST /v1/cortex/psa/time-entries/assist {narrative, week_start?}` → `status`
+  (suggested/unavailable) + suggestions {entry_date, minutes, hours, activity, billable,
+  mission_id, mission_label}. **Ne crée rien.** Résout les missions du consultant courant.
+- **Front** : section « Saisie assistée (IA) » sur `/cortex/temps` → tableau éditable de
+  propositions ; « Ajouter » crée la ligne via l'endpoint existant, « Ignorer » l'écarte.
+- **Validé** en conteneur : récit « Lundi 3h audit ACME, mardi 2h cadrage fiscal… » →
+  4 lignes, missions correctement mappées (ACME↔audit, Brasseries↔fiscal), durées exactes
+  (3h/2h/1h30/4h). Dates approximatives (limite 8B) → corrigées par le consultant.
+
 ## 2026-07-31 — IA : mémo réglementaire savable (recherche → production)
 
 4ᵉ surface IA, le **pont recherche → production** : un consultant pose une **question

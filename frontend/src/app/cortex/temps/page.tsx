@@ -4,7 +4,7 @@
 // soumet son temps sur les missions ; le cabinet (admin:users) suit en plus
 // l'économie de mission (honoraires/coût/marge/WIP) et le taux d'occupation.
 import { useEffect, useMemo, useState } from "react";
-import { Clock, Timer, TrendingUp, Info, Send } from "lucide-react";
+import { Clock, Timer, TrendingUp, Info, Send, Sparkles, Plus } from "lucide-react";
 import { Card, Button, Badge, Skeleton, type BadgeTone } from "@/components/ui";
 import { ApiError } from "@/lib/api";
 import { useZola, hasScope } from "@/components/ConfigProvider";
@@ -16,12 +16,22 @@ import {
   getEngagement,
   getUtilization,
   getRateCard,
+  assistTimeEntries,
   type TimeEntry,
   type TimeEntryStatus,
   type Economics,
   type UtilizationRow,
   type RateCard,
 } from "@/lib/cortex-psa";
+
+interface DraftRow {
+  key: string;
+  entry_date: string;
+  hours: string;
+  mission_id: string;
+  activity: string;
+  billable: boolean;
+}
 
 const STATUS_TONE: Record<TimeEntryStatus, BadgeTone> = {
   draft: "grey",
@@ -163,6 +173,76 @@ export default function TempsPage() {
       setMyErr(messageFromError(e, "Échec de la soumission."));
     } finally {
       setBusyId(null);
+    }
+  }
+
+  // --- Saisie assistée (IA) — propositions à valider, rien n'est créé ------
+  const [narrative, setNarrative] = useState("");
+  const [weekStart, setWeekStart] = useState("");
+  const [assisting, setAssisting] = useState(false);
+  const [assistErr, setAssistErr] = useState<string | null>(null);
+  const [assistStatus, setAssistStatus] = useState<"idle" | "suggested" | "unavailable">("idle");
+  const [drafts, setDrafts] = useState<DraftRow[]>([]);
+  const [draftBusy, setDraftBusy] = useState<string | null>(null);
+
+  async function proposeEntries() {
+    if (!narrative.trim()) return;
+    setAssisting(true);
+    setAssistErr(null);
+    try {
+      const result = await assistTimeEntries({ narrative, week_start: weekStart || undefined });
+      setAssistStatus(result.status);
+      if (result.status === "suggested") {
+        setDrafts(
+          result.suggestions.map((s, i) => ({
+            key: `sug-${Date.now()}-${i}`,
+            entry_date: s.entry_date ?? todayIso(),
+            hours: String(s.hours),
+            mission_id: s.mission_id ?? "",
+            activity: s.activity,
+            billable: s.billable,
+          })),
+        );
+      } else {
+        setDrafts([]);
+      }
+    } catch (e) {
+      setAssistErr(messageFromError(e, "Échec de la suggestion de saisie."));
+    } finally {
+      setAssisting(false);
+    }
+  }
+
+  function updateDraft(key: string, patch: Partial<DraftRow>) {
+    setDrafts((rows) => rows.map((r) => (r.key === key ? { ...r, ...patch } : r)));
+  }
+
+  function dismissDraft(key: string) {
+    setDrafts((rows) => rows.filter((r) => r.key !== key));
+  }
+
+  async function addDraft(row: DraftRow) {
+    const h = Number(row.hours);
+    if (!row.mission_id || !h || h <= 0) {
+      setAssistErr("Sélectionnez une mission et une durée valide avant d'ajouter.");
+      return;
+    }
+    setDraftBusy(row.key);
+    setAssistErr(null);
+    try {
+      await logTime({
+        mission_id: row.mission_id,
+        entry_date: row.entry_date,
+        minutes: Math.round(h * 60),
+        billable: row.billable,
+        activity: row.activity,
+      });
+      dismissDraft(row.key);
+      await reloadMine();
+    } catch (e) {
+      setAssistErr(messageFromError(e, "Échec de l'ajout de la ligne."));
+    } finally {
+      setDraftBusy(null);
     }
   }
 
@@ -396,6 +476,148 @@ export default function TempsPage() {
             </div>
           )}
         </div>
+      </Card>
+
+      {/* --- Saisie assistée (IA) --- */}
+      <Card className="flex flex-col gap-4">
+        <div className="flex items-center gap-2 text-sm font-semibold">
+          <Sparkles className="h-4 w-4" /> Saisie assistée (IA)
+        </div>
+        <p className="text-xs text-muted">
+          Décrivez votre semaine en langage libre : l&apos;assistant propose des lignes de temps à
+          partir de votre récit. <strong>Rien n&apos;est enregistré</strong> — chaque ligne reste une
+          proposition que vous relisez, corrigez si besoin, puis validez une à une avec « Ajouter ».
+        </p>
+
+        <label className="text-sm">
+          <span className="mb-1 block font-medium">Récit de la semaine</span>
+          <textarea
+            value={narrative}
+            onChange={(e) => setNarrative(e.target.value)}
+            rows={4}
+            placeholder="ex. Lundi 3h sur l'audit ACME, mardi 2h de cadrage…"
+            className="w-full rounded-lg border border-black/10 bg-white px-2 py-1 text-sm"
+          />
+        </label>
+
+        <div className="flex flex-wrap items-end gap-3">
+          <label className="text-sm">
+            <span className="mb-1 block font-medium">Lundi de référence (optionnel)</span>
+            <input
+              type="date"
+              value={weekStart}
+              onChange={(e) => setWeekStart(e.target.value)}
+              className="rounded-lg border border-black/10 bg-white px-2 py-1 text-sm"
+            />
+          </label>
+          <Button onClick={proposeEntries} disabled={assisting || !narrative.trim()}>
+            <Sparkles className="h-4 w-4" /> {assisting ? "Analyse en cours…" : "Proposer des lignes"}
+          </Button>
+        </div>
+
+        {assistErr && <p className="text-sm text-amber-700">{assistErr}</p>}
+        {assistStatus === "unavailable" && (
+          <p className="text-sm text-amber-700">Assistant de saisie indisponible pour le moment.</p>
+        )}
+        {assistStatus === "suggested" && drafts.length === 0 && (
+          <p className="text-sm text-muted">Aucune ligne détectée dans le récit.</p>
+        )}
+
+        {drafts.length > 0 && (
+          <div className="flex flex-col gap-2">
+            <p className="text-xs font-medium text-amber-700">
+              Propositions à valider — aucune ligne n&apos;est enregistrée avant votre clic sur « Ajouter ».
+            </p>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-black/5 text-left text-xs text-muted">
+                    <th className="py-2 pr-3 font-medium">Date</th>
+                    <th className="py-2 pr-3 font-medium">Durée (h)</th>
+                    <th className="py-2 pr-3 font-medium">Mission</th>
+                    <th className="py-2 pr-3 font-medium">Activité</th>
+                    <th className="py-2 pr-3 font-medium">Facturable</th>
+                    <th className="py-2 pr-3 font-medium" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {drafts.map((row) => (
+                    <tr key={row.key} className="border-b border-black/5 last:border-0">
+                      <td className="py-2 pr-3">
+                        <input
+                          type="date"
+                          value={row.entry_date}
+                          onChange={(e) => updateDraft(row.key, { entry_date: e.target.value })}
+                          className="w-full rounded-lg border border-black/10 bg-white px-2 py-1 text-xs"
+                        />
+                      </td>
+                      <td className="py-2 pr-3">
+                        <input
+                          type="number"
+                          min={0}
+                          step={0.25}
+                          value={row.hours}
+                          onChange={(e) => updateDraft(row.key, { hours: e.target.value })}
+                          className="w-20 rounded-lg border border-black/10 bg-white px-2 py-1 text-xs"
+                        />
+                      </td>
+                      <td className="py-2 pr-3">
+                        {missions.length > 0 ? (
+                          <select
+                            value={row.mission_id}
+                            onChange={(e) => updateDraft(row.key, { mission_id: e.target.value })}
+                            className="w-full rounded-lg border border-black/10 bg-white px-2 py-1 text-xs"
+                          >
+                            <option value="">—</option>
+                            {missions.map((m) => (
+                              <option key={m.mission_id} value={m.mission_id}>
+                                {m.offre}
+                              </option>
+                            ))}
+                          </select>
+                        ) : (
+                          <input
+                            type="text"
+                            value={row.mission_id}
+                            onChange={(e) => updateDraft(row.key, { mission_id: e.target.value })}
+                            placeholder="id de la mission"
+                            className="w-full rounded-lg border border-black/10 bg-white px-2 py-1 text-xs"
+                          />
+                        )}
+                      </td>
+                      <td className="py-2 pr-3">
+                        <input
+                          type="text"
+                          value={row.activity}
+                          onChange={(e) => updateDraft(row.key, { activity: e.target.value })}
+                          className="w-full rounded-lg border border-black/10 bg-white px-2 py-1 text-xs"
+                        />
+                      </td>
+                      <td className="py-2 pr-3">
+                        <input
+                          type="checkbox"
+                          checked={row.billable}
+                          onChange={(e) => updateDraft(row.key, { billable: e.target.checked })}
+                          className="h-3.5 w-3.5 accent-primary"
+                        />
+                      </td>
+                      <td className="py-2 pr-3 text-right">
+                        <div className="flex justify-end gap-1.5">
+                          <Button onClick={() => addDraft(row)} disabled={draftBusy === row.key}>
+                            <Plus className="h-3.5 w-3.5" /> Ajouter
+                          </Button>
+                          <Button variant="ghost" onClick={() => dismissDraft(row.key)} disabled={draftBusy === row.key}>
+                            Ignorer
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
       </Card>
 
       {/* --- Vue cabinet --- */}
