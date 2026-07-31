@@ -1,5 +1,5 @@
 // Client API typé minimal vers l'API ZolaOS (/v1).
-import { fetchDevToken, getCsrf, getToken, redirectToLogin, refreshSession } from "./auth";
+import { fetchDevToken, getCsrf, getToken, me, redirectToLogin, refreshSession } from "./auth";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000";
 // Ne jamais rediriger sur un 401 des endpoints d'auth eux-mêmes (login/refresh/me
@@ -45,13 +45,22 @@ export async function api<T>(path: string, opts: ApiOptions = {}): Promise<T> {
     if (!AUTH_PATH.test(path) && (await refreshSession())) {
       r = await send();
     } else {
-      // 2) Sinon repli dev (auto-login local), puis /login hors dev.
+      // 2) Sinon repli dev (auto-login local).
       const fresh = await fetchDevToken();
       if (fresh) {
         r = await send(fresh);
       } else if (!AUTH_PATH.test(path)) {
-        redirectToLogin();
-        throw new ApiError(401, "Authentification requise.");
+        // 3) Avant d'éjecter vers /login : reconfirmer que la session est
+        // vraiment morte. Un 401 transitoire (course au chargement, refresh
+        // qui a hoqueté) ne doit pas renvoyer au login si /v1/auth/me répond
+        // encore — sinon apparaît le « login furtif » (connecté puis rejeté).
+        const stillValid = await me();
+        if (stillValid) {
+          r = await send(); // la session vit : on rejoue la requête d'origine
+        } else {
+          redirectToLogin();
+          throw new ApiError(401, "Authentification requise.");
+        }
       }
     }
   }

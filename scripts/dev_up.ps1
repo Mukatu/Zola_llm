@@ -1,7 +1,7 @@
 #!/usr/bin/env pwsh
 <#
 .SYNOPSIS
-  Démarre l'atelier de dev HYBRIDE ZolaOS d'un coup : box (:8000) + cortex (:8001)
+  Démarre l'atelier de dev HYBRIDE ZolaOS d'un coup : box (:8000) + cortex (:8010)
   + Postgres/Redis/MinIO, migrations, semence (admin + cabinet + client + tunnel),
   et frontend. Reproductible — remplace tout montage manuel.
 
@@ -23,7 +23,7 @@
 param(
   [string]$BgeM3Path = "C:\Users\duqat\bge-m3",
   [int]$ApiPort = 8000,
-  [int]$CortexPort = 8001,
+  [int]$CortexPort = 8010,
   [int]$FrontendPort = 3000,
   [switch]$Dev
 )

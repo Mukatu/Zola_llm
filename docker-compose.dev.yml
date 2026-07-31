@@ -31,7 +31,7 @@ services:
       <<: *dev-pythonpath
 
   # Face CABINET pour le développement HYBRIDE : 2ᵉ conteneur app en profil cortex,
-  # sur le port 8001, MÊME Postgres/Redis/MinIO/Ollama que la box. Remplace le
+  # sur le port 8010, MÊME Postgres/Redis/MinIO/Ollama que la box. Remplace le
   # `docker run` manuel — le cortex fait désormais partie du `up` reproductible.
   # Le bind-mount de src/ lui donne les overlays + cortex.py (le profil box, lui,
   # ne les charge pas). Le tunnel : la box dial `ws://zolaos-cortex:8000`.
@@ -69,5 +69,5 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
     ports:
-      - "8001:8000"
+      - "8010:8000"
     networks: [zolaos-net]
