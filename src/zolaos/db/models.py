@@ -477,6 +477,9 @@ class Opportunity(Base):
         UUID(as_uuid=True), ForeignKey("core.missions.id", ondelete="SET NULL"), nullable=True
     )
     notes: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    # Proposition commerciale (lettre de mission) — rédigée à la main ou par l'IA
+    # (ancrée corpus, citée, sans chiffrage). Markdown.
+    proposal: Mapped[str] = mapped_column(Text, default="", nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )

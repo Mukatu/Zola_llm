@@ -6,6 +6,26 @@ les messages de commit.
 
 ---
 
+## 2026-07-31 — IA sur les propositions commerciales (patron réutilisé)
+
+Le patron de rédaction ancrée (livrables) **généralisé** à l'amont : rédiger une
+**proposition commerciale** (lettre de mission) pour une opportunité, ancrée corpus,
+citée, **sans chiffrer d'honoraires** (le prix reste décision cabinet).
+
+- **Factorisation** : `ged/drafting.run_draft(settings, *, schema, tags, query, system_prompt?)`
+  → `DraftOutcome{status, content, citations}` (retrieve + abstention + génération, ne
+  lève jamais). `DeliverableDraftAgent` accepte un `system_prompt` (prompt livrable OU
+  proposition). `cortex_ged` refactoré pour l'utiliser (DRY).
+- **Proposition** : `opportunities.proposal` (markdown ; migration `0070`) + endpoint
+  `POST /v1/cortex/pipeline/{id}/proposal/draft {pole?, apply?}` (statut generated/
+  abstained/unavailable ; écrit dans l'opportunité si `apply=true`). Prompt dédié
+  (`PROPOSAL_SYSTEM_PROMPT`) : structure lettre de mission, **interdit tout montant**.
+  `proposal` éditable via `PATCH /v1/cortex/pipeline/{id}`.
+- **Front** : zone « Proposition commerciale » sur l'opportunité (textarea + bouton
+  « Rédiger la proposition (IA) »).
+- Validé en conteneur : « Objet : Proposition commerciale pour un audit de conformité
+  sociale — ACME SARL… », ancrée sur 8 extraits, sans prix.
+
 ## 2026-07-31 — GED : modèles de livrables & documents produits
 
 Le dernier classique : bibliothèque de **modèles de livrables** (squelettes) + les

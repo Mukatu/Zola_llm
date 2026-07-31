@@ -4,7 +4,7 @@
 // (prospects et clients existants) du lead jusqu'à la conversion en mission.
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Target, TrendingUp, Trophy, Plus, RefreshCw, ArrowRight, CheckCircle2 } from "lucide-react";
+import { Target, TrendingUp, Trophy, Plus, RefreshCw, ArrowRight, CheckCircle2, Sparkles, Save } from "lucide-react";
 import { Card, Button, Badge, Skeleton, type BadgeTone } from "@/components/ui";
 import { ApiError } from "@/lib/api";
 import { useZola, hasScope } from "@/components/ConfigProvider";
@@ -14,6 +14,7 @@ import {
   getSummary,
   updateOpportunity,
   convertOpportunity,
+  draftProposal,
   type Opportunity,
   type Summary,
   type Stage,
@@ -57,6 +58,80 @@ function fmtDate(d: string | null): string {
 }
 
 const EMPTY_FORM: CreateOpportunityInput = { title: "", offre: OFFRES[0], amount_estimate: 0, expected_close_date: "", notes: "" };
+
+function ProposalSection({ opportunity, onUpdated }: { opportunity: Opportunity; onUpdated: (o: Opportunity) => void }) {
+  const [text, setText] = useState(opportunity.proposal);
+  const [saving, setSaving] = useState(false);
+  const [drafting, setDrafting] = useState(false);
+  const [msg, setMsg] = useState<{ tone: "success" | "amber"; text: string } | null>(null);
+
+  useEffect(() => {
+    setText(opportunity.proposal);
+  }, [opportunity.proposal]);
+
+  async function save() {
+    setSaving(true);
+    try {
+      const updated = await updateOpportunity(opportunity.id, { proposal: text });
+      onUpdated(updated);
+      setMsg(null);
+    } catch (e) {
+      setMsg({ tone: "amber", text: messageFromError(e, "Échec de l'enregistrement.") });
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function draftWithAI() {
+    setDrafting(true);
+    setMsg(null);
+    try {
+      const result = await draftProposal(opportunity.id, { apply: true });
+      if (result.status === "generated") {
+        onUpdated({ ...opportunity, proposal: result.content });
+        setText(result.content);
+        setMsg({ tone: "success", text: "Proposition générée et citée — à relire (sans chiffrage)." });
+      } else if (result.status === "abstained") {
+        setMsg({ tone: "amber", text: "Le corpus ne couvre pas ce sujet — rien n'a été rédigé." });
+      } else {
+        setMsg({ tone: "amber", text: "Assistant IA momentanément indisponible." });
+      }
+    } catch (e) {
+      setMsg({ tone: "amber", text: messageFromError(e, "Assistant IA momentanément indisponible.") });
+    } finally {
+      setDrafting(false);
+    }
+  }
+
+  return (
+    <details className="border-t border-black/5 pt-2">
+      <summary className="cursor-pointer list-none text-xs font-medium text-ink marker:hidden">
+        Proposition commerciale
+      </summary>
+      <div className="mt-2 flex flex-col gap-2">
+        <textarea
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          rows={6}
+          placeholder="Aucune proposition rédigée pour le moment."
+          className="w-full rounded-lg border border-black/10 bg-white px-2 py-1 text-xs"
+        />
+        {msg && (
+          <p className={"text-xs " + (msg.tone === "success" ? "text-forest" : "text-amber-700")}>{msg.text}</p>
+        )}
+        <div className="flex flex-wrap items-center gap-2">
+          <Button variant="ghost" onClick={save} disabled={saving}>
+            <Save className="h-3.5 w-3.5" /> Enregistrer
+          </Button>
+          <Button variant="ghost" onClick={draftWithAI} disabled={drafting}>
+            <Sparkles className="h-3.5 w-3.5" /> {drafting ? "Rédaction en cours…" : "Rédiger la proposition (IA)"}
+          </Button>
+        </div>
+        <p className="text-xs text-muted">Contexte réglementaire ancré et cité ; le chiffrage reste votre décision.</p>
+      </div>
+    </details>
+  );
+}
 
 export default function PipelinePage() {
   const { config, user } = useZola();
@@ -131,6 +206,10 @@ export default function PipelinePage() {
     } finally {
       setBusy(false);
     }
+  }
+
+  function patchOpportunity(updated: Opportunity) {
+    setOpportunities((prev) => (prev ? prev.map((o) => (o.id === updated.id ? updated : o)) : prev));
   }
 
   async function convert(id: string) {
@@ -339,6 +418,7 @@ export default function PipelinePage() {
                           </Link>
                         )}
                       </div>
+                      <ProposalSection opportunity={o} onUpdated={patchOpportunity} />
                     </Card>
                   ))}
                 </div>

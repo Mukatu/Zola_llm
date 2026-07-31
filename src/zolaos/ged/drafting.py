@@ -12,7 +12,14 @@ valide (doctrine « je cite, je ne tranche pas ») — jamais publié automatiqu
 
 from __future__ import annotations
 
-from zolaos.agents.rag_agent import RAGAgent
+from dataclasses import dataclass, field
+from typing import Any
+
+from zolaos.agents.rag_agent import Citation, InsufficientContextError, RAGAgent
+from zolaos.core.logging import get_logger
+from zolaos.llm.factory import make_router_client
+
+_log = get_logger("zolaos.ged.drafting")
 
 # Pôle → (schéma RAG de référence, tags requis). Corpus PUBLICS de référence.
 POLE_SCHEMAS: dict[str, tuple[str, list[str]]] = {
@@ -34,6 +41,21 @@ _DRAFT_SYSTEM_PROMPT = (
     "écris-le explicitement (« à compléter — non couvert par les sources »).\n"
     "- Structure le livrable en sections (titres markdown ##) fidèles à la demande.\n"
     "- Style sobre et professionnel. Ce n'est qu'un PROJET, à relire par un consultant.\n"
+    "- N'évoque aucun mécanisme interne (ne dis pas « RAG », « extraits », « contexte »)."
+)
+
+
+_PROPOSAL_SYSTEM_PROMPT = (
+    "Tu rédiges une PROPOSITION COMMERCIALE (lettre de mission) pour un cabinet de "
+    "conseil/audit en République du Congo, en français, à partir des TEXTES DE "
+    "RÉFÉRENCE fournis. Structure : contexte réglementaire, compréhension du besoin, "
+    "approche/méthodologie, livrables attendus, cadre déontologique. Règles impératives :\n"
+    "- Appuie le contexte réglementaire STRICTEMENT sur les textes ci-dessus ; cite "
+    "avec leur numéro entre crochets, ex. [1], [2].\n"
+    "- Ne PROPOSE AUCUN MONTANT d'honoraires ni prix : le chiffrage est une décision "
+    "du cabinet, hors de ton champ. N'invente aucune valeur chiffrée ni référence.\n"
+    "- Si un point réglementaire n'est pas couvert par les textes, ne l'affirme pas.\n"
+    "- Ton professionnel et engageant, mais sobre. Ce n'est qu'un PROJET, à relire.\n"
     "- N'évoque aucun mécanisme interne (ne dis pas « RAG », « extraits », « contexte »)."
 )
 
@@ -68,6 +90,17 @@ def build_draft_query(title: str, content: str, offre: str | None) -> str:
     )
 
 
+def build_proposal_query(title: str, offre: str | None, client: str | None = None) -> str:
+    """Requête de rédaction d'une proposition commerciale (ancrée sur le corpus)."""
+    client_part = f" pour le client « {client} »" if client else ""
+    return (
+        f"Rédige une proposition commerciale (lettre de mission) « {title} »{client_part}, "
+        f"pour une mission « {offre or 'conseil'} », en français : contexte réglementaire, "
+        "compréhension du besoin, approche/méthodologie, livrables et cadre déontologique, "
+        "ancrée sur les textes de référence applicables. Ne chiffre aucun honoraire."
+    )
+
+
 def assemble_draft(generated: str, citations: list) -> str:  # type: ignore[type-arg]
     """Corps rédigé + annexe des sources citées (markdown)."""
     body = generated.strip()
@@ -90,14 +123,70 @@ class DeliverableDraftAgent(RAGAgent):
     max_tokens = 1200
     temperature = 0.2
 
-    def __init__(self, client, settings, *, schema: str, tags: list[str]) -> None:  # type: ignore[no-untyped-def]
+    def __init__(  # type: ignore[no-untyped-def]
+        self, client, settings, *, schema: str, tags: list[str], system_prompt: str | None = None
+    ) -> None:
         # Attributs d'instance qui masquent les ClassVar (schéma dynamique par pôle).
         self.name = "ged.draft"
         self.rag_schema = schema
         self.prompt_file = "inline"  # non chargé : _system_prompt est surchargé
         self.default_tags = tuple(tags)
+        self._prompt = system_prompt or _DRAFT_SYSTEM_PROMPT
         super().__init__(client, settings)
 
     @property
     def _system_prompt(self) -> str:  # surcharge la cached_property du parent
-        return _DRAFT_SYSTEM_PROMPT
+        return self._prompt
+
+
+@dataclass
+class DraftOutcome:
+    """Résultat d'une rédaction assistée (générique livrable/proposition)."""
+
+    status: str  # generated | abstained | unavailable
+    content: str = ""
+    citations: list[Citation] = field(default_factory=list)
+
+
+async def run_draft(
+    settings: Any,
+    *,
+    schema: str,
+    tags: list[str],
+    query: str,
+    system_prompt: str | None = None,
+    k: int = 8,
+) -> DraftOutcome:
+    """Exécute une rédaction ancrée : retrieve + abstention + génération + assemblage.
+
+    Ne lève jamais : `abstained` si le corpus ne couvre pas (garde-fou AVANT toute
+    génération), `unavailable` si le retrieval/LLM est indisponible, `generated` sinon.
+    Patron réutilisable pour toute surface (livrable, proposition…)."""
+    agent = DeliverableDraftAgent(
+        make_router_client(settings),
+        settings,
+        schema=schema,
+        tags=tags,
+        system_prompt=system_prompt,
+    )
+    try:
+        prepared = await agent.prepare(query, k=k)
+    except InsufficientContextError:
+        return DraftOutcome("abstained")
+    except Exception as exc:  # retrieval/embeddings indisponibles
+        _log.warning("draft.retrieve_unavailable", error=str(exc))
+        return DraftOutcome("unavailable")
+    try:
+        result = await agent.answer_prepared(prepared)
+    except Exception as exc:  # LLM local indisponible
+        _log.warning("draft.llm_unavailable", error=str(exc))
+        return DraftOutcome("unavailable", citations=list(prepared.citations))
+    return DraftOutcome(
+        "generated",
+        content=assemble_draft(result.content, result.citations),
+        citations=list(result.citations),
+    )
+
+
+# Exposé pour les endpoints (proposition commerciale).
+PROPOSAL_SYSTEM_PROMPT = _PROPOSAL_SYSTEM_PROMPT

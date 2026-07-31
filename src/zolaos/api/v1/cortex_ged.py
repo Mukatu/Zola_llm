@@ -23,7 +23,6 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from zolaos.agents.rag_agent import InsufficientContextError
 from zolaos.api.auth import Principal, authenticate, require_admin
 from zolaos.api.v1.auth import require_csrf
 from zolaos.core.logging import get_logger
@@ -32,14 +31,7 @@ from zolaos.core.settings import Settings, get_settings
 from zolaos.db.models import Deliverable, DeliverableTemplate, Mission
 from zolaos.db.session import get_session
 from zolaos.ged import build_skeleton
-from zolaos.ged.drafting import (
-    DeliverableDraftAgent,
-    assemble_draft,
-    build_draft_query,
-    pole_from_offre,
-    schema_for,
-)
-from zolaos.llm.factory import make_router_client
+from zolaos.ged.drafting import build_draft_query, pole_from_offre, run_draft, schema_for
 
 _log = get_logger("zolaos.api.v1.cortex_ged")
 
@@ -360,46 +352,24 @@ async def draft_deliverable(
     pole = payload.pole or pole_from_offre(offre)
     schema, tags = schema_for(pole)
 
-    agent = DeliverableDraftAgent(make_router_client(settings), settings, schema=schema, tags=tags)
     query = build_draft_query(d.title, d.content, offre)
+    outcome = await run_draft(settings, schema=schema, tags=tags, query=query)
 
-    # 1. Retrieve + garde-fous : l'abstention tombe AVANT toute génération.
-    try:
-        prepared = await agent.prepare(query, k=8)
-    except InsufficientContextError:
-        return DraftResponse(status="abstained", pole=pole, content="", citations=[], applied=False)
-    except Exception as exc:  # embeddings/DB de retrieval indisponibles
-        _log.warning("ged.draft.retrieve_unavailable", extra={"error": str(exc)})
-        return DraftResponse(
-            status="unavailable", pole=pole, content="", citations=[], applied=False
-        )
-
-    # 2. Génération (LLM local). Indispo → statut unavailable (jamais de 500).
-    try:
-        result = await agent.answer_prepared(prepared)
-    except Exception as exc:
-        _log.warning("ged.draft.llm_unavailable", extra={"error": str(exc)})
-        return DraftResponse(
-            status="unavailable",
-            pole=pole,
-            content="",
-            citations=_citations(prepared.citations),
-            applied=False,
-        )
-
-    content = assemble_draft(result.content, result.citations)
     applied = False
-    if payload.apply:
-        d.content = content
+    if outcome.status == "generated" and payload.apply:
+        d.content = outcome.content
         d.version += 1
         await session.commit()
         await session.refresh(d)
         applied = True
-    _log.info("ged.deliverable.drafted", extra={"deliverable_id": str(d.id), "pole": pole})
+    _log.info(
+        "ged.deliverable.drafted",
+        extra={"deliverable_id": str(d.id), "pole": pole, "status": outcome.status},
+    )
     return DraftResponse(
-        status="generated",
+        status=outcome.status,
         pole=pole,
-        content=content,
-        citations=_citations(result.citations),
+        content=outcome.content,
+        citations=_citations(outcome.citations),
         applied=applied,
     )

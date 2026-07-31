@@ -17,8 +17,10 @@ import {
   getSummary,
   updateOpportunity,
   convertOpportunity,
+  draftProposal,
   type Opportunity,
   type Summary,
+  type ProposalDraft,
 } from "./cortex-pipeline";
 
 const OPPORTUNITY: Opportunity = {
@@ -36,6 +38,7 @@ const OPPORTUNITY: Opportunity = {
   owner_user_id: null,
   mission_id: null,
   notes: "",
+  proposal: "",
   created_at: "2026-07-29T00:00:00Z",
 };
 
@@ -99,5 +102,22 @@ describe("cortex-pipeline", () => {
     apiMock.mockResolvedValueOnce([OPPORTUNITY]);
     await listOpportunities();
     expect(apiMock).toHaveBeenCalledWith("/v1/cortex/pipeline");
+  });
+
+  it("draftProposal : POST /v1/cortex/pipeline/{id}/proposal/draft", async () => {
+    const DRAFT: ProposalDraft = {
+      status: "generated",
+      pole: "droit",
+      content: "Proposition rédigée…",
+      citations: [{ index: 1, source_uri: "uri", source_id: "s1", chunk_index: 0, similarity: 0.9 }],
+      applied: true,
+    };
+    apiMock.mockResolvedValueOnce(DRAFT);
+    const result = await draftProposal("id", { apply: true });
+    expect(apiMock).toHaveBeenCalledWith("/v1/cortex/pipeline/id/proposal/draft", {
+      method: "POST",
+      body: { apply: true },
+    });
+    expect(result).toEqual(DRAFT);
   });
 });

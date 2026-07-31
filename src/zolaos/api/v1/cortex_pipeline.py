@@ -24,9 +24,17 @@ from zolaos.api.v1.auth import require_csrf
 from zolaos.audit import record_audit
 from zolaos.core.logging import get_logger
 from zolaos.core.profiles import require_cortex
+from zolaos.core.settings import Settings, get_settings
 from zolaos.crm import STAGES, default_probability, summarize_pipeline
 from zolaos.db.models import Mission, Opportunity, Tenant
 from zolaos.db.session import get_session
+from zolaos.ged.drafting import (
+    PROPOSAL_SYSTEM_PROMPT,
+    build_proposal_query,
+    pole_from_offre,
+    run_draft,
+    schema_for,
+)
 
 _log = get_logger("zolaos.api.v1.cortex_pipeline")
 
@@ -50,6 +58,7 @@ class OpportunityOut(BaseModel):
     owner_user_id: uuid.UUID | None
     mission_id: uuid.UUID | None
     notes: str
+    proposal: str
     created_at: datetime
 
 
@@ -69,6 +78,7 @@ def _to_out(o: Opportunity) -> OpportunityOut:
         owner_user_id=o.owner_user_id,
         mission_id=o.mission_id,
         notes=o.notes,
+        proposal=o.proposal,
         created_at=o.created_at,
     )
 
@@ -167,6 +177,7 @@ class UpdateOpportunity(BaseModel):
     probability: int | None = Field(default=None, ge=0, le=100)
     expected_close_date: date | None = None
     notes: str | None = Field(default=None, max_length=1000)
+    proposal: str | None = Field(default=None, max_length=50000)
     client_tenant_id: uuid.UUID | None = None
     stage: str | None = None
 
@@ -202,6 +213,8 @@ async def update_opportunity(
         opp.expected_close_date = payload.expected_close_date
     if payload.notes is not None:
         opp.notes = payload.notes
+    if payload.proposal is not None:
+        opp.proposal = payload.proposal
     if payload.client_tenant_id is not None:
         opp.client_tenant_id = payload.client_tenant_id
 
@@ -280,3 +293,78 @@ async def convert_opportunity(
         extra={"opportunity_id": str(opp.id), "mission_id": str(mission.id)},
     )
     return ConvertResponse(opportunity=_to_out(opp), mission_id=mission.id)
+
+
+# ---------------------------------------------------------------------------
+# Rédaction assistée (IA) d'une proposition commerciale — ancrée corpus, sans chiffrage
+# ---------------------------------------------------------------------------
+class ProposalDraftRequest(BaseModel):
+    pole: str | None = Field(
+        default=None, description="Corpus visé (droit/erp/sante/cyber/fintech)"
+    )
+    apply: bool = Field(default=False, description="Écrire le projet dans l'opportunité")
+
+
+class CitationOut(BaseModel):
+    index: int
+    source_uri: str
+    source_id: str | None
+    chunk_index: int
+    similarity: float
+
+
+class ProposalDraftResponse(BaseModel):
+    status: str  # generated | abstained | unavailable
+    pole: str
+    content: str
+    citations: list[CitationOut]
+    applied: bool
+
+
+@router.post("/{opportunity_id}/proposal/draft", response_model=ProposalDraftResponse)
+async def draft_proposal(
+    opportunity_id: uuid.UUID,
+    payload: ProposalDraftRequest,
+    _principal: Principal = Depends(authenticate),
+    session: AsyncSession = Depends(get_session),
+    settings: Settings = Depends(get_settings),
+    _csrf: None = Depends(require_csrf),
+) -> ProposalDraftResponse:
+    """Génère un **projet de proposition commerciale** ancré sur le corpus (contexte
+    réglementaire cité), **sans chiffrer d'honoraires** (décision cabinet). `status` :
+    generated / abstained (corpus insuffisant) / unavailable. Écrit dans l'opportunité
+    seulement si `apply=true` (relecture humaine par défaut)."""
+    opp = await _get_or_404(session, opportunity_id)
+    pole = payload.pole or pole_from_offre(opp.offre)
+    schema, tags = schema_for(pole)
+    client = opp.client_name or None
+    query = build_proposal_query(opp.title, opp.offre, client)
+
+    outcome = await run_draft(
+        settings, schema=schema, tags=tags, query=query, system_prompt=PROPOSAL_SYSTEM_PROMPT
+    )
+    applied = False
+    if outcome.status == "generated" and payload.apply:
+        opp.proposal = outcome.content
+        await session.commit()
+        applied = True
+    _log.info(
+        "crm.opportunity.proposal_drafted",
+        extra={"opportunity_id": str(opp.id), "pole": pole, "status": outcome.status},
+    )
+    return ProposalDraftResponse(
+        status=outcome.status,
+        pole=pole,
+        content=outcome.content,
+        citations=[
+            CitationOut(
+                index=c.index,
+                source_uri=c.source_uri,
+                source_id=c.source_id,
+                chunk_index=c.chunk_index,
+                similarity=c.similarity,
+            )
+            for c in outcome.citations
+        ],
+        applied=applied,
+    )

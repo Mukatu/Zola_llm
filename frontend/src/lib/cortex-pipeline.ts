@@ -19,6 +19,7 @@ export interface Opportunity {
   owner_user_id: string | null;
   mission_id: string | null;
   notes: string;
+  proposal: string;
   created_at: string;
 }
 
@@ -59,6 +60,7 @@ export interface UpdateOpportunityInput {
   notes?: string;
   stage?: Stage;
   probability?: number;
+  proposal?: string;
 }
 
 export interface ListOpportunitiesParams {
@@ -73,6 +75,29 @@ export interface ConvertOpportunityInput {
 export interface ConvertOpportunityResult {
   opportunity: Opportunity;
   mission_id: string;
+}
+
+export type ProposalStatus = "generated" | "abstained" | "unavailable";
+
+export interface ProposalCitation {
+  index: number;
+  source_uri: string;
+  source_id: string | null;
+  chunk_index: number;
+  similarity: number;
+}
+
+export interface ProposalDraft {
+  status: ProposalStatus;
+  pole: string;
+  content: string;
+  citations: ProposalCitation[];
+  applied: boolean;
+}
+
+export interface DraftProposalInput {
+  pole?: string;
+  apply?: boolean;
 }
 
 export function createOpportunity(input: CreateOpportunityInput): Promise<Opportunity> {
@@ -97,4 +122,8 @@ export function updateOpportunity(id: string, patch: UpdateOpportunityInput): Pr
 
 export function convertOpportunity(id: string, input: ConvertOpportunityInput): Promise<ConvertOpportunityResult> {
   return api<ConvertOpportunityResult>("/v1/cortex/pipeline/" + id + "/convert", { body: input });
+}
+
+export function draftProposal(id: string, body: DraftProposalInput = {}): Promise<ProposalDraft> {
+  return api<ProposalDraft>(`/v1/cortex/pipeline/${id}/proposal/draft`, { method: "POST", body });
 }
