@@ -369,6 +369,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
         app.include_router(cortex_expenses_router)
 
+        # Cockpit cabinet — staffing / plan de charge (prospectif) : affectations
+        # consultant × mission × semaine, charge vs capacité. Réservé admin.
+        from zolaos.api.v1.cortex_staffing import router as cortex_staffing_router
+
+        app.include_router(cortex_staffing_router)
+
         # Point d'entrée du tunnel inverse : les Zolabox s'y connectent (sortant).
         from zolaos.api.v1.tunnel import router as tunnel_router
 

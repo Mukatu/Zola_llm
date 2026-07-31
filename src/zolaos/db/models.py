@@ -532,6 +532,49 @@ class Expense(Base):
     )
 
 
+class Assignment(Base):
+    """Affectation — staffing / plan de charge (prospectif).
+
+    Réserve la capacité d'un consultant sur une mission pour une **semaine** donnée
+    (`week_start` = le lundi). Le pendant *prévisionnel* des feuilles de temps
+    (rétrospectives) : agrégées, les affectations donnent le **plan de charge** (charge
+    allouée vs capacité, sur-affectation, disponibilité). Une ligne par
+    (consultant, mission, semaine) — la re-planification met à jour la même ligne.
+    """
+
+    __tablename__ = "assignments"
+    __table_args__ = (
+        CheckConstraint("allocated_minutes > 0", name="ck_assignments_minutes_positive"),
+        UniqueConstraint(
+            "consultant_user_id", "mission_id", "week_start", name="uq_assignments_slot"
+        ),
+        Index("ix_assignments_consultant_week", "consultant_user_id", "week_start"),
+        Index("ix_assignments_mission", "mission_id"),
+        Index("ix_assignments_week", "week_start"),
+        {"schema": "core"},
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    consultant_user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("core.users.id", ondelete="RESTRICT"), nullable=False
+    )
+    mission_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("core.missions.id", ondelete="RESTRICT"), nullable=False
+    )
+    week_start: Mapped[datetime] = mapped_column(Date, nullable=False)  # lundi de la semaine
+    allocated_minutes: Mapped[int] = mapped_column(Integer, nullable=False)
+    note: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    created_by_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("core.users.id", ondelete="SET NULL"), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
+    )
+
+
 # =============================================================================
 # memory schema
 # =============================================================================

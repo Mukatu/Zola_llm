@@ -6,6 +6,23 @@ les messages de commit.
 
 ---
 
+## 2026-07-31 — Staffing / plan de charge (prospectif)
+
+La pièce **prévisionnelle** qui manquait : planifier qui travaille sur quoi, quand,
+pour quelle capacité. Le pendant *forward* du taux d'occupation (rétrospectif).
+
+- **Modèle** `core.assignments` (affectation consultant × mission × **semaine** = lundi,
+  capacité allouée ; unique par trio, upsert à la re-planification). Migration `0068`.
+- **Endpoints** `/v1/cortex/staffing` (cortex+admin, mutations CSRF) : upsert affectation
+  (semaine normalisée au lundi) ; liste ; suppression ; `GET /load` = **plan de charge**
+  (grille consultant × semaine : alloué vs **capacité** hebdo, taux de charge, dispo,
+  **sur-affectation**, moyenne).
+- **Moteur** `staffing/capacity.py` : lundi de la semaine, capacité (5 j × heures/jour),
+  ligne de charge déterministe (alloué/capacité, sur-affectation).
+- **Front** : écran `/cortex/staffing` (formulaire d'affectation + **grille de charge**
+  colorée par taux) + `lib/cortex-staffing.ts` + entrée Sidebar « Plan de charge ».
+- Orienté par 2 sous-agents (tests + front).
+
 ## 2026-07-31 — Notes de frais (avec les feuilles de temps)
 
 L'autre engagement du consultant sur une mission : le frais. Miroir des feuilles de
