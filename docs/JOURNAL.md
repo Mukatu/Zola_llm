@@ -6,6 +6,24 @@ les messages de commit.
 
 ---
 
+## 2026-08-01 — Documentation : guide utilisateur + doc technique IT
+
+Deux livrables de documentation, couvrant les deux faces (Zolabox + Zolacortex) :
+
+- **`docs/GUIDE_UTILISATEUR.md`** (365 l.) — tutoriel pour les équipes/utilisateurs :
+  premiers pas, assistant & modules box, conduite d'une mission de A à Z côté cortex
+  (fil rouge), les 7 assistants IA (à quoi ça sert / pas-à-pas / ce que l'IA fait et ne
+  fait pas), bonnes pratiques, FAQ, glossaire. Ancré sur le vrai code frontend (Sidebar,
+  capabilities, pages cortex). NB : le « mémo réglementaire » s'affiche « Note de
+  recherche (IA) » à l'écran — les deux formulations sont données.
+- **`docs/DOC_TECHNIQUE_IT.md`** (479 l., 4 schémas mermaid) — doc IT : architecture,
+  composants & ports (front 3000 / box 8000 / cortex **8010** / pg 5432 / redis 6379 /
+  minio 9000-9001 / LLM 11435), profils & routage, démarrage dev (`dev_up.ps1`),
+  configuration (variables), auth/sécurité (login/refresh/CSRF, RBAC, garde-fou
+  `api()` 401→me()), données & migrations, RAG, LLM souverain, surfaces IA (`run_draft`),
+  exploitation, **déploiement hybride** (bundles réels `deploy/zolabox` & `deploy/zolacortex`,
+  mTLS, entitlement RS256), licences. Vérifié contre le code (settings, main, factory…).
+
 ## 2026-07-31 — IA : synthèse d'entretien (notes brutes → compte rendu savable)
 
 7ᵉ surface IA, un **3ᵉ mode** au-delà du RAG et de l'extraction : la **structuration
