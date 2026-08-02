@@ -3,7 +3,7 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { DEFAULT_CONFIG, fetchConfig, hexToRgbTriplet, saveConfig, type TenantConfig } from "@/lib/config";
 import { makeT } from "@/lib/i18n";
-import { me, type User } from "@/lib/auth";
+import { fetchDevToken, getToken, me, redirectToLogin, type User } from "@/lib/auth";
 
 const TENANT = "local"; // box mono-client (DB persistance plus tard)
 
@@ -29,6 +29,7 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [online, setOnline] = useState(true);
   const [user, setUser] = useState<User | null>(null);
+  const [authChecked, setAuthChecked] = useState(false);
 
   useEffect(() => {
     let alive = true;
@@ -43,9 +44,25 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
     let alive = true;
     me()
       .then((u) => { if (alive) setUser(u); })
-      .catch(() => { if (alive) setUser(null); });
+      .catch(() => { if (alive) setUser(null); })
+      .finally(() => { if (alive) setAuthChecked(true); });
     return () => { alive = false; };
   }, []);
+
+  // Garde d'authentification : une fois la session vérifiée, si l'utilisateur
+  // n'est ni connecté (cookie) ni porteur d'un jeton (dev/manuel), on tente
+  // l'auto-login dev puis, à défaut, on renvoie vers /login. Empêche d'atteindre
+  // l'app sans s'authentifier (le shell s'affichait sinon avant tout appel protégé).
+  useEffect(() => {
+    if (!authChecked || user) return;
+    let alive = true;
+    (async () => {
+      if (getToken()) return; // jeton déjà présent (dev/manuel)
+      const dev = await fetchDevToken(); // auto-login dev (404 → null hors dev)
+      if (alive && !dev) redirectToLogin();
+    })();
+    return () => { alive = false; };
+  }, [authChecked, user]);
 
   useEffect(() => {
     document.documentElement.style.setProperty("--zo-primary", hexToRgbTriplet(config.branding.couleur_primaire));

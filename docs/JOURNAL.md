@@ -6,6 +6,24 @@ les messages de commit.
 
 ---
 
+## 2026-08-02 — Sécurité : auth exigée sur les lectures GED + garde de login
+
+Deux correctifs suite au constat « on accède à l'app sans se connecter, même en
+navigation privée » :
+
+- **Backend (fuite d'autorisation)** : `GET /v1/cortex/ged/{templates,deliverables}`
+  et leurs variantes `/{id}` répondaient **200 sans authentification** — seul le profil
+  `cortex` était vérifié (dépendance de router), pas l'appelant. Ajout de
+  `Depends(authenticate)` sur les 4 lectures. Audit des autres GET cortex : aucune autre
+  fuite. Test de régression `tests/test_cortex_ged_authz.py` (401 sans jeton, paramétré).
+- **Frontend (garde manquante)** : le shell + l'accueil s'affichaient pour un visiteur
+  non authentifié (l'accueil ne fait aucun appel protégé, donc aucune redirection).
+  Garde ajoutée dans `ConfigProvider` : une fois la session vérifiée (`me()`), si ni
+  cookie ni jeton, on tente l'auto-login dev puis, à défaut, on renvoie vers `/login`
+  (compatible mode `-Dev` : le jeton dev court-circuite la redirection).
+- Vérifié : lectures GED → 401 sans auth / 200 avec cookies ; `test_cortex_ged` 6/6 ;
+  front lint + tsc + 79 vitest verts.
+
 ## 2026-08-01 — Documentation : guide utilisateur + doc technique IT
 
 Deux livrables de documentation, couvrant les deux faces (Zolabox + Zolacortex) :

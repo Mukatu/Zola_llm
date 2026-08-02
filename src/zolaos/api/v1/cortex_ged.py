@@ -115,6 +115,7 @@ async def create_template(
 async def list_templates(
     offre: str | None = Query(default=None),
     active_only: bool = Query(default=True),
+    _principal: Principal = Depends(authenticate),
     session: AsyncSession = Depends(get_session),
 ) -> list[TemplateOut]:
     stmt = select(DeliverableTemplate).order_by(DeliverableTemplate.name).limit(500)
@@ -129,6 +130,7 @@ async def list_templates(
 @router.get("/templates/{template_id}", response_model=TemplateOut)
 async def get_template(
     template_id: uuid.UUID,
+    _principal: Principal = Depends(authenticate),
     session: AsyncSession = Depends(get_session),
 ) -> TemplateOut:
     tpl = await session.get(DeliverableTemplate, template_id)
@@ -247,6 +249,7 @@ async def list_deliverables(
     mission_id: uuid.UUID | None = Query(default=None),
     status_filter: str | None = Query(default=None, alias="status"),
     limit: int = Query(default=200, ge=1, le=1000),
+    _principal: Principal = Depends(authenticate),
     session: AsyncSession = Depends(get_session),
 ) -> list[DeliverableBrief]:
     stmt = select(Deliverable).order_by(Deliverable.updated_at.desc()).limit(limit)
@@ -261,6 +264,7 @@ async def list_deliverables(
 @router.get("/deliverables/{deliverable_id}", response_model=DeliverableOut)
 async def get_deliverable(
     deliverable_id: uuid.UUID,
+    _principal: Principal = Depends(authenticate),
     session: AsyncSession = Depends(get_session),
 ) -> DeliverableOut:
     d = await session.get(Deliverable, deliverable_id)
