@@ -11,7 +11,9 @@
 set -eu
 cd "$(dirname "$0")"
 
-getenv() { grep "^$1=" .env 2>/dev/null | head -1 | cut -d= -f2- || true; }
+# Lit une variable du .env. Retire un éventuel commentaire inline (« valeur # note »)
+# et les espaces de fin : Docker Compose ne les retire pas, la détection doit être sûre.
+getenv() { grep "^$1=" .env 2>/dev/null | head -1 | cut -d= -f2- | sed 's/[[:space:]][[:space:]]*#.*$//;s/[[:space:]]*$//' || true; }
 
 # 1) .env
 if [ ! -f .env ]; then
@@ -31,12 +33,21 @@ done
 for v in JWT_SECRET API_KEY_PEPPER ENCRYPTION_KEY_AUDIT \
   POSTGRES_PASSWORD_MIGRATIONS POSTGRES_PASSWORD_APP POSTGRES_PASSWORD_HEALTH \
   POSTGRES_PASSWORD_LEGAL POSTGRES_PASSWORD_ERP POSTGRES_PASSWORD_CODE \
-  POSTGRES_PASSWORD_AUDIT_W POSTGRES_PASSWORD_AUDIT_R REDIS_PASSWORD MINIO_ROOT_PASSWORD; do
+  POSTGRES_PASSWORD_AUDIT_W POSTGRES_PASSWORD_AUDIT_R REDIS_PASSWORD MINIO_ROOT_PASSWORD \
+  GF_ADMIN_PASSWORD; do
   if [ -z "$(getenv "$v")" ]; then
     sed -i "s|^$v=.*|$v=$(openssl rand -hex 32)|" .env
     echo "  secret généré : $v"
   fi
 done
+
+# 3b) mTLS : avertir si le certificat client de la box n'est pas déposé (couche
+# de transport du tunnel). Non bloquant — un pilote peut différer le mTLS.
+CERT_PATH="$(getenv TUNNEL_CLIENT_CERT_PATH)"
+if [ -z "$CERT_PATH" ] || [ ! -f "./certs/$(basename "$CERT_PATH" 2>/dev/null)" ]; then
+  echo "  ⚠ mTLS : aucun certificat client déposé (./certs/box.crt) — le tunnel"
+  echo "    fonctionnera sans la couche mTLS de transport. Voir README « Provisionner »."
+fi
 
 DOMAIN="$(getenv ZOLABOX_DOMAIN)"
 MODEL="$(getenv LLM_MODEL_BRIGADE)"; MODEL="${MODEL:-llama3:8b}"

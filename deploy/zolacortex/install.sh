@@ -7,7 +7,9 @@
 set -eu
 cd "$(dirname "$0")"
 
-getenv() { grep "^$1=" .env 2>/dev/null | head -1 | cut -d= -f2- || true; }
+# Lit une variable du .env. Retire un éventuel commentaire inline (« valeur # note »)
+# et les espaces de fin : Docker Compose ne les retire pas, la détection doit être sûre.
+getenv() { grep "^$1=" .env 2>/dev/null | head -1 | cut -d= -f2- | sed 's/[[:space:]][[:space:]]*#.*$//;s/[[:space:]]*$//' || true; }
 
 if [ ! -f .env ]; then
   cp .env.zolacortex.example .env
@@ -21,7 +23,8 @@ done
 for v in JWT_SECRET API_KEY_PEPPER ENCRYPTION_KEY_AUDIT \
   POSTGRES_PASSWORD_MIGRATIONS POSTGRES_PASSWORD_APP POSTGRES_PASSWORD_HEALTH \
   POSTGRES_PASSWORD_LEGAL POSTGRES_PASSWORD_ERP POSTGRES_PASSWORD_CODE \
-  POSTGRES_PASSWORD_AUDIT_W POSTGRES_PASSWORD_AUDIT_R REDIS_PASSWORD MINIO_ROOT_PASSWORD; do
+  POSTGRES_PASSWORD_AUDIT_W POSTGRES_PASSWORD_AUDIT_R REDIS_PASSWORD MINIO_ROOT_PASSWORD \
+  GF_ADMIN_PASSWORD; do
   [ -z "$(getenv "$v")" ] && sed -i "s|^$v=.*|$v=$(openssl rand -hex 32)|" .env && echo "  secret généré : $v" || true
 done
 

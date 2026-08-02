@@ -227,21 +227,16 @@ clair) :
 | Clé privée du certificat | `pki/certs/box_<tenant_id>.key` | À copier sur la box (chemin référencé par `TUNNEL_CLIENT_KEY_PATH`), permissions restrictives |
 | URL du tunnel | `wss://<CORTEX_TUNNEL_DOMAIN>/v1/tunnel/connect` | `.env` de la box (`TUNNEL_CORTEX_URL`) |
 
-> **Incohérence constatée à corriger avant un vrai déploiement** — `TUNNEL_CLIENT_CERT_PATH`
-  et `TUNNEL_CLIENT_KEY_PATH` sont des réglages réels côté application
-  (`src/zolaos/core/settings.py`, utilisés par `src/zolaos/tunnel/agent.py` pour
-  monter le mTLS client), et le README de `deploy/zolacortex` demande explicitement
-  de les renseigner côté box. **Mais** ils sont absents de
-  `deploy/zolabox/.env.zolabox.example`, et `deploy/zolabox/docker-compose.yml` ne
-  monte **aucun volume** pour les fichiers `.crt`/`.key` dans le conteneur `app`. Pour
-  activer le mTLS côté box en l'état actuel des bundles, il faut donc **manuellement** :
-  (1) ajouter `TUNNEL_CLIENT_CERT_PATH=` et `TUNNEL_CLIENT_KEY_PATH=` au `.env` de la
-  box avec un chemin **interne au conteneur** (ex. `/certs/box.crt` /
-  `/certs/box.key`), et (2) ajouter un volume correspondant sur le service `app` du
-  `docker-compose.yml` de la box (ex. `- ./certs:/certs:ro`) avant `docker compose up -d`.
-  Sans cette étape manuelle, le tunnel fonctionne uniquement avec la couche credential
-  (WSS sans certificat client), ce qui n'est **pas** la posture mTLS deux couches
-  visée en production — traiter cet écart avant le premier déploiement client réel.
+> **mTLS côté box — désormais câblé (corrigé).** `TUNNEL_CLIENT_CERT_PATH` et
+  `TUNNEL_CLIENT_KEY_PATH` sont maintenant présents dans
+  `deploy/zolabox/.env.zolabox.example` (vides par défaut), et le service `app` du
+  `docker-compose.yml` de la box monte le volume `./certs:/certs:ro`. Pour activer la
+  couche mTLS de transport : copier `box_<tenant_id>.crt`/`.key` (reçus au provisioning)
+  dans `./certs/box.crt` et `./certs/box.key` sur le serveur client, puis renseigner
+  `TUNNEL_CLIENT_CERT_PATH=/certs/box.crt` et `TUNNEL_CLIENT_KEY_PATH=/certs/box.key`
+  dans le `.env`. Laissés vides, le tunnel fonctionne avec la seule couche credential
+  (WSS sans certificat client) et `install.sh` émet un avertissement — acceptable en
+  pilote, **à activer avant la mise en production**.
 
 ## 5. Étape C — Déployer une Zolabox (serveur du client)
 
@@ -268,17 +263,14 @@ cp .env.zolabox.example .env
 | `AUTH_COOKIE_SECURE` | `true` | Cookies `Secure` |
 | `CORS_ORIGINS` | `https://box.client.local` | Origine autorisée |
 
-> **Point critique — valeur par défaut trompeuse du fichier d'exemple.**
-  `deploy/zolabox/.env.zolabox.example` fixe `TUNNEL_CORTEX_URL` par défaut à
-  `wss://cortex.polaris.cg/v1/tunnel/connect`, c'est-à-dire le domaine du
-  **cockpit** (`CORTEX_DOMAIN`). Or côté cortex, c'est bien le domaine **tunnel**
-  (`CORTEX_TUNNEL_DOMAIN`, ex. `tunnel.polaris.cg`) qui porte le bloc `client_auth`
-  mTLS dans le `Caddyfile` cortex — le domaine cockpit ne l'a pas. **Renseigner
-  systématiquement `TUNNEL_CORTEX_URL` avec la valeur réelle de
-  `CORTEX_TUNNEL_DOMAIN`** du cortex ciblé, pas la valeur par défaut du fichier
-  d'exemple.
+> **`TUNNEL_CORTEX_URL` — défaut corrigé.** Le fichier d'exemple pointe désormais
+  par défaut sur le domaine **tunnel** (`wss://tunnel.polaris.cg/v1/tunnel/connect`),
+  qui porte le bloc `client_auth` mTLS dans le `Caddyfile` cortex — et non plus le
+  domaine cockpit. **Remplacer `tunnel.polaris.cg` par la valeur réelle de
+  `CORTEX_TUNNEL_DOMAIN`** du cortex ciblé ; ne jamais viser le domaine cockpit
+  (`CORTEX_DOMAIN`), qui n'a pas la terminaison mTLS.
 
-Si le mTLS client est activé (voir l'écart signalé en §4.3), ajouter aussi :
+Pour activer le mTLS client (recommandé en production), ajouter aussi :
 
 ```sh
 TUNNEL_CLIENT_CERT_PATH=/certs/box.crt
@@ -522,11 +514,12 @@ docker compose --profile monitoring up -d prometheus grafana
   Alertmanager (SMTP/Slack) n'est pas fourni — à brancher séparément selon les
   préférences Polaris.
 
-> **Point critique** — `GF_ADMIN_PASSWORD` n'apparaît dans **aucun** des deux
-  `.env.*.example` : le compose retombe sur `admin` par défaut
-  (`GF_SECURITY_ADMIN_PASSWORD: ${GF_ADMIN_PASSWORD:-admin}`) si la variable n'est
-  pas définie. Avant d'activer le profil `monitoring` en production, ajouter
-  explicitement `GF_ADMIN_PASSWORD=<secret fort>` au `.env` du bundle concerné.
+> **`GF_ADMIN_PASSWORD` — corrigé.** La variable est désormais présente dans les
+  deux `.env.*.example` (marquée `AUTO`) et générée par `install.sh` : plus de repli
+  silencieux sur `admin`. Le compose l'utilise toujours via
+  `GF_SECURITY_ADMIN_PASSWORD: ${GF_ADMIN_PASSWORD:-admin}` ; le `.env` fournit
+  maintenant un secret fort. (Personnalisable manuellement avant le premier `--profile
+  monitoring up` si souhaité.)
 
 ### 8.5 Rotation / révocation d'une box
 
@@ -582,13 +575,13 @@ docker compose up -d app
   (jamais livrés sur une box, cf. Zero Trust ci-dessus) ; modèle **Llama-3** conservé
   avec attribution. L'entitlement commercial par module (tier + options à la carte,
   jeton **RS256** signé uniquement côté Polaris) est décrit intégralement dans
-  `docs/LICENSING.md` — non abordé par les scripts d'installation eux-mêmes
-  (`ENTITLEMENT_ENFORCED`, `ENTITLEMENT_PUBLIC_KEY`, `ENTITLEMENT_LICENSE_JWT` /
-  `ENTITLEMENT_LICENSE_FILE`, `ENTITLEMENT_REFRESH_SECONDS` sont des réglages réels
-  de `src/zolaos/core/settings.py`, **absents** de
-  `deploy/zolabox/.env.zolabox.example` — à ajouter manuellement si l'entitlement
-  par module doit être appliqué sur cette box, en suivant le mode opératoire de
-  `docs/LICENSING.md`).
+  `docs/LICENSING.md`. Les réglages d'application (`ENTITLEMENT_ENFORCED`,
+  `ENTITLEMENT_PUBLIC_KEY`, `ENTITLEMENT_LICENSE_JWT` / `ENTITLEMENT_LICENSE_FILE`,
+  `ENTITLEMENT_REFRESH_SECONDS`) figurent désormais dans
+  `deploy/zolabox/.env.zolabox.example` (désactivé par défaut → tous les modules
+  montés). Pour appliquer l'entitlement par module sur une box : passer
+  `ENTITLEMENT_ENFORCED=true` et fournir la clé publique Polaris + une licence signée,
+  en suivant le mode opératoire de `docs/LICENSING.md`.
 
 ## 10. Checklists go-live
 
@@ -613,11 +606,11 @@ docker compose up -d app
       transférés de façon sécurisée.
 - [ ] `.env` créé depuis `.env.zolabox.example` ; `ZOLAOS_BOX_TENANT_ID`,
       `ZOLAOS_BOX_CREDENTIAL`, `ZOLABOX_DOMAIN` renseignés.
-- [ ] `TUNNEL_CORTEX_URL` pointe bien sur `CORTEX_TUNNEL_DOMAIN` (**pas** la valeur
-      par défaut du fichier d'exemple, cf. point critique §5.1).
-- [ ] Si mTLS client activé : `TUNNEL_CLIENT_CERT_PATH`/`TUNNEL_CLIENT_KEY_PATH`
-      ajoutés au `.env` **et** volume correspondant ajouté au `docker-compose.yml`
-      (écart signalé en §4.3 — pas fourni par défaut).
+- [ ] `TUNNEL_CORTEX_URL` pointe bien sur le `CORTEX_TUNNEL_DOMAIN` réel du cortex
+      ciblé (le défaut `tunnel.polaris.cg` est un exemple à adapter).
+- [ ] mTLS client (recommandé) : `box.crt`/`box.key` déposés dans `./certs/`,
+      `TUNNEL_CLIENT_CERT_PATH=/certs/box.crt` et `TUNNEL_CLIENT_KEY_PATH=/certs/box.key`
+      renseignés (le volume `./certs:/certs:ro` est déjà câblé dans le compose).
 - [ ] `./install.sh admin@le-client.cg` exécuté sans erreur ; mot de passe admin
       noté.
 - [ ] `./seed_corpus.sh corpus_public.dump` exécuté.

@@ -6,6 +6,23 @@ les messages de commit.
 
 ---
 
+## 2026-08-02 — Prod : correction des écarts des bundles deploy/ (+ 5ᵉ, systémique)
+
+Correction des 4 écarts signalés par le runbook, **plus un 5ᵉ découvert au test** :
+- **#1 mTLS box câblé** : `TUNNEL_CLIENT_CERT_PATH/KEY` dans le `.env` box + volume
+  `./certs:/certs:ro` sur le service `app` ; `install.sh` avertit si le cert manque.
+- **#2** `TUNNEL_CORTEX_URL` par défaut → domaine **tunnel** (`tunnel.polaris.cg`).
+- **#3** `GF_ADMIN_PASSWORD` ajouté aux deux `.env` + généré (AUTO) par les `install.sh`.
+- **#4** `ENTITLEMENT_*` ajoutés au `.env` box (désactivé par défaut).
+- **#5 (systémique, critique)** : les commentaires **inline** (`KEY=valeur # note`)
+  étaient conservés comme **VALEUR** par Docker Compose (`env_file`) ET par le `getenv`
+  de `install.sh` (`cut -d=`) — prouvé au test : `FOO=  # x` → valeur `# x`. Conséquence :
+  secrets AUTO **jamais générés** (getenv les croyait remplis), domaines/credentials
+  pollués par le commentaire. **Purge de tous les commentaires inline** des deux
+  `.env.*.example` (notes en lignes dédiées) + **durcissement de `getenv`** (strip du
+  commentaire + espaces). C'est ce qui empêchait tout déploiement réel (bundles
+  « validés config only » jusqu'ici). Cf. `docs/DEPLOIEMENT_PRODUCTION.md`.
+
 ## 2026-08-02 — Doc : runbook de déploiement production (cabinet + client)
 
 `docs/DEPLOIEMENT_PRODUCTION.md` (630 l., schéma mermaid) — tutoriel pas-à-pas

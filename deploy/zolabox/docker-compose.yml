@@ -132,6 +132,11 @@ services:
       LLM_BACKEND: llamacpp
       LLM_HOST_ROUTER: http://ollama:11434
       LLM_HOST_CORE: http://ollama:11434
+    volumes:
+      # Certificat CLIENT mTLS de la box (box.crt/box.key émis par la CA Polaris).
+      # Chemins pointés par TUNNEL_CLIENT_CERT_PATH / TUNNEL_CLIENT_KEY_PATH (.env).
+      # Le dossier hôte ./certs est créé vide si absent (tunnel sans cert alors).
+      - ./certs:/certs:ro
     depends_on:
       postgres: {condition: service_healthy}
       redis: {condition: service_healthy}
