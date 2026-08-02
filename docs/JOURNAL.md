@@ -6,6 +6,22 @@ les messages de commit.
 
 ---
 
+## 2026-08-02 — Doc : runbook de déploiement production (cabinet + client)
+
+`docs/DEPLOIEMENT_PRODUCTION.md` (630 l., schéma mermaid) — tutoriel pas-à-pas
+ordonné, ancré sur le tooling réel `deploy/` : Étape A Cortex (Polaris) → Étape B
+provisionnement client (credential + cert mTLS `issue_box_cert.sh`) → Étape C Zolabox
+(sur site, tunnel sortant) + option VM/appliance, vérification bout en bout, exploitation
+(backup/update/supervision/révocation), sécurité, checklists go-live.
+
+**4 écarts réels détectés `deploy/` ↔ modèle mTLS** (documentés, à corriger avant pilote) :
+1. Cert client mTLS **non câblé côté box** : `TUNNEL_CLIENT_CERT_PATH/KEY` absents de
+   `deploy/zolabox/.env.zolabox.example` + aucun volume `.crt/.key` dans le compose box.
+2. `TUNNEL_CORTEX_URL` par défaut → `cortex.polaris.cg` (cockpit) au lieu du domaine
+   **tunnel** (`CORTEX_TUNNEL_DOMAIN`, porteur du `client_auth` mTLS dans le Caddyfile).
+3. `GF_ADMIN_PASSWORD` absent des `.env.*.example` → repli silencieux sur `admin`.
+4. Variables d'entitlement (`ENTITLEMENT_*`) non référencées dans le `.env`/`install.sh` box.
+
 ## 2026-08-02 — Sécurité : auth exigée sur les lectures GED + garde de login
 
 Deux correctifs suite au constat « on accède à l'app sans se connecter, même en
