@@ -24,7 +24,8 @@ param(
   [string]$BgeM3Path = "C:\Users\duqat\bge-m3",
   [int]$ApiPort = 8000,
   [int]$CortexPort = 8010,
-  [int]$FrontendPort = 3000,
+  [int]$CortexFrontendPort = 3000,
+  [int]$BoxFrontendPort = 3001,
   [switch]$Dev
 )
 
@@ -127,16 +128,21 @@ if ($boxTenant -and $boxCred) {
   Warn "Semence incomplète — tunnel non câblé."
 }
 
-# --- 7. Frontend (login réel) ---------------------------------------------
-$feBusy = $false
-try { $null = Invoke-WebRequest "http://localhost:$FrontendPort" -TimeoutSec 2 -UseBasicParsing; $feBusy = $true } catch {}
-if ($feBusy) { Ok "Frontend déjà en marche." }
-else {
-  Info "Démarrage du frontend (nouvelle fenêtre)…"
-  $feCmd = "`$env:NEXT_PUBLIC_API_BASE='http://localhost:$ApiPort'; npm run dev"
-  Start-Process pwsh -WorkingDirectory (Join-Path $root "frontend") -ArgumentList '-NoExit', '-Command', $feCmd
-  Ok "Frontend en compilation → http://localhost:$FrontendPort"
+# --- 7. Frontends : DEUX apps isolées (Zero Trust) ------------------------
+# Box (client) et Cortex (cabinet) sont deux applications distinctes : chacune
+# a sa surface (NEXT_PUBLIC_SURFACE), sa base d'API et son propre cache de build
+# (NEXT_DIST_DIR) pour tourner en parallèle sans se marcher dessus.
+function Start-FrontendApp($port, $surface, $apiBase, $distDir, $label) {
+  $busy = $false
+  try { $null = Invoke-WebRequest "http://localhost:$port" -TimeoutSec 2 -UseBasicParsing; $busy = $true } catch {}
+  if ($busy) { Ok "$label déjà en marche (:$port)."; return }
+  Info "Démarrage du frontend $label (:$port, nouvelle fenêtre)…"
+  $cmd = "`$env:NEXT_PUBLIC_SURFACE='$surface'; `$env:NEXT_PUBLIC_API_BASE='$apiBase'; `$env:NEXT_DIST_DIR='$distDir'; npm run dev -- -p $port"
+  Start-Process pwsh -WorkingDirectory (Join-Path $root "frontend") -ArgumentList '-NoExit', '-Command', $cmd
+  Ok "$label en compilation → http://localhost:$port"
 }
+Start-FrontendApp $CortexFrontendPort "cortex" "http://localhost:$CortexPort" ".next-cortex" "Zolacortex (cabinet)"
+Start-FrontendApp $BoxFrontendPort    "box"    "http://localhost:$ApiPort"    ".next-box"    "Zolabox (client)"
 
 # --- 8. LLM ---------------------------------------------------------------
 try { $null = Invoke-WebRequest "http://localhost:11435/v1/models" -TimeoutSec 2 -UseBasicParsing; Ok "LLM détecté (:11435)." }
@@ -145,11 +151,11 @@ catch { Warn "LLM absent (:11435) — l'assistant et les audits ne répondront p
 # --- 9. Récapitulatif -----------------------------------------------------
 Write-Host ""
 Write-Host "──────────────────────────────────────────────" -ForegroundColor DarkGray
-Ok "Atelier ZolaOS hybride prêt (mode $appEnv)."
-Write-Host "  Box (client)   : http://localhost:$ApiPort" -ForegroundColor White
-Write-Host "  Cortex (cabinet): http://localhost:$CortexPort" -ForegroundColor White
-Write-Host "  Frontend       : http://localhost:$FrontendPort" -ForegroundColor White
+Ok "Atelier ZolaOS hybride prêt (mode $appEnv) — deux apps isolées."
+Write-Host "  App Box (client)    : http://localhost:$BoxFrontendPort   → API :$ApiPort" -ForegroundColor White
+Write-Host "  App Cortex (cabinet): http://localhost:$CortexFrontendPort   → API :$CortexPort" -ForegroundColor White
+Write-Host "  APIs                : box :$ApiPort · cortex :$CortexPort (profils séparés)" -ForegroundColor DarkGray
 if (-not $Dev) {
-  Write-Host "  Login          : admin@polaris.cg / Dev-Local-2026!  (staging = login réel)" -ForegroundColor White
+  Write-Host "  Login               : admin@polaris.cg / Dev-Local-2026!  (staging = login réel)" -ForegroundColor White
 }
 Write-Host "──────────────────────────────────────────────" -ForegroundColor DarkGray
